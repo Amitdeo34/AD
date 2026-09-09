@@ -1,0 +1,5 @@
+# Not needed by the web deployment
+mobile/
+test/
+.data/
+node_modules/

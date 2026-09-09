@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Easy Hotel Booking</string>
+    <string name="title_activity_main">Easy Hotel Booking</string>
+    <string name="package_name">in.easyhotelbooking.app</string>
+    <string name="custom_url_scheme">in.easyhotelbooking.app</string>
+</resources>

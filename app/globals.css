@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ theme */
+@theme {
+  --color-forest-50: #eef5f1;
+  --color-forest-100: #d6e7dd;
+  --color-forest-200: #a9cbb9;
+  --color-forest-400: #4a8f6c;
+  --color-forest-600: #126a41;
+  --color-forest-700: #0f5132;
+  --color-forest-800: #0a3a24;
+  --color-forest-900: #072b1b;
+
+  --color-saffron-100: #fdf1de;
+  --color-saffron-200: #f8ddb4;
+  --color-saffron-400: #e8b56d;
+  --color-saffron-500: #e0a458;
+  --color-saffron-600: #c4832f;
+  --color-saffron-700: #98631f;
+
+  --color-sand-50: #fbf9f4;
+  --color-sand-100: #f4f0e6;
+  --color-sand-200: #e6e1d7;
+  --color-sand-300: #d5cec0;
+
+  --color-ink-900: #1c1a17;
+  --color-ink-700: #3d3931;
+  --color-ink-500: #5b5750;
+  --color-ink-400: #8b857c;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", sans-serif;
+}
+
+/* ------------------------------------------------------------------- base */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-sand-50);
+  color: var(--color-ink-900);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+/* Respect the notch and the gesture bar inside the Android shell. */
+.safe-top { padding-top: env(safe-area-inset-top, 0px); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
+
+/* Inputs inherit the type scale; iOS needs 16px to avoid zooming on focus. */
+input, select, textarea, button { font: inherit; }
+input[type="date"] { min-height: 2.75rem; }
+
+.shimmer {
+  background: linear-gradient(90deg, var(--color-sand-100) 25%, #fff 50%, var(--color-sand-100) 75%);
+  background-size: 300% 100%;
+  animation: shimmer 1.3s infinite;
+}
+@keyframes shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+/* Hide scrollbars on the horizontal chip rails without losing the scroll. */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

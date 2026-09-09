@@ -1,0 +1,25 @@
+{
+  "name": "@atithi/mobile",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Android shell for the Easy Hotel Booking site",
+  "scripts": {
+    "config": "node scripts/make-capacitor-config.mjs",
+    "add": "node scripts/make-capacitor-config.mjs && cap add android && node scripts/configure-android.mjs && node scripts/generate-icons.mjs",
+    "configure": "node scripts/configure-android.mjs",
+    "icons": "node scripts/generate-icons.mjs",
+    "sync": "node scripts/make-capacitor-config.mjs && cap sync android",
+    "assemble:debug": "cd android && ./gradlew assembleDebug",
+    "bundle:release": "cd android && ./gradlew bundleRelease",
+    "open": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.0.1",
+    "@capacitor/core": "^7.0.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.0.1",
+    "sharp": "^0.35.4"
+  }
+}

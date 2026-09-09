@@ -1,14 +1,31 @@
-# Gradle files
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Production data written at runtime (accounts, bookings, payments, reviews)
+.data/
+
+# Environment
+.env
+.env.local
+.env*.local
+
+# Logs and OS files
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Android / Gradle
 .gradle/
 build/
-
-# Local configuration file (sdk path, etc)
 local.properties
-
-# Log/OS Files
-*.log
-
-# Android Studio generated files and folders
 captures/
 .externalNativeBuild/
 .cxx/
@@ -16,19 +33,17 @@ captures/
 *.apk
 output-metadata.json
 
-# IntelliJ
+# Android release signing material — never commit these
+mobile/android/keystore/
+mobile/android/keystore.properties
+
+# Capacitor copies the shell assets in on sync
+mobile/android/app/src/main/assets/public/
+
+# IDEs
 *.iml
 .idea/
-misc.xml
-deploymentTargetDropDown.xml
-render.experimental.xml
+.vscode/
 
-# Keystore files
-*.jks
-*.keystore
-
-# Google Services (e.g. APIs or Firebase)
-google-services.json
-
-# Android Profiling
-*.hprof
+# Vercel
+.vercel

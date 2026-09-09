@@ -1,0 +1,13 @@
+{
+  "appId": "in.easyhotelbooking.app",
+  "appName": "Easy Hotel Booking",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#0f5132"
+  },
+  "server": {
+    "androidScheme": "https",
+    "errorPath": "error.html"
+  }
+}

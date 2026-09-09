@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Easy Hotel Booking</title>
+    <style>
+      :root { color-scheme: light; }
+      body {
+        margin: 0; min-height: 100dvh; display: grid; place-items: center; text-align: center;
+        background: #0f5132; color: #f7f3e8; padding: 2rem 1.5rem;
+        font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      h1 { font-size: 1.3rem; margin: 1.25rem 0 .5rem; }
+      p { color: rgba(247, 243, 232, .8); max-width: 30ch; margin: 0 auto 1.5rem; }
+      button {
+        font: inherit; font-weight: 700; border: 0; border-radius: .6rem;
+        background: #e0a458; color: #0a3a24; padding: .8rem 1.6rem;
+      }
+      .mark {
+        width: 64px; height: 64px; border-radius: 18px; background: #e0a458; color: #0a3a24;
+        display: grid; place-items: center; font-size: 2rem; font-weight: 800; margin: 0 auto;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mark" aria-hidden="true">E</div>
+      <h1>Easy Hotel Booking</h1>
+      <p id="message">Connecting…</p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+    <script>
+      // The shell loads the live site; this page is what the guest sees when the
+      // device is offline or the site cannot be reached.
+      if (!navigator.onLine) {
+        document.getElementById('message').textContent =
+          'You are offline. Connect to the internet to search and book stays.';
+      } else {
+        document.getElementById('message').textContent =
+          'We could not reach Easy Hotel Booking. Check your connection and try again.';
+      }
+      window.addEventListener('online', () => location.reload());
+    </script>
+  </body>
+</html>

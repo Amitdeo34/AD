@@ -1,0 +1,2043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drawing Reader &amp; 4D Schedule Developer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#0d1117; --bg2:#151b23; --bg3:#1c242e; --line:#2a3441; --line2:#3a4654;
+  --tx:#e6edf3; --tx2:#9fb0c3; --tx3:#6b7c91;
+  --ac:#4f9cf9; --ac2:#1f6feb; --ok:#3fb950; --warn:#d29922; --bad:#f85149; --pur:#a371f7;
+  --r:8px; --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--tx);font:13px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--line2);border-radius:6px}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ---------- layout ---------- */
+#app{display:flex;flex-direction:column;height:100vh}
+header{display:flex;align-items:center;gap:12px;padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--line);flex:0 0 auto}
+header .logo{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:.2px}
+header .logo span.mark{width:26px;height:26px;border-radius:6px;background:linear-gradient(135deg,var(--ac),var(--pur));display:grid;place-items:center;font-size:14px}
+header .sub{color:var(--tx3);font-size:11px;font-weight:400}
+header .spacer{flex:1}
+header input.pname{background:var(--bg3);border:1px solid var(--line);border-radius:6px;padding:5px 9px;width:230px}
+.btn{background:var(--bg3);border:1px solid var(--line2);border-radius:6px;padding:6px 11px;cursor:pointer;white-space:nowrap;transition:.12s}
+.btn:hover{background:var(--line);border-color:var(--ac)}
+.btn.pri{background:var(--ac2);border-color:var(--ac2);color:#fff;font-weight:600}
+.btn.pri:hover{background:var(--ac)}
+.btn.ok{background:#1a7f37;border-color:#1a7f37;color:#fff}
+.btn.sm{padding:3px 8px;font-size:12px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+main{flex:1;display:flex;min-height:0;overflow:hidden}
+.tw,.gantt,.kpis{max-width:100%}
+nav{width:212px;flex:0 0 auto;background:var(--bg2);border-right:1px solid var(--line);padding:10px 8px;overflow:auto}
+nav .step{display:flex;gap:9px;align-items:flex-start;padding:9px 10px;border-radius:var(--r);cursor:pointer;margin-bottom:3px;border:1px solid transparent}
+nav .step:hover{background:var(--bg3)}
+nav .step.on{background:var(--bg3);border-color:var(--ac);}
+nav .step .n{width:20px;height:20px;flex:0 0 auto;border-radius:50%;background:var(--line);display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--tx2)}
+nav .step.on .n{background:var(--ac);color:#04121f}
+nav .step .t{font-weight:600;font-size:12.5px}
+nav .step .d{font-size:10.5px;color:var(--tx3);line-height:1.35}
+nav .gtitle{font-size:10px;text-transform:uppercase;letter-spacing:.9px;color:var(--tx3);padding:12px 10px 5px}
+section.page{flex:1;min-width:0;overflow:auto;padding:16px 18px 60px}
+section.page.hide{display:none}
+h2.ph{margin:0 0 3px;font-size:17px}
+p.pd{margin:0 0 14px;color:var(--tx2);font-size:12.5px}
+p.pd b{color:var(--tx)}
+.hi{color:var(--warn);font-size:11.5px}
+
+/* ---------- cards / grid ---------- */
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:13px 14px;margin-bottom:13px}
+.card>h3{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.7px;color:var(--tx2);display:flex;align-items:center;gap:8px}
+.card>h3 .badge{margin-left:auto}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.grid{display:grid;gap:10px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+.f{display:flex;flex-direction:column;gap:4px;min-width:110px}
+.f label{font-size:11px;color:var(--tx2)}
+.f input,.f select,.f textarea{background:var(--bg3);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%}
+.f input:focus,.f select:focus{outline:none;border-color:var(--ac)}
+.badge{display:inline-block;padding:1px 7px;border-radius:20px;font-size:10.5px;font-weight:600;background:var(--bg3);border:1px solid var(--line2);color:var(--tx2)}
+.badge.ok{background:rgba(63,185,80,.15);border-color:#2d6a35;color:#6fdc82}
+.badge.warn{background:rgba(210,153,34,.15);border-color:#7a5b17;color:#e3b341}
+.badge.bad{background:rgba(248,81,73,.15);border-color:#8b3029;color:#ff8078}
+.badge.ac{background:rgba(79,156,249,.15);border-color:#245a94;color:#79b8ff}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:10px;margin-bottom:13px}
+.kpi{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:11px 13px}
+.kpi .v{font-size:21px;font-weight:700;letter-spacing:-.4px}
+.kpi .l{font-size:10.5px;color:var(--tx3);text-transform:uppercase;letter-spacing:.6px}
+.drop{border:1.5px dashed var(--line2);border-radius:10px;padding:26px;text-align:center;color:var(--tx2);cursor:pointer;transition:.15s;background:var(--bg2)}
+.drop:hover,.drop.over{border-color:var(--ac);background:rgba(79,156,249,.07);color:var(--tx)}
+.drop b{display:block;font-size:14px;color:var(--tx);margin-bottom:3px}
+.drop small{color:var(--tx3)}
+
+/* ---------- tables ---------- */
+.tw{overflow:auto;max-height:62vh;border:1px solid var(--line);border-radius:8px;background:var(--bg2)}
+table{border-collapse:collapse;width:100%;font-size:12px}
+th{position:sticky;top:0;background:var(--bg3);text-align:left;padding:7px 9px;border-bottom:1px solid var(--line2);font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--tx2);white-space:nowrap;z-index:2}
+td{padding:5px 9px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
+tr:hover td{background:var(--bg3)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono)}
+td input,td select{background:transparent;border:1px solid transparent;border-radius:4px;padding:2px 4px;width:100%;min-width:52px}
+td input:hover,td select:hover{border-color:var(--line2)}
+td input:focus,td select:focus{background:var(--bg3);border-color:var(--ac);outline:none}
+td.crit{color:#ff8078;font-weight:600}
+.empty{padding:26px;text-align:center;color:var(--tx3)}
+.tag{display:inline-block;padding:0 6px;border-radius:4px;font-size:10.5px;background:var(--bg3);border:1px solid var(--line2);margin-right:3px;font-family:var(--mono)}
+
+/* ---------- viewer ---------- */
+.viewer{display:grid;grid-template-columns:1fr 290px;gap:12px;min-height:430px}
+.canvwrap{position:relative;background:#0a0e14;border:1px solid var(--line);border-radius:9px;overflow:hidden;min-height:430px}
+.canvwrap canvas{display:block;width:100%;height:100%}
+.vtools{position:absolute;left:9px;top:9px;display:flex;gap:5px;flex-wrap:wrap;z-index:5}
+.vtools .btn{background:rgba(21,27,35,.92);backdrop-filter:blur(6px)}
+.vinfo{position:absolute;right:9px;bottom:9px;background:rgba(21,27,35,.92);border:1px solid var(--line);border-radius:6px;padding:5px 9px;font-family:var(--mono);font-size:11px;color:var(--tx2)}
+.side{background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:11px;overflow:auto;max-height:72vh}
+.side h4{margin:0 0 7px;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--tx3)}
+.lyr{display:flex;align-items:center;gap:7px;padding:3px 2px;font-size:11.5px;border-bottom:1px solid var(--line)}
+.lyr .sw{width:11px;height:11px;border-radius:3px;flex:0 0 auto}
+.lyr .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lyr .ct{color:var(--tx3);font-family:var(--mono);font-size:10.5px}
+
+/* ---------- gantt ---------- */
+.gantt{border:1px solid var(--line);border-radius:9px;overflow:auto;background:var(--bg2);max-height:66vh}
+.gantt svg{display:block}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--tx2);margin:8px 0}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+
+/* ---------- misc ---------- */
+.log{font-family:var(--mono);font-size:11px;background:#080b10;border:1px solid var(--line);border-radius:8px;padding:9px;max-height:180px;overflow:auto;color:var(--tx2)}
+.log div{padding:1px 0;border-bottom:1px solid rgba(255,255,255,.03)}
+.log .e{color:#ff8078}.log .w{color:#e3b341}.log .s{color:#6fdc82}
+#toast{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:7px;z-index:100}
+#toast div{background:var(--bg3);border:1px solid var(--line2);border-left:3px solid var(--ac);border-radius:7px;padding:9px 13px;box-shadow:0 8px 24px rgba(0,0,0,.5);animation:sl .2s ease;max-width:330px}
+#toast div.ok{border-left-color:var(--ok)}#toast div.bad{border-left-color:var(--bad)}#toast div.warn{border-left-color:var(--warn)}
+@keyframes sl{from{transform:translateX(24px);opacity:0}}
+#busy{position:fixed;inset:0;background:rgba(5,8,12,.72);display:none;place-items:center;z-index:200;backdrop-filter:blur(2px)}
+#busy.on{display:grid}
+#busy .box{background:var(--bg2);border:1px solid var(--line2);border-radius:11px;padding:20px 30px;text-align:center}
+.spin{width:26px;height:26px;border:3px solid var(--line2);border-top-color:var(--ac);border-radius:50%;margin:0 auto 10px;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.tabs{display:flex;gap:3px;border-bottom:1px solid var(--line);margin-bottom:12px;flex-wrap:wrap}
+.tabs button{background:none;border:none;border-bottom:2px solid transparent;padding:7px 12px;cursor:pointer;color:var(--tx2);font-size:12.5px}
+.tabs button.on{color:var(--tx);border-bottom-color:var(--ac);font-weight:600}
+details.help{background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:9px 12px;margin-bottom:13px}
+details.help summary{cursor:pointer;font-weight:600;font-size:12.5px}
+details.help ul{margin:8px 0 2px;padding-left:18px;color:var(--tx2);font-size:12px}
+details.help li{margin-bottom:4px}
+code{font-family:var(--mono);background:var(--bg3);padding:1px 5px;border-radius:4px;font-size:11.5px;color:#79b8ff}
+.simbar{display:flex;align-items:center;gap:11px;background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:9px 12px;margin-bottom:11px;flex-wrap:wrap}
+.simbar input[type=range]{flex:1;min-width:180px;accent-color:var(--ac)}
+.simdate{font-family:var(--mono);font-weight:700;font-size:14px;min-width:106px}
+@media(max-width:900px){nav{width:60px}nav .t,nav .d,nav .gtitle{display:none}nav .step{justify-content:center}.viewer{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+  <div class="logo"><span class="mark">◈</span><div>Drawing Reader &amp; 4D Schedule Developer<div class="sub">PDF / DXF → Quantities → Detailed CPM Schedule → XER + Excel + BIM 4D</div></div></div>
+  <div class="spacer"></div>
+  <input class="pname" id="projName" placeholder="Project name" value="New Project">
+  <button class="btn sm" id="btnSave">💾 Save</button>
+  <button class="btn sm" id="btnLoad">📂 Open</button>
+  <button class="btn sm" id="btnDemo">▶ Demo data</button>
+  <button class="btn sm" id="btnReset">↺ Reset</button>
+</header>
+<main>
+<nav id="nav">
+  <div class="gtitle">Input</div>
+  <div class="step on" data-p="p1"><div class="n">1</div><div><div class="t">Drawings</div><div class="d">PDF / DXF import &amp; read</div></div></div>
+  <div class="step" data-p="p2"><div class="n">2</div><div><div class="t">Viewer</div><div class="d">Pan, zoom, layers, 4D</div></div></div>
+  <div class="step" data-p="p3"><div class="n">3</div><div><div class="t">Elements &amp; Qty</div><div class="d">Extracted BOQ</div></div></div>
+  <div class="step" data-p="p4"><div class="n">4</div><div><div class="t">Group Schedule</div><div class="d">Import XER / Excel / CSV</div></div></div>
+  <div class="gtitle">Engine</div>
+  <div class="step" data-p="p5"><div class="n">5</div><div><div class="t">Rules &amp; Norms</div><div class="d">Mapping + productivity</div></div></div>
+  <div class="step" data-p="p6"><div class="n">6</div><div><div class="t">Develop Schedule</div><div class="d">WBS explode + CPM</div></div></div>
+  <div class="gtitle">Output</div>
+  <div class="step" data-p="p7"><div class="n">7</div><div><div class="t">Gantt &amp; CPM</div><div class="d">Bars, float, critical path</div></div></div>
+  <div class="step" data-p="p8"><div class="n">8</div><div><div class="t">4D Simulation</div><div class="d">Play the build sequence</div></div></div>
+  <div class="step" data-p="p9"><div class="n">9</div><div><div class="t">Exports</div><div class="d">XER, XLSX, BIM 4D, XML</div></div></div>
+</nav>
+
+<!-- ================= 1. DRAWINGS ================= -->
+<section class="page" id="p1">
+  <h2 class="ph">1 · Drawings</h2>
+  <p class="pd">Load your <b>PDF</b> drawings (AutoCAD plots / scanned sets) and <b>DXF</b> files exported from AutoCAD. <span class="hi">Hinglish: PDF ya DXF drag karo — DWG ko AutoCAD me <code>SAVEAS → DXF</code> karke laao, browser DWG binary nahi padh sakta.</span></p>
+  <div class="drop" id="dropDwg">
+    <b>Drop drawings here, or click to browse</b>
+    <small>.pdf · .dxf · .dwg (needs DXF export) — multiple files supported, everything stays on your computer</small>
+    <input type="file" id="fileDwg" multiple accept=".pdf,.dxf,.dwg,.txt" hidden>
+  </div>
+  <div class="kpis" style="margin-top:13px">
+    <div class="kpi"><div class="v" id="kDwg">0</div><div class="l">Drawings</div></div>
+    <div class="kpi"><div class="v" id="kPage">0</div><div class="l">Sheets / pages</div></div>
+    <div class="kpi"><div class="v" id="kEnt">0</div><div class="l">Entities read</div></div>
+    <div class="kpi"><div class="v" id="kTxt">0</div><div class="l">Text labels</div></div>
+    <div class="kpi"><div class="v" id="kLvl">0</div><div class="l">Levels found</div></div>
+    <div class="kpi"><div class="v" id="kEl">0</div><div class="l">Elements</div></div>
+  </div>
+  <div class="card"><h3>Loaded drawings <span class="badge" id="bDwg">0</span></h3>
+    <div class="tw" style="max-height:36vh"><table id="tDwg"><thead><tr>
+      <th>File</th><th>Type</th><th>Sheets</th><th>Discipline</th><th>Level</th><th>Scale</th><th class="num">Entities</th><th class="num">Texts</th><th class="num">Elements</th><th>Status</th><th></th>
+    </tr></thead><tbody><tr><td colspan="11" class="empty">No drawings loaded yet</td></tr></tbody></table></div>
+  </div>
+  <div class="card"><h3>Read log</h3><div class="log" id="log"></div></div>
+  <details class="help"><summary>What the reader extracts from each format</summary>
+    <ul>
+      <li><b>DXF</b> (best) — layers, blocks/INSERT counts, LINE/POLYLINE lengths, closed-polyline &amp; circle areas, TEXT/MTEXT with coordinates, dimensions, grid bubbles. Real quantities come from here.</li>
+      <li><b>PDF (vector, AutoCAD plot)</b> — every text item with its X/Y position: sheet number, title, scale, level, grid labels, element marks (C1, B2, W-101…), room names, schedules printed on the sheet.</li>
+      <li><b>PDF (scanned raster)</b> — no embedded text, so only the image is shown. Mark the quantities manually in step 3, or re-plot the drawing to PDF from AutoCAD.</li>
+      <li><b>DWG</b> — a closed binary format; no browser can parse it. Export DXF (2013 ASCII) or plot a PDF and load that.</li>
+    </ul>
+  </details>
+</section>
+
+<!-- ================= 2. VIEWER ================= -->
+<section class="page hide" id="p2">
+  <h2 class="ph">2 · Drawing viewer</h2>
+  <p class="pd">Pan with drag, zoom with the wheel. Toggle layers, search text, and click an entity to inspect it.</p>
+  <div class="row" style="margin-bottom:10px">
+    <div class="f" style="min-width:240px"><label>Drawing</label><select id="vSel"></select></div>
+    <div class="f" style="min-width:90px"><label>Sheet</label><select id="vPage"></select></div>
+    <div class="f" style="min-width:180px"><label>Find text</label><input id="vFind" placeholder="e.g. C1, LEVEL, STAIR"></div>
+    <button class="btn" id="vFit">⤢ Fit</button>
+    <button class="btn" id="vLbl">🔤 Labels</button>
+  </div>
+  <div class="viewer">
+    <div class="canvwrap" id="cw">
+      <canvas id="cv"></canvas>
+      <div class="vtools">
+        <button class="btn sm" id="vIn">+</button><button class="btn sm" id="vOut">−</button>
+        <button class="btn sm" id="vGrid">Grid</button><button class="btn sm" id="vMeas">📏 Measure</button>
+      </div>
+      <div class="vinfo" id="vInfo">—</div>
+    </div>
+    <div class="side">
+      <h4>Layers</h4><div id="vLayers"></div>
+      <h4 style="margin-top:12px">Selection</h4><div id="vPick" style="font-size:11.5px;color:var(--tx2)">Click any entity in the drawing.</div>
+      <h4 style="margin-top:12px">Sheet info</h4><div id="vMeta" style="font-size:11.5px;color:var(--tx2)"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 3. ELEMENTS ================= -->
+<section class="page hide" id="p3">
+  <h2 class="ph">3 · Elements &amp; quantities</h2>
+  <p class="pd">Everything the reader recognised, classified by the rules in step 5. Edit any cell — the schedule engine uses these numbers. <span class="hi">Quantity galat lage to seedha cell me theek kar do.</span></p>
+  <div class="row" style="margin-bottom:10px">
+    <div class="f"><label>Category</label><select id="eCat"><option value="">All</option></select></div>
+    <div class="f"><label>Level</label><select id="eLvl"><option value="">All</option></select></div>
+    <div class="f"><label>Zone</label><select id="eZone"><option value="">All</option></select></div>
+    <div class="f" style="min-width:170px"><label>Search</label><input id="eFind" placeholder="mark / layer / drawing"></div>
+    <div class="spacer" style="flex:1"></div>
+    <button class="btn" id="eAdd">＋ Add row</button>
+    <button class="btn" id="eBim">🔗 Import BIM element list (CSV)</button>
+    <button class="btn" id="eXls">⬇ Quantities to Excel</button>
+    <input type="file" id="fileBim" accept=".csv,.xlsx,.xls" hidden>
+  </div>
+  <div class="card" style="padding:9px 12px"><div class="row" id="eSummary" style="gap:18px;font-size:12px"></div></div>
+  <div class="tw"><table id="tEl"><thead><tr>
+    <th>#</th><th>Category</th><th>Mark</th><th>Level</th><th>Zone</th><th class="num">Qty</th><th>Unit</th><th>Layer</th><th>Source</th><th>BIM GUID / search set</th><th></th>
+  </tr></thead><tbody></tbody></table></div>
+</section>
+
+<!-- ================= 4. GROUP SCHEDULE ================= -->
+<section class="page hide" id="p4">
+  <h2 class="ph">4 · Group-level schedule</h2>
+  <p class="pd">Import your existing summary programme — <b>.xer</b> (Primavera P6), <b>.xlsx/.csv</b>, or <b>.xml</b> (MS Project). Each group activity becomes a WBS parent that the engine explodes into detailed, location-wise activities. <span class="hi">Aapka group level schedule yahan import karo.</span></p>
+  <div class="drop" id="dropSch">
+    <b>Drop your group schedule here, or click to browse</b>
+    <small>.xer · .xlsx · .xls · .csv · .xml — columns detected automatically (ID, Activity, Duration, Start, Finish, WBS)</small>
+    <input type="file" id="fileSch" accept=".xer,.xlsx,.xls,.csv,.xml,.txt" hidden>
+  </div>
+  <div class="row" style="margin:12px 0">
+    <button class="btn" id="gAdd">＋ Add group activity</button>
+    <button class="btn" id="gStd">⚡ Load standard building template</button>
+    <div class="spacer" style="flex:1"></div>
+    <div class="f"><label>Project data date / start</label><input type="date" id="projStart"></div>
+  </div>
+  <div class="tw"><table id="tGrp"><thead><tr>
+    <th>#</th><th>WBS</th><th>Activity ID</th><th>Group activity</th><th class="num">Dur (d)</th><th>Start</th><th>Finish</th><th>Maps to work package</th><th>Split by</th><th></th>
+  </tr></thead><tbody></tbody></table></div>
+</section>
+
+<!-- ================= 5. RULES & NORMS ================= -->
+<section class="page hide" id="p5">
+  <h2 class="ph">5 · Rules &amp; productivity norms</h2>
+  <p class="pd">Two tables drive everything: <b>read rules</b> turn CAD layers/text into element categories, and <b>work-package norms</b> turn quantities into durations and sequence.</p>
+  <div class="tabs"><button class="on" data-t="tab1">Read rules (layer → category)</button><button data-t="tab2">Work packages &amp; norms</button><button data-t="tab3">Calendar &amp; sequencing</button></div>
+
+  <div id="tab1">
+    <div class="row" style="margin-bottom:9px"><button class="btn" id="rAdd">＋ Add rule</button><button class="btn" id="rReset">↺ Restore defaults</button><button class="btn" id="rRerun">↻ Re-read drawings with these rules</button></div>
+    <div class="tw"><table id="tRule"><thead><tr>
+      <th>On</th><th>Category</th><th>Layer matches (regex)</th><th>Text / mark matches (regex)</th><th>Unit</th><th>Measure</th><th>Factor</th><th></th>
+    </tr></thead><tbody></tbody></table></div>
+    <details class="help" style="margin-top:12px"><summary>How measuring works</summary><ul>
+      <li><code>count</code> — number of blocks/marks (columns, doors, windows, fixtures).</li>
+      <li><code>length</code> — total length of lines/polylines on the layer, in metres (walls, pipes, ducts, trays).</li>
+      <li><code>area</code> — area of closed polylines/circles, in m² (slabs, floors, plaster, waterproofing).</li>
+      <li><code>volume</code> — area × factor (factor = thickness in m) for slabs, rafts, PCC.</li>
+      <li><b>Factor</b> also converts counts to work units, e.g. one column = 0.48 m³ concrete.</li>
+    </ul></details>
+  </div>
+
+  <div id="tab2" style="display:none">
+    <div class="row" style="margin-bottom:9px"><button class="btn" id="nAdd">＋ Add work package</button><button class="btn" id="nReset">↺ Restore defaults</button></div>
+    <div class="tw"><table id="tNorm"><thead><tr>
+      <th>Seq</th><th>On</th><th>Work package</th><th>Categories used</th><th>Unit</th><th class="num">Output / crew-day</th><th class="num">Crews</th><th class="num">Min d</th><th class="num">Max d</th><th>Vertical link</th><th></th>
+    </tr></thead><tbody></tbody></table></div>
+    <p class="pd" style="margin-top:9px">Duration = ⌈ quantity ÷ (output × crews) ⌉, clamped between min and max days. <span class="hi">Apni site productivity ke hisaab se output badal lo.</span></p>
+  </div>
+
+  <div id="tab3" style="display:none">
+    <div class="card"><h3>Working calendar</h3>
+      <div class="row">
+        <div class="f"><label>Working days</label><div class="row" id="wdays" style="gap:6px"></div></div>
+        <div class="f"><label>Hours / day</label><input type="number" id="hpd" value="8" min="1" max="24"></div>
+        <div class="f" style="min-width:240px"><label>Holidays (comma separated, YYYY-MM-DD)</label><input id="hols" placeholder="2026-01-26, 2026-03-04"></div>
+      </div>
+    </div>
+    <div class="card"><h3>Sequencing &amp; splitting</h3>
+      <div class="grid g3">
+        <div class="f"><label>Zones per level</label><input type="number" id="nZones" value="1" min="1" max="12"><small style="color:var(--tx3);font-size:10.5px">Quantities split equally if drawings have no zone info</small></div>
+        <div class="f"><label>Zone overlap %</label><input type="number" id="zOver" value="50" min="0" max="100"><small style="color:var(--tx3);font-size:10.5px">Zone 2 starts after this % of zone 1</small></div>
+        <div class="f"><label>Level-to-level lag (d)</label><input type="number" id="lvlLag" value="0"></div>
+        <div class="f"><label>Number of levels (if not detected)</label><input type="number" id="nLevels" value="0" min="0" max="80"></div>
+        <div class="f"><label>Trade overlap within zone %</label><input type="number" id="tOver" value="0" min="0" max="90"></div>
+        <div class="f"><label>Activity ID prefix</label><input id="idPfx" value="A"></div>
+        <div class="f"><label>Typical floor repeat</label><label style="display:flex;gap:6px;align-items:center;padding-top:5px"><input type="checkbox" id="typRep" checked> Apply a typical floor's quantities to levels with no drawing</label></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 6. DEVELOP ================= -->
+<section class="page hide" id="p6">
+  <h2 class="ph">6 · Develop the detailed schedule</h2>
+  <p class="pd">Explodes every group activity into <b>work package × level × zone</b> activities, sizes each one from the drawing quantities, links them, and runs a full CPM pass.</p>
+  <div class="card"><h3>Run engine</h3>
+    <div class="row">
+      <button class="btn pri" id="btnDev">⚙ Develop schedule</button>
+      <button class="btn" id="btnRecalc">↻ Recalculate CPM</button>
+      <span class="badge" id="devStat">not run</span>
+    </div>
+    <div class="log" id="devLog" style="margin-top:10px;max-height:150px"></div>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><div class="v" id="kTask">0</div><div class="l">Activities</div></div>
+    <div class="kpi"><div class="v" id="kRel">0</div><div class="l">Relationships</div></div>
+    <div class="kpi"><div class="v" id="kDur">0</div><div class="l">Duration (days)</div></div>
+    <div class="kpi"><div class="v" id="kFin">—</div><div class="l">Finish date</div></div>
+    <div class="kpi"><div class="v" id="kCrit">0</div><div class="l">Critical activities</div></div>
+    <div class="kpi"><div class="v" id="kWbs">0</div><div class="l">WBS nodes</div></div>
+  </div>
+  <div class="row" style="margin-bottom:9px">
+    <div class="f" style="min-width:170px"><label>Filter</label><input id="sFind" placeholder="activity / WBS / level"></div>
+    <div class="f"><label>Show</label><select id="sShow"><option value="">All activities</option><option value="crit">Critical only</option><option value="near">Float ≤ 5 d</option></select></div>
+  </div>
+  <div class="tw"><table id="tTask"><thead><tr>
+    <th>Activity ID</th><th>WBS</th><th>Activity name</th><th class="num">Qty</th><th>Unit</th><th class="num">Dur</th><th>Start</th><th>Finish</th><th class="num">TF</th><th>Predecessors</th><th>Level</th><th>Zone</th>
+  </tr></thead><tbody></tbody></table></div>
+</section>
+
+<!-- ================= 7. GANTT ================= -->
+<section class="page hide" id="p7">
+  <h2 class="ph">7 · Gantt &amp; critical path</h2>
+  <div class="row" style="margin-bottom:9px">
+    <div class="f"><label>Scale</label><select id="gScale"><option value="d">Day</option><option value="w" selected>Week</option><option value="m">Month</option></select></div>
+    <div class="f"><label>Group by</label><select id="gGroup"><option value="wbs">WBS / group activity</option><option value="level">Level</option><option value="zone">Zone</option><option value="none">Flat</option></select></div>
+    <button class="btn" id="gPng">⬇ PNG</button>
+    <button class="btn" id="gSvg">⬇ SVG</button>
+  </div>
+  <div class="legend"><span><i style="background:#4f9cf9"></i>Normal</span><span><i style="background:#f85149"></i>Critical path</span><span><i style="background:#a371f7"></i>Group / summary</span><span><i style="background:#d29922"></i>Milestone</span><span><i style="background:#2a3441"></i>Total float</span></div>
+  <div class="gantt" id="gantt"><div class="empty">Develop the schedule first (step 6)</div></div>
+</section>
+
+<!-- ================= 8. 4D ================= -->
+<section class="page hide" id="p8">
+  <h2 class="ph">8 · 4D simulation</h2>
+  <p class="pd">Plays the programme against the drawing geometry: every element is coloured by the state of the activity that builds it. <span class="hi">Ye wahi 4D hai jo Navisworks TimeLiner me chalta hai — yahan preview karo, phir step 9 se export.</span></p>
+  <div class="simbar">
+    <button class="btn pri" id="simPlay">▶ Play</button>
+    <button class="btn" id="simBack">⏮</button>
+    <input type="range" id="simRange" min="0" max="100" value="0">
+    <span class="simdate" id="simDate">—</span>
+    <div class="f" style="min-width:90px"><label>Speed</label><select id="simSpeed"><option value="1">1 d / frame</option><option value="3" selected>3 d / frame</option><option value="7">1 week</option><option value="30">1 month</option></select></div>
+    <div class="f" style="min-width:170px"><label>Drawing</label><select id="simDwg"></select></div>
+  </div>
+  <div class="viewer">
+    <div class="canvwrap"><canvas id="cv4"></canvas><div class="vinfo" id="sim4Info">—</div></div>
+    <div class="side">
+      <h4>Progress at date</h4><div id="simStats" style="font-size:12px"></div>
+      <h4 style="margin-top:12px">Active activities</h4><div id="simActive" style="font-size:11.5px;color:var(--tx2)"></div>
+      <h4 style="margin-top:12px">Legend</h4>
+      <div class="legend" style="flex-direction:column;gap:5px">
+        <span><i style="background:#2a3441"></i>Not started</span>
+        <span><i style="background:#d29922"></i>In progress</span>
+        <span><i style="background:#3fb950"></i>Completed</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 9. EXPORTS ================= -->
+<section class="page hide" id="p9">
+  <h2 class="ph">9 · Exports</h2>
+  <p class="pd">All exports are generated in your browser from the developed schedule.</p>
+  <div class="grid g2">
+    <div class="card"><h3>Primavera P6 <span class="badge ac">.xer</span></h3>
+      <p class="pd" style="margin:0 0 9px">Full XER: PROJECT, CALENDAR, PROJWBS, TASK, TASKPRED. Import in P6 via <code>File → Import → XER</code>. <span class="hi">Seedha P6 me import ho jayega.</span></p>
+      <div class="row"><button class="btn pri" id="xXer">⬇ Download XER</button><button class="btn" id="xP6csv">⬇ P6 / Excel import CSV</button></div>
+    </div>
+    <div class="card"><h3>Detailed schedule <span class="badge ac">.xlsx</span></h3>
+      <p class="pd" style="margin:0 0 9px">Workbook: Schedule, WBS, Relationships, Quantities, Norms, Assumptions, S-curve data.</p>
+      <div class="row"><button class="btn pri" id="xXls">⬇ Download Excel</button><button class="btn" id="xCsv">⬇ CSV</button></div>
+    </div>
+    <div class="card"><h3>BIM 4D update <span class="badge ac">.xlsx</span></h3>
+      <p class="pd" style="margin:0 0 9px">Navisworks TimeLiner / Synchro ready: task name, type, planned start/finish, search-set name, level, zone, element marks and GUIDs, appearance.</p>
+      <div class="row"><button class="btn pri" id="xBim">⬇ BIM 4D Excel</button><button class="btn" id="xNwd">⬇ TimeLiner CSV</button></div>
+    </div>
+    <div class="card"><h3>MS Project <span class="badge ac">.xml</span></h3>
+      <p class="pd" style="margin:0 0 9px">Project XML with WBS, durations, dates and links — opens in MS Project, Asta and most planning tools.</p>
+      <div class="row"><button class="btn pri" id="xMsp">⬇ Download XML</button><button class="btn" id="xJson">⬇ Project JSON</button></div>
+    </div>
+  </div>
+  <details class="help"><summary>How to use the BIM 4D file in Navisworks</summary><ul>
+    <li>Open the model → <b>TimeLiner</b> → <b>Data Sources</b> → Add → <b>CSV / Excel</b> and pick the exported file.</li>
+    <li>Field selector: Task Type = <code>Task Type</code>, Planned Start = <code>Planned Start</code>, Planned End = <code>Planned End</code>, and Synchronisation on <code>Search Set</code> or <code>Display ID</code>.</li>
+    <li>Create search sets with the same names (the Search Set column follows <code>Level_Zone_Category</code>), then <b>Auto-Attach Using Rules</b>.</li>
+    <li>Simulate → Settings → set the interval and export the AVI. <span class="hi">Search set ke naam bilkul same rakho, warna attach nahi hoga.</span></li>
+  </ul></details>
+  <div class="card"><h3>Export preview</h3><div class="tw" style="max-height:38vh"><table id="tPrev"><thead></thead><tbody></tbody></table></div></div>
+</section>
+</main>
+</div>
+<div id="toast"></div>
+<div id="busy"><div class="box"><div class="spin"></div><div id="busyTx">Working…</div></div></div>
+<input type="file" id="fileProj" accept=".json" hidden>
+<script>
+"use strict";
+/* ============================================================
+   Drawing Reader & 4D Schedule Developer
+   Single-file, offline-capable planning tool.
+   Pipeline: read drawings -> classify elements -> quantities ->
+   explode group schedule -> CPM -> Gantt / 4D / exports
+   ============================================================ */
+
+/* ---------- tiny helpers ---------- */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const num=(v,d=0)=>{const n=parseFloat(v);return isFinite(n)?n:d;};
+const r2=n=>Math.round(n*100)/100;
+const uid=(p='x')=>p+Math.random().toString(36).slice(2,9);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function toast(msg,cls=''){const d=document.createElement('div');d.className=cls;d.textContent=msg;$('#toast').append(d);setTimeout(()=>{d.style.opacity=0;d.style.transform='translateX(20px)';setTimeout(()=>d.remove(),250);},3600);}
+function busy(on,tx='Working…'){$('#busyTx').textContent=tx;$('#busy').classList.toggle('on',on);}
+function logLine(box,msg,cls=''){const b=$(box);const d=document.createElement('div');d.className=cls;d.textContent=msg;b.append(d);b.scrollTop=b.scrollHeight;}
+const log=(m,c='')=>logLine('#log',m,c), dlog=(m,c='')=>logLine('#devLog',m,c);
+function dl(blob,name){const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),4000);toast('Downloaded '+name,'ok');}
+const dlText=(t,n,mime='text/plain')=>dl(new Blob([t],{type:mime+';charset=utf-8'}),n);
+
+/* ---------- dates ---------- */
+const DAY=86400000;
+const d2s=d=>{if(!d)return'';const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');};
+const s2d=s=>{if(!s)return null;const d=new Date(s);return isNaN(d)?null:d;};
+const fmtD=d=>{if(!d)return'';const x=new Date(d);return String(x.getDate()).padStart(2,'0')+'-'+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][x.getMonth()]+'-'+String(x.getFullYear()).slice(2);};
+const xerDate=d=>d?d2s(d)+' 08:00':'';
+
+/* ---------- application state ---------- */
+const S={
+  name:'New Project',
+  start:d2s(new Date()),
+  units:'mm',
+  cal:{days:[1,1,1,1,1,1,0],hpd:8,hols:[]},   // index 0 = Sunday
+  opts:{zones:1,zoneOverlap:50,lvlLag:0,levels:0,tradeOverlap:0,idPfx:'A',typical:true},
+  drawings:[], elements:[], groups:[], tasks:[], rels:[], wbs:[],
+  rules:[], norms:[],
+  meta:{levels:[],zones:[]}
+};
+
+/* ---------- default read rules ---------- */
+const DEF_RULES=()=>[
+ // cat, layer regex, text regex, unit, measure, factor
+ ['Excavation','EXCAV|CUT|PIT|TRENCH','',                       'm3','area',   2.0],
+ ['PCC','PCC|LEAN|BLIND','',                                     'm3','area',   0.1],
+ ['Footing','FOOT|FOUND|PILE ?CAP|RAFT|F\\d','^F\\d+|^PC\\d+',   'm3','count',  3.5],
+ ['Column','COL|CLM|^S-?COL','^C\\d+[A-Z]?$|^RC-?C\\d+',         'm3','count',  0.48],
+ ['Beam','BEAM|BM|GIRDER','^B\\d+[A-Z]?$|^PB\\d+|^SB\\d+',       'm3','length', 0.21],
+ ['Slab','SLAB|FLR ?SLAB|DECK|^S-SLAB','^SL\\d+',                'm3','area',   0.15],
+ ['Shear wall','SHEAR|SW-|RCC ?WALL|CORE','^SW\\d+',             'm3','length', 0.75],
+ ['Staircase','STAIR|STEP|FLIGHT','^ST\\d+|STAIR',               'nos','count', 1],
+ ['Blockwork','WALL|BRICK|BLOCK|MASON|PARTITION','^BW\\d+',      'm2','length', 3.0],
+ ['Plaster','PLAST|RENDER|FINISH-WALL','',                       'm2','length', 6.0],
+ ['Flooring','FLOOR|TILE|FLR-FIN|SCREED','',                     'm2','area',   1],
+ ['Painting','PAINT|PTG','',                                     'm2','area',   2.5],
+ ['Door','DOOR|DR-|^A-DOOR','^D\\d+|^DR-?\\d+',                  'nos','count', 1],
+ ['Window','WIN|WDW|GLAZ|^A-GLAZ','^W\\d+|^WD-?\\d+|^V\\d+',     'nos','count', 1],
+ ['Waterproofing','WP|WATERPROOF|MEMBRANE|DPC','',               'm2','area',   1],
+ ['False ceiling','CEIL|FC-|GYPSUM','',                          'm2','area',   1],
+ ['HVAC duct','DUCT|HVAC|AHU|M-DUCT','',                         'm','length',  1],
+ ['Plumbing','PIPE|PLUMB|DRAIN|SAN|WATER|P-','',                 'm','length',  1],
+ ['Fire fighting','FIRE|SPRINK|FF-|HYDRANT','',                  'm','length',  1],
+ ['Electrical','ELEC|CABLE|TRAY|CONDUIT|E-|LT-','',              'm','length',  1],
+ ['Grid','GRID|AXIS|CL-|CENTRE ?LINE','^[A-Z]$|^\\d{1,2}$',      'nos','count', 1],
+ ['Furniture','FURN|FF&E|EQUIP','',                              'nos','count', 1]
+].map(r=>({id:uid('r'),on:true,cat:r[0],layer:r[1],text:r[2],unit:r[3],measure:r[4],factor:r[5]}));
+
+/* ---------- default work packages / productivity norms ---------- */
+const DEF_NORMS=()=>[
+ // seq, package, categories, unit, output per crew-day, crews, min, max, vertical
+ [10,'Excavation & earthwork',['Excavation'],'m3',120,1,2,45,false],
+ [20,'PCC & levelling course',['PCC'],'m3',25,1,1,20,false],
+ [30,'Foundation / raft RCC',['Footing'],'m3',22,2,3,60,false],
+ [40,'Backfilling & plinth',['Excavation'],'m3',90,1,2,25,false],
+ [50,'Column RCC',['Column','Shear wall'],'m3',10,2,3,30,true],
+ [60,'Beam & slab RCC',['Beam','Slab'],'m3',26,2,5,45,true],
+ [70,'Staircase RCC',['Staircase'],'nos',0.5,1,3,20,true],
+ [80,'Blockwork / masonry',['Blockwork'],'m2',35,2,4,45,false],
+ [90,'MEP first fix',['Plumbing','Electrical','HVAC duct','Fire fighting'],'m',110,2,4,45,false],
+ [100,'Internal plaster',['Plaster'],'m2',75,2,4,40,false],
+ [110,'Waterproofing',['Waterproofing'],'m2',95,1,2,25,false],
+ [120,'Doors & windows',['Door','Window'],'nos',7,1,3,35,false],
+ [130,'Flooring & tiling',['Flooring'],'m2',55,2,4,45,false],
+ [140,'False ceiling',['False ceiling'],'m2',60,1,3,30,false],
+ [150,'MEP second fix & testing',['Electrical','Plumbing'],'m',150,2,4,35,false],
+ [160,'Painting & finishes',['Painting'],'m2',130,2,4,40,false],
+ [170,'Snagging & handover',[],'nos',1,1,5,20,false]
+].map(n=>({id:uid('n'),seq:n[0],on:true,name:n[1],cats:n[2],unit:n[3],out:n[4],crews:n[5],min:n[6],max:n[7],vert:n[8]}));
+
+S.rules=DEF_RULES(); S.norms=DEF_NORMS();
+
+/* ---------- working calendar maths ---------- */
+const holSet=()=>new Set(S.cal.hols);
+function isWork(d,hs){const x=new Date(d);return S.cal.days[x.getDay()]===1 && !hs.has(d2s(x));}
+/** calendar date of the n-th working day (0-based) after the project start */
+function workDate(n){
+  const hs=holSet(); let d=s2d(S.start)||new Date(); d.setHours(0,0,0,0);
+  while(!isWork(d,hs)) d=new Date(+d+DAY);
+  let c=0;
+  while(c<n){ d=new Date(+d+DAY); if(isWork(d,hs)) c++; }
+  return d;
+}
+function workDaysBetween(a,b){const hs=holSet();let c=0,d=new Date(a);d.setHours(0,0,0,0);const e=new Date(b);e.setHours(0,0,0,0);while(d<e){d=new Date(+d+DAY);if(isWork(d,hs))c++;}return c;}
+
+/* ---------- level ordering ---------- */
+function levelRank(name){
+  const s=String(name||'').toUpperCase().trim();
+  let m;
+  if(/^(B|BASEMENT)\s*-?\s*(\d+)/.test(s)){m=s.match(/(\d+)/);return -100+ -num(m[1]);}
+  if(/^(FOUND|FOOTING|SUB|PILE|RAFT)/.test(s))return -200;
+  if(/^(PLINTH|PL)$/.test(s))return -1;
+  if(/^(GF|GROUND|G)\b|^LEVEL 0|^L0/.test(s))return 0;
+  if(/^(TERR|ROOF|TOP|HEAD)/.test(s))return 900;
+  m=s.match(/(\d+)/); return m?num(m[1]):500;
+}
+const sortLevels=a=>[...a].sort((x,y)=>levelRank(x)-levelRank(y));
+
+/* ---------- navigation ---------- */
+$$('#nav .step').forEach(st=>st.addEventListener('click',()=>{
+  $$('#nav .step').forEach(s=>s.classList.remove('on')); st.classList.add('on');
+  $$('section.page').forEach(p=>p.classList.add('hide'));
+  const p=$('#'+st.dataset.p); p.classList.remove('hide');
+  if(st.dataset.p==='p2') viewer.refresh();
+  if(st.dataset.p==='p7') drawGantt();
+  if(st.dataset.p==='p8') sim.init();
+}));
+$$('.tabs button').forEach(b=>b.addEventListener('click',()=>{
+  const par=b.parentElement; $$('button',par).forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  ['tab1','tab2','tab3'].forEach(t=>{const e=$('#'+t); if(e) e.style.display = (t===b.dataset.t?'':'none');});
+}));
+
+/* ---------- persistence ---------- */
+function saveLocal(){ try{ localStorage.setItem('d4dp', JSON.stringify(serialize())); }catch(e){} }
+function serialize(){
+  return {v:1,name:S.name,start:S.start,units:S.units,cal:S.cal,opts:S.opts,rules:S.rules,norms:S.norms,
+    groups:S.groups,elements:S.elements,tasks:S.tasks,rels:S.rels,wbs:S.wbs,meta:S.meta,
+    drawings:S.drawings.map(d=>({...d,raw:null,pdf:null,pageCanvas:null}))};
+}
+function restore(o){
+  Object.assign(S,{name:o.name||'New Project',start:o.start||d2s(new Date()),units:o.units||'mm'});
+  S.cal=o.cal||S.cal; S.opts=Object.assign(S.opts,o.opts||{});
+  S.rules=o.rules?.length?o.rules:DEF_RULES(); S.norms=o.norms?.length?o.norms:DEF_NORMS();
+  S.groups=(o.groups||[]).map(g=>({...g,pkgs:g.pkgs||(g.pkg?[g.pkg]:[])})); S.elements=o.elements||[]; S.tasks=o.tasks||[]; S.rels=o.rels||[];
+  S.wbs=o.wbs||[]; S.meta=o.meta||{levels:[],zones:[]}; S.drawings=o.drawings||[];
+  $('#projName').value=S.name; $('#projStart').value=S.start;
+  renderAll();
+}
+
+/* ============================================================
+   DXF READER — group-code parser (no external library)
+   ============================================================ */
+const UNIT_SCALE={0:0.001,1:0.0254,2:0.3048,4:0.001,5:0.01,6:1,8:2.54e-5,9:0.001,10:0.9144};
+function parseDXF(text){
+  const L=text.split(/\r\n|\r|\n/);
+  const out={layers:{},ents:[],header:{},blocks:{}};
+  let sec='',cur=null,curBlock=null,poly=null,pendingHdr='';
+  const push=e=>{ if(!e)return; finishEnt(e); if(sec==='BLOCKS'&&curBlock){ (out.blocks[curBlock]??=[]).push(e); } else out.ents.push(e); };
+  for(let i=0;i<L.length-1;i+=2){
+    const code=parseInt(L[i]); if(isNaN(code))continue;
+    const val=L[i+1]===undefined?'':L[i+1].trim();
+    if(code===0){
+      if(val==='SECTION'){ push(cur);cur=null;poly=null;sec='?';continue; }
+      if(val==='ENDSEC'){ push(cur);cur=null;poly=null;sec='';continue; }
+      if(val==='EOF')break;
+      if(sec==='TABLES'){ push(cur); cur = (val==='LAYER')?{type:'LAYER'}:null; continue; }
+      if(sec==='BLOCKS'||sec==='ENTITIES'){
+        if(val==='VERTEX'&&poly){ cur={type:'VERTEX',_p:poly}; continue; }
+        if(val==='SEQEND'){ push(cur); cur=null; poly=null; continue; }
+        push(cur);
+        if(val==='BLOCK'){ cur={type:'BLOCK'}; poly=null; continue; }
+        if(val==='ENDBLK'){ cur=null; curBlock=null; poly=null; continue; }
+        cur={type:val,layer:'0',xs:[],ys:[]};
+        poly=(val==='POLYLINE')?cur:null;
+        continue;
+      }
+      push(cur); cur=null; continue;
+    }
+    if(sec==='?'&&code===2){ sec=val; continue; }
+    if(sec==='HEADER'){ if(code===9)pendingHdr=val; else if(pendingHdr){ out.header[pendingHdr]=val; pendingHdr=''; } continue; }
+    if(!cur)continue;
+    switch(code){
+      case 1: cur.text=(cur.text||'')+val; break;
+      case 3: case 4: if(cur.type==='MTEXT')cur.text=(cur.text||'')+val; break;
+      case 2: if(cur.type==='LAYER')cur.name=val; else if(cur.type==='BLOCK'){cur.name=val;curBlock=val;} else cur.blk=val; break;
+      case 6: cur.ltype=val; break;
+      case 7: cur.style=val; break;
+      case 8: cur.layer=val; break;
+      case 10: (cur._p||cur).xs?.push(parseFloat(val)); cur.x=parseFloat(val); break;
+      case 20: (cur._p||cur).ys?.push(parseFloat(val)); cur.y=parseFloat(val); break;
+      case 11: cur.x2=parseFloat(val); break;
+      case 21: cur.y2=parseFloat(val); break;
+      case 40: cur.r=parseFloat(val); cur.h=parseFloat(val); break;
+      case 41: cur.sx=parseFloat(val); break;
+      case 42: cur.sy=parseFloat(val); break;
+      case 50: cur.rot=parseFloat(val); break;
+      case 62: cur.color=parseInt(val); break;
+      case 70: cur.flags=parseInt(val); break;
+      case 90: cur.nv=parseInt(val); break;
+    }
+  }
+  push(cur);
+  const scale=UNIT_SCALE[parseInt(out.header.$INSUNITS??'4')] ?? 0.001;
+  const ents=[],layers={};
+  for(const e of out.ents){
+    if(e.type==='LAYER'&&e.name){ layers[e.name]={name:e.name,color:e.color??7,count:0}; continue; }
+    if(e.type==='VERTEX'||e.type==='BLOCK')continue;
+    ents.push(e);
+    const ly=e.layer||'0'; (layers[ly]??={name:ly,color:7,count:0}).count++;
+  }
+  return {ents,layers,scale,header:out.header,blocks:out.blocks};
+}
+function finishEnt(e){
+  if(!e||!e.xs)return e;
+  if(e.type==='LINE'&&isFinite(e.x2)){ e.xs=[e.x,e.x2]; e.ys=[e.y,e.y2]; }
+  const xs=e.xs||[],ys=e.ys||[];
+  let len=0;
+  for(let i=1;i<xs.length;i++) len+=Math.hypot(xs[i]-xs[i-1],ys[i]-ys[i-1]);
+  const closed=(e.flags&1)===1&&xs.length>2;
+  if(closed&&xs.length>2) len+=Math.hypot(xs[0]-xs[xs.length-1],ys[0]-ys[ys.length-1]);
+  let area=0;
+  if((closed||e.type==='SOLID'||e.type==='HATCH')&&xs.length>2){
+    for(let i=0,j=xs.length-1;i<xs.length;j=i++) area+=(xs[j]+xs[i])*(ys[j]-ys[i]);
+    area=Math.abs(area/2);
+  }
+  if(e.type==='CIRCLE'&&isFinite(e.r)){ area=Math.PI*e.r*e.r; len=2*Math.PI*e.r; }
+  if(e.type==='ARC'&&isFinite(e.r)) len=2*Math.PI*e.r*0.5;
+  e.len=len; e.area=area; e.closed=closed;
+  if(xs.length){ e.bb=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]; }
+  delete e._p;
+  return e;
+}
+
+/* ============================================================
+   PDF READER — pdf.js text + geometry-free metadata
+   ============================================================ */
+if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const RT={pdf:{}};   // runtime-only handles (never serialised)
+
+async function readPDFFile(file){
+  if(typeof pdfjsLib==='undefined') throw new Error('PDF engine not loaded — open this page once while online so pdf.js can be cached');
+  const buf=new Uint8Array(await file.arrayBuffer());
+  const doc=await pdfjsLib.getDocument({data:buf,useWorkerFetch:false,isEvalSupported:false}).promise;
+  const texts=[],sizes=[];
+  for(let p=1;p<=doc.numPages;p++){
+    const pg=await doc.getPage(p);
+    const vp=pg.getViewport({scale:1}); sizes.push({w:vp.width,h:vp.height});
+    const tc=await pg.getTextContent();
+    for(const it of tc.items){
+      const s=(it.str||'').trim(); if(!s)continue;
+      texts.push({p,str:s,x:it.transform[4],y:it.transform[5],h:Math.abs(it.transform[3])||8});
+    }
+  }
+  const d={id:uid('d'),name:file.name,type:'pdf',pages:doc.numPages,texts,sizes,ents:[],layers:{},scale:1,meta:{}};
+  RT.pdf[d.id]=doc;
+  return d;
+}
+
+/* ============================================================
+   SHEET METADATA — discipline, level, zone, plot scale
+   ============================================================ */
+const LEVEL_PATTERNS=[
+  [/\b(TERRACE|ROOF ?(PLAN|LEVEL)?)\b/i,'Terrace'],
+  [/\b(BASEMENT|BSMT)\s*-?\s*(\d)\b/i,(m)=>'B'+m[2]],
+  [/\bB(\d)\s*(LEVEL|PLAN|FLOOR)\b/i,m=>'B'+m[1]],
+  [/\b(GROUND ?FLOOR|G\.?F\.?)\b/i,'GF'],
+  [/\b(FIRST ?FLOOR|1ST ?FLOOR)\b/i,'L1'],[/\b(SECOND ?FLOOR|2ND ?FLOOR)\b/i,'L2'],
+  [/\b(THIRD ?FLOOR|3RD ?FLOOR)\b/i,'L3'],[/\b(FOURTH ?FLOOR|4TH ?FLOOR)\b/i,'L4'],
+  [/\b(FIFTH ?FLOOR|5TH ?FLOOR)\b/i,'L5'],
+  [/\b(\d{1,2})(ST|ND|RD|TH) ?FLOOR\b/i,m=>'L'+num(m[1])],
+  [/\bLEVEL ?-? ?(\d{1,2})\b/i,m=>'L'+num(m[1])],
+  [/\bL ?-? ?(\d{1,2}) ?(PLAN|LEVEL)\b/i,m=>'L'+num(m[1])],
+  [/\b(FOUNDATION|FOOTING|PILE ?CAP|RAFT)\b/i,'Foundation'],
+  [/\b(PLINTH)\b/i,'Plinth'],
+  [/\bFLOOR ?(\d{1,2})\b/i,m=>'L'+num(m[1])]
+];
+function detectLevel(str){
+  for(const [re,out] of LEVEL_PATTERNS){ const m=String(str).match(re); if(m) return typeof out==='function'?out(m):out; }
+  return null;
+}
+function detectZone(str){
+  const m=String(str).match(/\b(ZONE|BLOCK|TOWER|WING|SECTOR|POUR)\s*-?\s*([A-Z0-9]{1,3})\b/i);
+  return m?m[1].toUpperCase().slice(0,1)+m[2].toUpperCase():null;
+}
+const DISCIPLINES=[[/STRUC|RCC|^S-|\bS\d{3}|REINF|FOUND|COLUMN|BEAM|SLAB/i,'Structural'],
+  [/ARCH|^A-|\bA\d{3}|LAYOUT|FURNITURE|FINISH|ELEVATION|SECTION/i,'Architectural'],
+  [/ELEC|^E-|LIGHT|POWER|CABLE/i,'Electrical'],[/PLUMB|^P-|SANITARY|WATER|DRAIN/i,'Plumbing'],
+  [/HVAC|^M-|MECH|DUCT|AHU/i,'HVAC'],[/FIRE|SPRINK|HYDRANT/i,'Fire fighting'],
+  [/SITE|CIVIL|ROAD|EXTERNAL|LANDSCAPE/i,'Civil / external']];
+function sheetMeta(d){
+  const hay=[d.name,...(d.texts||[]).slice(0,400).map(t=>t.str),...Object.keys(d.layers||{})].join(' | ');
+  const m={};
+  m.level=detectLevel(d.name)||detectLevel(hay)||'';
+  m.zone=detectZone(d.name)||detectZone(hay)||'';
+  m.discipline=(DISCIPLINES.find(([re])=>re.test(hay))||[0,'General'])[1];
+  const sc=hay.match(/\b1 ?[:\/] ?(\d{1,4})\b/); m.scale=sc?'1:'+sc[1]:'';
+  const dn=(d.texts||[]).map(t=>t.str).find(s=>/^[A-Z]{1,4}[-\/]?\d{2,4}([-\/]?[A-Z0-9]{1,3})?$/.test(s));
+  m.sheetNo=dn||'';
+  const ti=(d.texts||[]).filter(t=>t.str.length>8&&/PLAN|SECTION|ELEVATION|DETAIL|LAYOUT|SCHEDULE/i.test(t.str))
+                        .sort((a,b)=>b.h-a.h)[0];
+  m.title=ti?ti.str:'';
+  return m;
+}
+
+/* ============================================================
+   CLASSIFICATION — rules -> element rows with quantities
+   ============================================================ */
+const GEOM_TYPES=new Set(['LINE','LWPOLYLINE','POLYLINE','ARC','CIRCLE','SPLINE','SOLID','HATCH','ELLIPSE']);
+function rxOf(s){ if(!s)return null; try{ return new RegExp(s,'i'); }catch(e){ return null; } }
+
+function extractElements(d){
+  const els=[]; const lvl=d.meta.level||'GF'; const zn=d.meta.zone||'Z1';
+  const sc=d.scale||1;
+  for(const R of S.rules){
+    if(!R.on)continue;
+    const lre=rxOf(R.layer), tre=rxOf(R.text);
+    const f=num(R.factor,1);
+
+    /* --- DXF: per-mark rows from CAD text (e.g. every C1 / C2 tag) --- */
+    let markRows=[];
+    if(d.type==='dxf'&&tre&&R.measure==='count'){
+      const marks={},mlyr={};
+      for(const e of d.ents){
+        if(e.type!=='TEXT'&&e.type!=='MTEXT'&&e.type!=='ATTRIB')continue;
+        const t=cleanTxt(e.text); if(!t||!tre.test(t))continue;
+        marks[t]=(marks[t]||0)+1; mlyr[t]=mlyr[t]||e.layer;
+      }
+      for(const [mk,c] of Object.entries(marks)) if(c>0&&mk.length<=8) markRows.push(mkEl(R,d,lvl,zn,c*f,c,'text',mk,mlyr[mk]));
+      els.push(...markRows);
+    }
+
+    /* --- DXF geometry --- */
+    if(d.type==='dxf'&&lre){
+      const hit=d.ents.filter(e=>lre.test(e.layer||''));
+      if(hit.length&&!(R.measure==='count'&&markRows.length)){
+        let q=0,n=0;
+        for(const e of hit){
+          if(R.measure==='count'){ if(e.type==='INSERT'||e.type==='CIRCLE'||e.closed){ n++; q+=f; } }
+          else if(R.measure==='length'&&GEOM_TYPES.has(e.type)){ const l=(e.len||0)*sc; if(l>0.05){q+=l*f;n++;} }
+          else if(R.measure==='area'||R.measure==='volume'){ const a=(e.area||0)*sc*sc; if(a>0.05){q+=a*f;n++;} }
+        }
+        if(q>0) els.push(mkEl(R,d,lvl,zn,q,n,'CAD layer','',mainLayer(hit)));
+      }
+    }
+
+    /* --- PDF text-based counting --- */
+    if(d.type==='pdf'&&tre&&R.measure==='count'){
+      const byPage={};
+      for(const t of d.texts){
+        const s=cleanTxt(t.str); if(!s||!tre.test(s))continue;
+        const key=(t.p+'|'+s); byPage[key]=(byPage[key]||0)+1;
+      }
+      const marks={};
+      for(const [k,c] of Object.entries(byPage)){ const mk=k.split('|')[1]; marks[mk]=(marks[mk]||0)+c; }
+      for(const [mk,c] of Object.entries(marks)){
+        if(mk.length<=8&&c>0) els.push(mkEl(R,d,lvl,zn,c*f,c,'pdf text',mk,'—'));
+      }
+    }
+  }
+  return els;
+}
+function cleanTxt(t){ return String(t||'').replace(/\\[A-Za-z][^;]*;/g,'').replace(/[{}]/g,'').trim().toUpperCase(); }
+function mkEl(R,d,lvl,zn,qty,cnt,src,mark,lyr){
+  return {id:uid('e'),cat:R.cat,mark:mark||R.cat,level:lvl,zone:zn,qty:r2(qty),unit:R.unit,
+    count:cnt,layer:lyr||R.layer,drawing:d.name,drawingId:d.id,src,guid:''};
+}
+/** the layer that most of these entities sit on */
+function mainLayer(ents){
+  const c={}; ents.forEach(e=>{ const l=e.layer||'0'; c[l]=(c[l]||0)+1; });
+  return Object.entries(c).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+}
+
+/* ---------- file ingestion ---------- */
+async function ingest(files){
+  busy(true,'Reading drawings…');
+  for(const f of files){
+    const ext=f.name.split('.').pop().toLowerCase();
+    try{
+      let d=null;
+      if(ext==='pdf'){ d=await readPDFFile(f); log('PDF '+f.name+' — '+d.pages+' sheet(s), '+d.texts.length+' text items','s'); }
+      else if(ext==='dxf'||ext==='txt'){
+        const txt=await f.text();
+        if(!/\bSECTION\b/.test(txt.slice(0,4000))) throw new Error('not a DXF file');
+        const p=parseDXF(txt);
+        d={id:uid('d'),name:f.name,type:'dxf',pages:1,ents:p.ents,layers:p.layers,scale:p.scale,header:p.header,
+           texts:p.ents.filter(e=>e.type==='TEXT'||e.type==='MTEXT').map(e=>({p:1,str:cleanTxt(e.text),x:e.x,y:e.y,h:e.h||1}))};
+        log('DXF '+f.name+' — '+p.ents.length+' entities, '+Object.keys(p.layers).length+' layers','s');
+      }
+      else if(ext==='dwg'){ log('DWG '+f.name+' skipped — export DXF or PDF from AutoCAD (SAVEAS → DXF)','w'); toast('DWG cannot be read in a browser — export DXF/PDF','warn'); continue; }
+      else { log('Unsupported file '+f.name,'e'); continue; }
+      d.meta=sheetMeta(d);
+      const els=extractElements(d);
+      d.elCount=els.length;
+      S.drawings.push(d); S.elements.push(...els);
+      log('  → level '+(d.meta.level||'?')+', '+(d.meta.discipline||'')+', '+els.length+' element groups, qty read');
+    }catch(err){ log('Failed '+f.name+': '+err.message,'e'); toast('Could not read '+f.name,'bad'); }
+  }
+  refreshMeta(); renderAll(); saveLocal(); busy(false);
+  toast(S.drawings.length+' drawing(s) loaded, '+S.elements.length+' element groups','ok');
+}
+function refreshMeta(){
+  const lv=new Set(), zn=new Set();
+  S.elements.forEach(e=>{lv.add(e.level);zn.add(e.zone);});
+  S.meta.levels=sortLevels([...lv]); S.meta.zones=[...zn].sort();
+  if(!S.meta.levels.length) S.meta.levels=['GF'];
+}
+function rerunRules(){
+  busy(true,'Re-reading with updated rules…');
+  const manual=S.elements.filter(e=>e.src==='manual');
+  S.elements=[...manual];
+  S.drawings.forEach(d=>{ const els=extractElements(d); d.elCount=els.length; S.elements.push(...els); });
+  refreshMeta(); renderAll(); saveLocal(); busy(false); toast('Drawings re-read with current rules','ok');
+}
+
+/* ============================================================
+   GROUP SCHEDULE IMPORT — XER / XLSX / CSV / MSP XML
+   ============================================================ */
+function parseXER(text){
+  const rows=text.split(/\r?\n/); let table='',fields=[],out={};
+  for(const line of rows){
+    if(!line)continue;
+    const c=line.split('\t');
+    if(c[0]==='%T'){ table=c[1]; out[table]=[]; fields=[]; }
+    else if(c[0]==='%F'){ fields=c.slice(1); }
+    else if(c[0]==='%R'&&table){ const o={}; fields.forEach((f,i)=>o[f]=c[i+1]); out[table].push(o); }
+  }
+  const wbsById={}; (out.PROJWBS||[]).forEach(w=>wbsById[w.wbs_id]=w.wbs_name);
+  const tasks=(out.TASK||[]).map((t,i)=>({
+    id:uid('g'), wbs:wbsById[t.wbs_id]||'', code:t.task_code||('G'+(i+1)), name:t.task_name||'',
+    dur:Math.round(num(t.target_drtn_hr_cnt,8)/num(S.cal.hpd,8))||num(t.remain_drtn_hr_cnt,0)/8||1,
+    start:d2s(t.target_start_date||t.early_start_date||''), finish:d2s(t.target_end_date||t.early_end_date||''),
+    pkgs:[], split:'level+zone'
+  }));
+  return tasks;
+}
+function rowsToGroups(rows){
+  if(!rows.length)return[];
+  const head=rows[0].map(h=>String(h||'').toLowerCase().trim());
+  const find=(...keys)=>{ for(const k of keys){ const i=head.findIndex(h=>h.includes(k)); if(i>=0)return i; } return -1; };
+  const iId=find('activity id','task id','act id','id','code'), iNm=find('activity name','task name','description','activity','name','task'),
+        iDu=find('original duration','duration','dur','od'), iSt=find('start'), iFi=find('finish','end'),
+        iWb=find('wbs','group','phase','level 1','stage');
+  const out=[];
+  for(let r=1;r<rows.length;r++){
+    const c=rows[r]; if(!c||!c.length)continue;
+    const name=iNm>=0?String(c[iNm]??'').trim():String(c[0]??'').trim();
+    if(!name||/^(total|summary)$/i.test(name))continue;
+    out.push({id:uid('g'),code:iId>=0?String(c[iId]??'').trim()||('G'+out.length+1):'G'+(out.length+1),
+      name,wbs:iWb>=0?String(c[iWb]??'').trim():'',dur:Math.max(1,Math.round(num(iDu>=0?c[iDu]:0,0))),
+      start:iSt>=0?xlDate(c[iSt]):'',finish:iFi>=0?xlDate(c[iFi]):'',pkgs:[],split:'level+zone'});
+  }
+  return out;
+}
+function xlDate(v){
+  if(v==null||v==='')return'';
+  if(v instanceof Date)return d2s(v);
+  if(typeof v==='number'&&v>25000&&v<60000) return d2s(new Date(Date.UTC(1899,11,30)+v*DAY));
+  const d=new Date(String(v).replace(/(\d{2})-(\w{3})-(\d{2,4})/,'$2 $1, $3'));
+  return isNaN(d)?'':d2s(d);
+}
+function parseCSVText(t){
+  const rows=[];let row=[],cur='',q=false;
+  for(let i=0;i<t.length;i++){const ch=t[i];
+    if(q){ if(ch==='"'){ if(t[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=ch; }
+    else if(ch==='"')q=true;
+    else if(ch===','||ch==='\t'){row.push(cur);cur='';}
+    else if(ch==='\n'){row.push(cur);rows.push(row);row=[];cur='';}
+    else if(ch!=='\r')cur+=ch;
+  }
+  if(cur||row.length){row.push(cur);rows.push(row);}
+  return rows.filter(r=>r.some(c=>String(c).trim()!==''));
+}
+function parseMSPXML(text){
+  const doc=new DOMParser().parseFromString(text,'text/xml');
+  return [...doc.getElementsByTagName('Task')].map((t,i)=>{
+    const g=n=>t.getElementsByTagName(n)[0]?.textContent||'';
+    const dur=g('Duration').match(/PT(\d+)H/); 
+    return {id:uid('g'),code:g('UID')||('G'+(i+1)),name:g('Name'),wbs:g('WBS'),
+      dur:dur?Math.round(num(dur[1])/num(S.cal.hpd,8)):1,start:d2s(g('Start')),finish:d2s(g('Finish')),pkgs:[],split:'level+zone'};
+  }).filter(t=>t.name);
+}
+async function ingestSchedule(file){
+  busy(true,'Reading schedule…');
+  try{
+    const ext=file.name.split('.').pop().toLowerCase(); let g=[];
+    if(ext==='xer'){ g=parseXER(await file.text()); }
+    else if(ext==='xml'){ g=parseMSPXML(await file.text()); }
+    else if(ext==='csv'||ext==='txt'){ g=rowsToGroups(parseCSVText(await file.text())); }
+    else if(ext==='xlsx'||ext==='xls'){
+      if(typeof XLSX==='undefined') throw new Error('Excel engine not loaded — open this page once while online, or save your schedule as CSV');
+      const wb=XLSX.read(await file.arrayBuffer(),{cellDates:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      g=rowsToGroups(XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}));
+    } else throw new Error('unsupported format');
+    if(!g.length) throw new Error('no activities found');
+    g.forEach(x=>x.pkgs=autoMatchPkgs(x.name));
+    S.groups=g;
+    const st=g.map(x=>x.start).filter(Boolean).sort()[0]; if(st){ S.start=st; $('#projStart').value=st; }
+    renderGroups(); saveLocal();
+    toast(g.length+' group activities imported','ok');
+  }catch(e){ toast('Schedule import failed: '+e.message,'bad'); }
+  busy(false);
+}
+/** best-effort match of a group activity to one or more work packages */
+function autoMatchPkgs(name){
+  const n=String(name).toLowerCase(), want=[];
+  const grab=re=>S.norms.filter(p=>re.test(p.name)).map(p=>p.id);
+  const isSub=/sub-?structure|foundation|footing|raft|pile ?cap|earthwork|excav|basement/.test(n);
+  if(isSub) want.push(...grab(/excav|pcc|foundation|backfill/i));
+  if(!isSub&&/superstructure|super-?structure|structure|rcc|frame|skeleton|casting|shell/.test(n)) want.push(...grab(/column|beam & slab|staircase/i));
+  if(/column|vertical element/.test(n)) want.push(...grab(/column/i));
+  if(/slab|beam|deck|floor plate/.test(n)) want.push(...grab(/beam & slab/i));
+  if(/stair/.test(n)) want.push(...grab(/staircase/i));
+  if(/block|masonry|brick|partition|\bwall/.test(n)) want.push(...grab(/blockwork/i));
+  if(/mep|service|electr|plumb|hvac|fire|first fix|second fix/.test(n)) want.push(...grab(/mep/i));
+  if(/plaster|render/.test(n)) want.push(...grab(/plaster/i));
+  if(/waterproof|\bwp\b|terrace treatment/.test(n)) want.push(...grab(/waterproof/i));
+  if(/door|window|joinery|glaz|facade|curtain/.test(n)) want.push(...grab(/doors & windows/i));
+  if(/floor|tile|screed|granite|marble/.test(n)) want.push(...grab(/flooring/i));
+  if(/ceiling/.test(n)) want.push(...grab(/ceiling/i));
+  if(/paint|external finish|facade/.test(n)) want.push(...grab(/painting/i));
+  if(/internal finish|finishes/.test(n)) want.push(...grab(/plaster|flooring|ceiling|doors & windows|painting/i));
+  if(/hand ?over|snag|clean|commission|testing|close ?out/.test(n)) want.push(...grab(/snagging/i));
+  return [...new Set(want)];
+}
+/** which levels a work package is built on */
+function levelsFor(pkg,levels,split){
+  if(split==='project')return['Project'];
+  const isFound=/excav|pcc|foundation|backfill|raft|pile/i.test(pkg.name);
+  if(isFound){ const f=levels.filter(l=>levelRank(l)<=-1); return f.length?f:[levels[0]]; }
+  const r=levels.filter(l=>levelRank(l)>-200); return r.length?r:levels;
+}
+const STD_TEMPLATE=()=>[
+  ['1','Site establishment & mobilisation',10],['2','Substructure',0],['3','Superstructure RCC',0],
+  ['4','Blockwork & masonry',0],['5','MEP services',0],['6','Internal finishes',0],
+  ['7','External finishes & facade',0],['8','Testing, commissioning & handover',15]
+].map((r,i)=>({id:uid('g'),code:'G'+((i+1)*10),wbs:r[0],name:r[1],dur:r[2],start:'',finish:'',
+  pkgs:autoMatchPkgs(r[1]),split:'level+zone'}));
+
+/* ============================================================
+   SCHEDULE DEVELOPMENT ENGINE
+   group activity x work package x level x zone -> activity
+   ============================================================ */
+function zonesList(){ const n=clamp(num(S.opts.zones,1),1,12); return Array.from({length:n},(_,i)=>'Z'+(i+1)); }
+function levelsList(){
+  const forced=num(S.opts.levels,0);
+  if(forced>0){ const out=['Foundation','GF']; for(let i=1;i<forced;i++)out.push('L'+i); out.push('Terrace'); return out; }
+  const l=S.meta.levels?.length?sortLevels(S.meta.levels):['GF'];
+  return l;
+}
+/** quantity of a work package at a level, split across zones */
+function pkgQty(pkg,level,zones){
+  const cats=new Set(pkg.cats);
+  let q=0;
+  for(const e of S.elements){ if(e.level===level&&cats.has(e.cat)) q+=num(e.qty); }
+  // typical floor: one drawing covers every similar level above ground
+  if(q<=0&&S.opts.typical&&levelRank(level)>-200&&level!=='Project'){
+    const per={};
+    for(const e of S.elements){ if(cats.has(e.cat)&&levelRank(e.level)>-200) per[e.level]=(per[e.level]||0)+num(e.qty); }
+    const vals=Object.values(per);
+    if(vals.length) q=Math.max(...vals);
+  }
+  return q/Math.max(1,zones);
+}
+function pkgElements(pkg,level){
+  const cats=new Set(pkg.cats);
+  return S.elements.filter(e=>e.level===level&&cats.has(e.cat));
+}
+function durationOf(pkg,qty,grp,nTasks){
+  if(qty>0){
+    const d=Math.ceil(qty/Math.max(0.01,num(pkg.out,1)*num(pkg.crews,1)));
+    return clamp(d,num(pkg.min,1),num(pkg.max,999));
+  }
+  // no drawing quantity: prorate the group activity's own duration
+  if(grp&&num(grp.dur)>0) return Math.max(1,Math.round(num(grp.dur)/Math.max(1,nTasks)));
+  return num(pkg.min,3);
+}
+
+function developSchedule(){
+  $('#devLog').innerHTML='';
+  if(!S.groups.length){ S.groups=STD_TEMPLATE(); renderGroups(); dlog('No group schedule imported — standard building template used.','w'); }
+  const levels=levelsList(), zones=zonesList();
+  dlog('Levels: '+levels.join(', '));
+  dlog('Zones per level: '+zones.length+'  |  zone overlap '+S.opts.zoneOverlap+'%'+(S.opts.typical?'  |  typical-floor repeat ON':''));
+  const tasks=[],rels=[],wbs=[];
+  const pfx=S.opts.idPfx||'A';
+  let seqNo=0;
+  const wbsRoot={id:'W0',code:'1',name:S.name,parent:null}; wbs.push(wbsRoot);
+
+  // group activities ordered by their mapped work package sequence, then original order
+  const groups=[...S.groups].map((g,i)=>({...g,_i:i}));
+  groups.sort((a,b)=>{
+    const pa=S.norms.find(n=>n.id===a.pkg), pb=S.norms.find(n=>n.id===b.pkg);
+    return (pa?pa.seq:900+a._i)-(pb?pb.seq:900+b._i);
+  });
+
+  const byCell={};                 // level|zone -> [task] (in sequence order)
+  const byPkgLevel={};             // pkgId|level|zone -> task
+
+  const blocks=[];
+  groups.forEach((g,gi)=>{
+    const pkgs=(g.pkgs||[]).map(id=>S.norms.find(n=>n.id===id&&n.on)).filter(Boolean).sort((x,y)=>x.seq-y.seq);
+    const gWbs={id:'W'+(gi+1),code:'1.'+(gi+1),name:g.name,parent:'W0'}; wbs.push(gWbs);
+    const block={group:g,tasks:[]};
+    if(!pkgs.length){
+      const dur=Math.max(1,num(g.dur,5));
+      const t=mkTask(++seqNo,pfx,g,gWbs,'',null,'','',0,'',dur);
+      tasks.push(t); block.tasks.push(t); block.single=true; blocks.push(block);
+      dlog('"'+g.name+'" not mapped to a work package — kept as a single '+dur+' d activity.','w');
+      return;
+    }
+    let made=0,skipped=0;
+    pkgs.forEach(pkg=>{
+      const noQty=!pkg.cats.length;
+      const applyLevels=noQty?['Project']:levelsFor(pkg,levels,g.split);
+      const applyZones=(noQty||g.split==='level'||g.split==='project')?['Z1']:zones;
+      applyLevels.forEach(lv=>{
+        applyZones.forEach(zn=>{
+          if(byPkgLevel[pkg.id+'|'+lv+'|'+zn]){ skipped++; return; }   // already built by an earlier group
+          const qty=(lv==='Project')?0:pkgQty(pkg,lv,applyZones.length);
+          if(lv!=='Project'&&qty<=0&&pkg.cats.length&&S.elements.length&&!/snag|mobil|hand/i.test(pkg.name)) return;
+          const dur=durationOf(pkg,qty,g,applyLevels.length*applyZones.length);
+          const t=mkTask(++seqNo,pfx,g,gWbs,pkg.name,pkg,lv,zn,qty,pkg.unit,dur);
+          t.pkgId=pkg.id; t.seq=pkg.seq;
+          t.elements=(lv==='Project')?[]:pkgElements(pkg,lv).map(e=>e.id);
+          tasks.push(t); block.tasks.push(t); made++;
+          (byCell[lv+'|'+zn] ??= []).push(t);
+          byPkgLevel[pkg.id+'|'+lv+'|'+zn]=t;
+        });
+      });
+    });
+    if(!made&&!skipped){
+      const dur=Math.max(1,num(g.dur,5));
+      const t=mkTask(++seqNo,pfx,g,gWbs,'',null,'','',0,'',dur);
+      tasks.push(t); block.tasks.push(t); block.single=true;
+      dlog('"'+g.name+'" — no quantity found in the drawings, kept as a single '+dur+' d activity.','w');
+    }
+    blocks.push(block);
+    if(made) dlog('"'+g.name+'" → '+made+' activities from '+pkgs.length+' work package(s)'+(skipped?' ('+skipped+' already covered by an earlier group)':''));
+    else if(skipped) dlog('"'+g.name+'" → 0 activities ('+skipped+' already covered by an earlier group)');
+  });
+
+  /* --- relationships --- */
+  const tOver=clamp(num(S.opts.tradeOverlap,0),0,90)/100;
+  // 1. trade sequence inside each level+zone
+  Object.values(byCell).forEach(list=>{
+    list.sort((a,b)=>(a.seq||0)-(b.seq||0));
+    for(let i=1;i<list.length;i++){
+      const p=list[i-1],s=list[i];
+      if(tOver>0) rels.push({p:p.id,s:s.id,type:'SS',lag:Math.max(1,Math.round(p.dur*(1-tOver)))});
+      else rels.push({p:p.id,s:s.id,type:'FS',lag:0});
+    }
+  });
+  // 2. zone-to-zone for the same package + level
+  const zOver=clamp(num(S.opts.zoneOverlap,50),0,100)/100;
+  const zs=zonesList();
+  tasks.forEach(t=>{
+    if(!t.pkgId||!t.zone)return;
+    const zi=zs.indexOf(t.zone); if(zi<=0)return;
+    const prev=byPkgLevel[t.pkgId+'|'+t.level+'|'+zs[zi-1]];
+    if(prev) rels.push({p:prev.id,s:t.id,type:'SS',lag:Math.max(1,Math.round(prev.dur*(1-zOver)))});
+  });
+  // 3. level-to-level for vertical packages
+  const lv=levelsList(), lag=num(S.opts.lvlLag,0);
+  tasks.forEach(t=>{
+    const pkg=S.norms.find(n=>n.id===t.pkgId);
+    if(!pkg||!pkg.vert)return;
+    const li=lv.indexOf(t.level); if(li<=0)return;
+    for(let k=li-1;k>=0;k--){
+      const prev=byPkgLevel[t.pkgId+'|'+lv[k]+'|'+t.zone];
+      if(prev){ rels.push({p:prev.id,s:t.id,type:'FS',lag}); break; }
+    }
+  });
+  // 3b. foundation / basement level feeds the level above (different packages, so rule 3 cannot see it)
+  zs.forEach(zn=>{
+    for(let i=0;i<lv.length-1;i++){
+      if(levelRank(lv[i])>-1)continue;
+      const below=(byCell[lv[i]+'|'+zn]||[]).slice().sort((a,b)=>a.seq-b.seq);
+      const above=(byCell[lv[i+1]+'|'+zn]||[]).slice().sort((a,b)=>a.seq-b.seq);
+      if(below.length&&above.length) rels.push({p:below[below.length-1].id,s:above[0].id,type:'FS',lag}); 
+    }
+  });
+  // 3c. project-wide activities (mobilisation, handover…) sit before or after every location
+  tasks.filter(t=>t.level==='Project').forEach(P=>{
+    Object.values(byCell).forEach(list=>{
+      const l=list.slice().sort((a,b)=>a.seq-b.seq);
+      const lower=l.filter(t=>t.seq<P.seq), higher=l.filter(t=>t.seq>P.seq);
+      if(lower.length) rels.push({p:lower[lower.length-1].id,s:P.id,type:'FS',lag:0});
+      else if(higher.length) rels.push({p:P.id,s:higher[0].id,type:'FS',lag:0});
+    });
+  });
+  // 4. group activities that have no work package (mobilisation, handover…) bracket their neighbours
+  const firstInCell=list=>{
+    const byC={}; list.forEach(t=>{ const k=t.level+'|'+t.zone; if(!byC[k]||t.seq<byC[k].seq)byC[k]=t; });
+    return Object.values(byC);
+  };
+  blocks.forEach((blk,i)=>{
+    if(!blk.single)return;
+    const U=blk.tasks[0];
+    let prev=null,next=null;
+    for(let k=i-1;k>=0;k--) if(blocks[k].tasks.length){ prev=blocks[k]; break; }
+    for(let k=i+1;k<blocks.length;k++) if(blocks[k].tasks.length){ next=blocks[k]; break; }
+    if(prev) prev.tasks.forEach(p=>rels.push({p:p.id,s:U.id,type:'FS',lag:0}));
+    if(next) firstInCell(next.tasks).forEach(nt=>rels.push({p:U.id,s:nt.id,type:'FS',lag:0}));
+  });
+  // de-duplicate
+  const seen=new Set(); S.rels=rels.filter(r=>{const k=r.p+'>'+r.s;if(seen.has(k)||r.p===r.s)return false;seen.add(k);return true;});
+  S.tasks=tasks; S.wbs=wbs;
+  runCPM();
+  dlog('CPM complete: '+tasks.length+' activities, '+S.rels.length+' links, '+S.tasks.filter(t=>t.crit).length+' critical.','s');
+  $('#devStat').textContent='developed'; $('#devStat').className='badge ok';
+  renderTasks(); renderKpis(); saveLocal();
+  toast('Schedule developed — '+tasks.length+' activities','ok');
+}
+function mkTask(n,pfx,g,gWbs,pkgName,pkg,level,zone,qty,unit,dur){
+  const idc=pfx+String(n*10).padStart(4,'0');
+  const loc=[level&&level!=='Project'?level:'',zone&&level!=='Project'?zone:''].filter(Boolean).join(' / ');
+  return {id:uid('t'),code:idc,name:(pkgName||g.name)+(loc?' — '+loc:''),group:g.name,groupId:g.id,
+    wbsId:gWbs.id,wbs:gWbs.code+' '+gWbs.name,level:level||'',zone:zone||'',qty:r2(qty),unit:unit||'',
+    dur:Math.max(1,Math.round(dur)),pkgId:pkg?pkg.id:'',seq:pkg?pkg.seq:999,elements:[],
+    es:0,ef:0,ls:0,lf:0,tf:0,crit:false};
+}
+
+/* ---------- CPM forward / backward pass on working days ---------- */
+function runCPM(){
+  const T=S.tasks, idx={}; T.forEach(t=>idx[t.id]=t);
+  const succ={},pred={};
+  S.rels.forEach(r=>{ if(!idx[r.p]||!idx[r.s])return; (succ[r.p]??=[]).push(r); (pred[r.s]??=[]).push(r); });
+  // topological order (Kahn); cycles are broken by ignoring the back edge
+  const indeg={}; T.forEach(t=>indeg[t.id]=(pred[t.id]||[]).length);
+  const q=T.filter(t=>!indeg[t.id]).map(t=>t.id), order=[];
+  const deg={...indeg};
+  while(q.length){ const id=q.shift(); order.push(id);
+    (succ[id]||[]).forEach(r=>{ if(--deg[r.s]===0) q.push(r.s); }); }
+  T.forEach(t=>{ if(!order.includes(t.id)) order.push(t.id); });   // leftovers from cycles
+  // forward
+  order.forEach(id=>{ const t=idx[id]; let es=0;
+    (pred[id]||[]).forEach(r=>{ const p=idx[r.p]; if(!p)return; const lag=num(r.lag,0);
+      let v=0;
+      if(r.type==='SS')v=p.es+lag; else if(r.type==='FF')v=p.ef+lag-t.dur;
+      else if(r.type==='SF')v=p.es+lag-t.dur; else v=p.ef+lag;
+      es=Math.max(es,v);
+    });
+    t.es=Math.max(0,es); t.ef=t.es+t.dur;
+  });
+  const fin=T.reduce((m,t)=>Math.max(m,t.ef),0);
+  // backward
+  [...order].reverse().forEach(id=>{ const t=idx[id]; let lf=fin;
+    (succ[id]||[]).forEach(r=>{ const s=idx[r.s]; if(!s)return; const lag=num(r.lag,0);
+      let v=fin;
+      if(r.type==='SS')v=s.ls-lag+t.dur; else if(r.type==='FF')v=s.lf-lag;
+      else if(r.type==='SF')v=s.lf-lag+t.dur; else v=s.ls-lag;
+      lf=Math.min(lf,v);
+    });
+    t.lf=lf; t.ls=t.lf-t.dur; t.tf=t.ls-t.es; t.crit=t.tf<=0;
+  });
+  // dates
+  T.forEach(t=>{
+    t.start=d2s(workDate(t.es));
+    t.finish=d2s(workDate(Math.max(t.es,t.ef-1)));
+    t.lsD=d2s(workDate(t.ls)); t.lfD=d2s(workDate(Math.max(t.ls,t.lf-1)));
+    t.preds=(pred[t.id]||[]).map(r=>{const p=idx[r.p];return p?p.code+(r.type!=='FS'?':'+r.type:'')+(num(r.lag)?('+'+r.lag):''):'';}).filter(Boolean).join(', ');
+  });
+  S.projFinish=fin?d2s(workDate(fin-1)):'';
+  S.projDays=fin;
+}
+
+/* ============================================================
+   RENDERING
+   ============================================================ */
+function renderAll(){ renderDrawings(); renderElements(); renderGroups(); renderRules(); renderNorms(); renderTasks(); renderKpis(); renderCal(); fillSelects(); }
+
+function renderKpis(){
+  $('#kDwg').textContent=S.drawings.length;
+  $('#kPage').textContent=S.drawings.reduce((a,d)=>a+(d.pages||1),0);
+  $('#kEnt').textContent=S.drawings.reduce((a,d)=>a+(d.ents?.length||0),0).toLocaleString();
+  $('#kTxt').textContent=S.drawings.reduce((a,d)=>a+(d.texts?.length||0),0).toLocaleString();
+  $('#kLvl').textContent=(S.meta.levels||[]).length;
+  $('#kEl').textContent=S.elements.length;
+  $('#kTask').textContent=S.tasks.length;
+  $('#kRel').textContent=S.rels.length;
+  $('#kDur').textContent=S.projDays||0;
+  $('#kFin').textContent=S.projFinish?fmtD(S.projFinish):'—';
+  $('#kCrit').textContent=S.tasks.filter(t=>t.crit).length;
+  $('#kWbs').textContent=S.wbs.length;
+}
+function renderDrawings(){
+  const tb=$('#tDwg tbody'); $('#bDwg').textContent=S.drawings.length;
+  if(!S.drawings.length){ tb.innerHTML='<tr><td colspan="11" class="empty">No drawings loaded yet</td></tr>'; return; }
+  tb.innerHTML=S.drawings.map((d,i)=>`<tr>
+    <td title="${esc(d.name)}">${esc(d.name.length>34?d.name.slice(0,32)+'…':d.name)}</td>
+    <td><span class="badge ${d.type==='dxf'?'ok':'ac'}">${d.type.toUpperCase()}</span></td>
+    <td class="num">${d.pages||1}</td><td>${esc(d.meta?.discipline||'')}</td>
+    <td><input data-dw="${d.id}" data-k="level" value="${esc(d.meta?.level||'')}" style="width:80px"></td>
+    <td>${esc(d.meta?.scale||'—')}</td>
+    <td class="num">${(d.ents?.length||0).toLocaleString()}</td>
+    <td class="num">${(d.texts?.length||0).toLocaleString()}</td>
+    <td class="num">${d.elCount||0}</td>
+    <td>${d.type==='dxf'?'<span class="badge ok">geometry + text</span>':(d.texts?.length?'<span class="badge ac">text read</span>':'<span class="badge warn">scanned — no text</span>')}</td>
+    <td><button class="btn sm" data-view="${d.id}">view</button> <button class="btn sm" data-delDw="${d.id}">✕</button></td></tr>`).join('');
+  tb.oninput=e=>{ const id=e.target.dataset.dw; if(!id)return;
+    const d=S.drawings.find(x=>x.id===id); d.meta[e.target.dataset.k]=e.target.value;
+    S.elements.filter(x=>x.drawingId===id).forEach(x=>x.level=e.target.value||'GF');
+    refreshMeta(); renderElements(); saveLocal(); };
+  tb.onclick=e=>{
+    const v=e.target.dataset.view, dl2=e.target.dataset.deldw;
+    if(v){ $('#vSel').value=v; $$('#nav .step').find(s=>s.dataset.p==='p2').click(); viewer.load(v); }
+    if(dl2){ S.drawings=S.drawings.filter(x=>x.id!==dl2); S.elements=S.elements.filter(x=>x.drawingId!==dl2); refreshMeta(); renderAll(); saveLocal(); }
+  };
+}
+function elFilter(){
+  const c=$('#eCat').value,l=$('#eLvl').value,z=$('#eZone').value,q=$('#eFind').value.toLowerCase();
+  return S.elements.filter(e=>(!c||e.cat===c)&&(!l||e.level===l)&&(!z||e.zone===z)&&
+    (!q||(e.mark+' '+e.cat+' '+e.layer+' '+e.drawing).toLowerCase().includes(q)));
+}
+function renderElements(){
+  const tb=$('#tEl tbody'), rows=elFilter();
+  const cats=[...new Set(S.elements.map(e=>e.cat))].sort();
+  fillSel('#eCat',cats); fillSel('#eLvl',S.meta.levels||[]); fillSel('#eZone',S.meta.zones||[]);
+  const sum={}; S.elements.forEach(e=>{ const k=e.cat+'|'+e.unit; sum[k]=(sum[k]||0)+num(e.qty); });
+  $('#eSummary').innerHTML=Object.entries(sum).sort((a,b)=>b[1]-a[1]).slice(0,14)
+    .map(([k,v])=>{const [c,u]=k.split('|');return `<span><b>${esc(c)}</b> <span class="tag">${r2(v).toLocaleString()} ${esc(u)}</span></span>`;}).join('')
+    ||'<span style="color:var(--tx3)">No quantities yet — load drawings in step 1.</span>';
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="11" class="empty">No elements</td></tr>'; return; }
+  tb.innerHTML=rows.slice(0,1200).map((e,i)=>`<tr>
+    <td class="num">${i+1}</td>
+    <td><input data-e="${e.id}" data-k="cat" value="${esc(e.cat)}"></td>
+    <td><input data-e="${e.id}" data-k="mark" value="${esc(e.mark)}" style="width:80px"></td>
+    <td><input data-e="${e.id}" data-k="level" value="${esc(e.level)}" style="width:92px"></td>
+    <td><input data-e="${e.id}" data-k="zone" value="${esc(e.zone)}" style="width:56px"></td>
+    <td class="num"><input data-e="${e.id}" data-k="qty" value="${e.qty}" style="text-align:right"></td>
+    <td><input data-e="${e.id}" data-k="unit" value="${esc(e.unit)}" style="width:50px"></td>
+    <td style="color:var(--tx3)">${esc(String(e.layer).slice(0,22))}</td>
+    <td style="color:var(--tx3)" title="${esc(e.drawing)}">${esc(String(e.drawing).slice(0,20))}</td>
+    <td><input data-e="${e.id}" data-k="guid" value="${esc(e.guid||'')}" placeholder="IFC GUID / set"></td>
+    <td><button class="btn sm" data-delEl="${e.id}">✕</button></td></tr>`).join('');
+  tb.oninput=e=>{ const id=e.target.dataset.e; if(!id)return;
+    const el=S.elements.find(x=>x.id===id); const k=e.target.dataset.k;
+    el[k]=(k==='qty')?num(e.target.value):e.target.value; refreshMeta(); saveLocal(); };
+  tb.onclick=e=>{ const id=e.target.dataset.delel; if(id){ S.elements=S.elements.filter(x=>x.id!==id); renderElements(); renderKpis(); saveLocal(); } };
+}
+function fillSel(sel,vals){ const e=$(sel),cur=e.value;
+  e.innerHTML='<option value="">All</option>'+vals.map(v=>`<option${v===cur?' selected':''}>${esc(v)}</option>`).join(''); }
+function fillSelects(){
+  const os=S.drawings.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join('');
+  $('#vSel').innerHTML=os; $('#simDwg').innerHTML=os;
+}
+function renderGroups(){
+  const tb=$('#tGrp tbody');
+  if(!S.groups.length){ tb.innerHTML='<tr><td colspan="10" class="empty">No group schedule — import one or load the standard template</td></tr>'; return; }
+  const nameOf=id=>S.norms.find(n=>n.id===id)?.name||'';
+  tb.innerHTML=S.groups.map((g,i)=>`<tr>
+    <td class="num">${i+1}</td>
+    <td><input data-g="${g.id}" data-k="wbs" value="${esc(g.wbs||'')}" style="width:64px"></td>
+    <td><input data-g="${g.id}" data-k="code" value="${esc(g.code||'')}" style="width:80px"></td>
+    <td><input data-g="${g.id}" data-k="name" value="${esc(g.name)}" style="min-width:230px"></td>
+    <td class="num"><input data-g="${g.id}" data-k="dur" value="${g.dur||0}" style="text-align:right;width:60px"></td>
+    <td><input type="date" data-g="${g.id}" data-k="start" value="${g.start||''}"></td>
+    <td><input type="date" data-g="${g.id}" data-k="finish" value="${g.finish||''}"></td>
+    <td><input data-g="${g.id}" data-k="pkgs" list="pkglist" style="min-width:230px" placeholder="not mapped — type a work package" value="${esc((g.pkgs||[]).map(nameOf).filter(Boolean).join(', '))}"></td>
+    <td><select data-g="${g.id}" data-k="split">
+      <option value="level+zone"${g.split==='level+zone'?' selected':''}>Level + zone</option>
+      <option value="level"${g.split==='level'?' selected':''}>Level only</option>
+      <option value="project"${g.split==='project'?' selected':''}>Whole project</option></select></td>
+    <td><button class="btn sm" data-delG="${g.id}">✕</button></td></tr>`).join('')
+    +`<datalist id="pkglist">${S.norms.map(n=>`<option>${esc(n.name)}</option>`).join('')}</datalist>`;
+  const upd=e=>{ const id=e.target.dataset.g; if(!id)return;
+    const g=S.groups.find(x=>x.id===id),k=e.target.dataset.k;
+    if(k==='pkgs'){
+      g.pkgs=e.target.value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean)
+        .map(txt=>(S.norms.find(n=>n.name.toLowerCase()===txt)||S.norms.find(n=>n.name.toLowerCase().includes(txt))||{}).id)
+        .filter(Boolean);
+    } else g[k]=(k==='dur')?num(e.target.value):e.target.value;
+    saveLocal(); };
+  tb.oninput=upd; tb.onchange=upd;
+  tb.onclick=e=>{ const id=e.target.dataset.delg; if(id){ S.groups=S.groups.filter(x=>x.id!==id); renderGroups(); saveLocal(); } };
+}
+function renderRules(){
+  const tb=$('#tRule tbody');
+  tb.innerHTML=S.rules.map(r=>`<tr>
+    <td><input type="checkbox" data-r="${r.id}" data-k="on" ${r.on?'checked':''}></td>
+    <td><input data-r="${r.id}" data-k="cat" value="${esc(r.cat)}" style="min-width:110px"></td>
+    <td><input data-r="${r.id}" data-k="layer" value="${esc(r.layer)}" style="min-width:180px;font-family:var(--mono)"></td>
+    <td><input data-r="${r.id}" data-k="text" value="${esc(r.text)}" style="min-width:150px;font-family:var(--mono)"></td>
+    <td><input data-r="${r.id}" data-k="unit" value="${esc(r.unit)}" style="width:52px"></td>
+    <td><select data-r="${r.id}" data-k="measure">${['count','length','area','volume'].map(m=>`<option${m===r.measure?' selected':''}>${m}</option>`).join('')}</select></td>
+    <td class="num"><input data-r="${r.id}" data-k="factor" value="${r.factor}" style="width:60px;text-align:right"></td>
+    <td><button class="btn sm" data-delR="${r.id}">✕</button></td></tr>`).join('');
+  const upd=e=>{ const id=e.target.dataset.r; if(!id)return; const r=S.rules.find(x=>x.id===id),k=e.target.dataset.k;
+    r[k]=(k==='on')?e.target.checked:(k==='factor'?num(e.target.value,1):e.target.value); saveLocal(); };
+  tb.oninput=upd; tb.onchange=upd;
+  tb.onclick=e=>{ const id=e.target.dataset.delr; if(id){ S.rules=S.rules.filter(x=>x.id!==id); renderRules(); saveLocal(); } };
+}
+function renderNorms(){
+  const tb=$('#tNorm tbody');
+  const cats=[...new Set([...S.rules.map(r=>r.cat),...S.elements.map(e=>e.cat)])].sort();
+  tb.innerHTML=S.norms.sort((a,b)=>a.seq-b.seq).map(n=>`<tr>
+    <td class="num"><input data-n="${n.id}" data-k="seq" value="${n.seq}" style="width:48px;text-align:right"></td>
+    <td><input type="checkbox" data-n="${n.id}" data-k="on" ${n.on?'checked':''}></td>
+    <td><input data-n="${n.id}" data-k="name" value="${esc(n.name)}" style="min-width:170px"></td>
+    <td><input data-n="${n.id}" data-k="cats" value="${esc(n.cats.join(', '))}" list="catlist" style="min-width:210px"></td>
+    <td><input data-n="${n.id}" data-k="unit" value="${esc(n.unit)}" style="width:48px"></td>
+    <td class="num"><input data-n="${n.id}" data-k="out" value="${n.out}" style="width:66px;text-align:right"></td>
+    <td class="num"><input data-n="${n.id}" data-k="crews" value="${n.crews}" style="width:48px;text-align:right"></td>
+    <td class="num"><input data-n="${n.id}" data-k="min" value="${n.min}" style="width:48px;text-align:right"></td>
+    <td class="num"><input data-n="${n.id}" data-k="max" value="${n.max}" style="width:48px;text-align:right"></td>
+    <td><input type="checkbox" data-n="${n.id}" data-k="vert" ${n.vert?'checked':''} title="Repeats floor by floor"></td>
+    <td><button class="btn sm" data-delN="${n.id}">✕</button></td></tr>`).join('')
+    +`<datalist id="catlist">${cats.map(c=>`<option>${esc(c)}</option>`).join('')}</datalist>`;
+  const upd=e=>{ const id=e.target.dataset.n; if(!id)return; const n=S.norms.find(x=>x.id===id),k=e.target.dataset.k;
+    if(k==='on'||k==='vert') n[k]=e.target.checked;
+    else if(k==='cats') n.cats=e.target.value.split(',').map(s=>s.trim()).filter(Boolean);
+    else if(['seq','out','crews','min','max'].includes(k)) n[k]=num(e.target.value);
+    else n[k]=e.target.value;
+    saveLocal(); };
+  tb.oninput=upd; tb.onchange=upd;
+  tb.onclick=e=>{ const id=e.target.dataset.deln; if(id){ S.norms=S.norms.filter(x=>x.id!==id); renderNorms(); saveLocal(); } };
+}
+function renderCal(){
+  const names=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  $('#wdays').innerHTML=names.map((n,i)=>`<label style="display:flex;gap:3px;align-items:center;font-size:11.5px"><input type="checkbox" data-wd="${i}" ${S.cal.days[i]?'checked':''}>${n}</label>`).join('');
+  $('#wdays').onchange=e=>{ const i=e.target.dataset.wd; if(i!=null){ S.cal.days[+i]=e.target.checked?1:0; saveLocal(); } };
+  $('#hpd').value=S.cal.hpd; $('#hols').value=S.cal.hols.join(', ');
+  ['zones|nZones','zoneOverlap|zOver','lvlLag|lvlLag','levels|nLevels','tradeOverlap|tOver','idPfx|idPfx']
+    .forEach(p=>{const [k,id]=p.split('|'); const e=$('#'+id); if(e) e.value=S.opts[k]; });
+  $('#typRep').checked=!!S.opts.typical;
+}
+function taskFilter(){
+  const q=$('#sFind').value.toLowerCase(), sh=$('#sShow').value;
+  return S.tasks.filter(t=>(!q||(t.code+' '+t.name+' '+t.wbs+' '+t.level).toLowerCase().includes(q))
+    &&(sh!=='crit'||t.crit)&&(sh!=='near'||t.tf<=5));
+}
+function renderTasks(){
+  const tb=$('#tTask tbody'), rows=taskFilter().sort((a,b)=>a.es-b.es||a.seq-b.seq);
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="12" class="empty">Run the engine in step 6</td></tr>'; return; }
+  tb.innerHTML=rows.map(t=>`<tr>
+    <td class="${t.crit?'crit':''}" style="font-family:var(--mono)">${esc(t.code)}</td>
+    <td style="color:var(--tx3)">${esc(String(t.wbs).slice(0,26))}</td>
+    <td class="${t.crit?'crit':''}">${esc(t.name)}</td>
+    <td class="num">${t.qty?t.qty.toLocaleString():''}</td><td>${esc(t.unit)}</td>
+    <td class="num"><input data-t="${t.id}" data-k="dur" value="${t.dur}" style="width:48px;text-align:right"></td>
+    <td>${fmtD(t.start)}</td><td>${fmtD(t.finish)}</td>
+    <td class="num ${t.crit?'crit':''}">${t.tf}</td>
+    <td style="color:var(--tx3);font-family:var(--mono);font-size:11px" title="${esc(t.preds||'')}">${esc(String(t.preds||'').slice(0,28))}</td>
+    <td>${esc(t.level)}</td><td>${esc(t.zone)}</td></tr>`).join('');
+  tb.oninput=e=>{ const id=e.target.dataset.t; if(!id)return;
+    const t=S.tasks.find(x=>x.id===id); t.dur=Math.max(1,num(e.target.value,1));
+    runCPM(); renderTasks(); renderKpis(); saveLocal(); };
+}
+
+/* ============================================================
+   DRAWING VIEWER — DXF vector canvas + PDF page render
+   ============================================================ */
+const ACAD=[ '#ffffff','#ff0000','#ffff00','#00ff00','#00ffff','#0000ff','#ff00ff','#d8dee9','#808080','#c0c0c0' ];
+const layerColor=c=>ACAD[(c==null||c<0?7:c)%10]||'#d8dee9';
+
+const viewer={
+  id:null,page:1,z:1,ox:0,oy:0,labels:true,grid:false,off:new Set(),pick:null,measure:null,mpts:[],
+  pdfCanvas:null,pdfScale:0,
+  get cv(){return $('#cv');},
+  refresh(){ if(!S.drawings.length)return; if(!this.id||!S.drawings.find(d=>d.id===this.id)) this.id=S.drawings[0].id;
+    $('#vSel').value=this.id; this.load(this.id); },
+  async load(id){
+    this.id=id; const d=S.drawings.find(x=>x.id===id); if(!d)return;
+    $('#vPage').innerHTML=Array.from({length:d.pages||1},(_,i)=>`<option value="${i+1}">Sheet ${i+1}</option>`).join('');
+    this.page=1; this.off.clear();
+    $('#vLayers').innerHTML=d.type==='dxf'
+      ? Object.values(d.layers).sort((a,b)=>b.count-a.count).map(l=>`<div class="lyr"><input type="checkbox" checked data-ly="${esc(l.name)}"><span class="sw" style="background:${layerColor(l.color)}"></span><span class="nm" title="${esc(l.name)}">${esc(l.name)}</span><span class="ct">${l.count}</span></div>`).join('')
+      : '<div style="color:var(--tx3);font-size:11.5px">PDF sheets have no CAD layers. Text items are searchable.</div>';
+    $('#vLayers').onchange=e=>{ const n=e.target.dataset.ly; if(!n)return; e.target.checked?this.off.delete(n):this.off.add(n); this.draw(); };
+    $('#vMeta').innerHTML=Object.entries(d.meta||{}).filter(([,v])=>v).map(([k,v])=>`<div><span style="color:var(--tx3)">${esc(k)}:</span> ${esc(v)}</div>`).join('')
+      +`<div style="color:var(--tx3);margin-top:5px">${d.type==='dxf'?(d.ents.length+' entities · unit scale '+d.scale):(d.texts.length+' text items')}</div>`;
+    this.pdfScale=0;
+    await this.fit();
+  },
+  size(){ const c=this.cv,w=c.parentElement.clientWidth,h=c.parentElement.clientHeight;
+    const r=devicePixelRatio||1; c.width=w*r; c.height=h*r; c.style.width=w+'px'; c.style.height=h+'px';
+    const x=c.getContext('2d'); x.setTransform(r,0,0,r,0,0); return {x,w,h}; },
+  async fit(){
+    const d=S.drawings.find(x=>x.id===this.id); if(!d)return;
+    const {w,h}=this.size();
+    if(d.type==='dxf'){
+      const bb=this.bbox(d); if(!bb)return;
+      const sx=(w-40)/Math.max(1e-6,bb[2]-bb[0]), sy=(h-40)/Math.max(1e-6,bb[3]-bb[1]);
+      this.z=Math.min(sx,sy); this.ox=w/2-((bb[0]+bb[2])/2)*this.z; this.oy=h/2+((bb[1]+bb[3])/2)*this.z;
+    } else { this.z=1; this.ox=0; this.oy=0; }
+    await this.draw();
+  },
+  bbox(d){ let x0=1e18,y0=1e18,x1=-1e18,y1=-1e18,got=false;
+    for(const e of d.ents){ if(!e.bb)continue; got=true; x0=Math.min(x0,e.bb[0]);y0=Math.min(y0,e.bb[1]);x1=Math.max(x1,e.bb[2]);y1=Math.max(y1,e.bb[3]); }
+    return got?[x0,y0,x1,y1]:null; },
+  async draw(){
+    const d=S.drawings.find(x=>x.id===this.id); if(!d)return;
+    const {x:g,w,h}=this.size();
+    g.fillStyle='#0a0e14'; g.fillRect(0,0,w,h);
+    if(d.type==='pdf'){ await this.drawPDF(d,g,w,h); return; }
+    const q=$('#vFind').value.trim().toUpperCase();
+    g.lineWidth=1;
+    for(const e of d.ents){
+      if(this.off.has(e.layer))continue;
+      const col=layerColor(d.layers[e.layer]?.color);
+      g.strokeStyle=col; g.fillStyle=col; g.globalAlpha=.92;
+      this.drawEnt(g,e,q);
+    }
+    g.globalAlpha=1;
+    if(this.mpts.length===2){
+      const [a,b]=this.mpts; g.strokeStyle='#4f9cf9'; g.lineWidth=1.5; g.setLineDash([5,4]);
+      g.beginPath(); g.moveTo(...this.T(a[0],a[1])); g.lineTo(...this.T(b[0],b[1])); g.stroke(); g.setLineDash([]);
+      const dist=Math.hypot(b[0]-a[0],b[1]-a[1])*(d.scale||1);
+      const m=this.T((a[0]+b[0])/2,(a[1]+b[1])/2);
+      g.fillStyle='#4f9cf9'; g.font='12px ui-monospace'; g.fillText(r2(dist)+' m',m[0]+6,m[1]-6);
+    }
+    $('#vInfo').textContent=`${d.ents.length} ent · zoom ${r2(this.z*1000)/1000} · ${d.meta.level||'level ?'}`;
+  },
+  T(x,y){ return [x*this.z+this.ox, -y*this.z+this.oy]; },
+  Tinv(px,py){ return [(px-this.ox)/this.z, -(py-this.oy)/this.z]; },
+  drawEnt(g,e,q){
+    const xs=e.xs||[],ys=e.ys||[];
+    if(e.type==='TEXT'||e.type==='MTEXT'||e.type==='ATTRIB'){
+      if(!this.labels)return; const t=cleanTxt(e.text); if(!t)return;
+      const p=this.T(e.x||0,e.y||0); const sz=clamp((e.h||2)*this.z,5,26);
+      if(sz<4.5)return;
+      const hit=q&&t.includes(q);
+      g.fillStyle=hit?'#ffd33d':g.strokeStyle; g.font=Math.round(sz)+'px ui-monospace';
+      if(hit){ g.fillRect(p[0]-2,p[1]-sz,g.measureText(t).width+4,sz+4); g.fillStyle='#111'; }
+      g.fillText(t.slice(0,48),p[0],p[1]);
+      return;
+    }
+    if(e.type==='CIRCLE'&&isFinite(e.r)){ const p=this.T(e.x,e.y); g.beginPath(); g.arc(p[0],p[1],Math.abs(e.r*this.z),0,7); g.stroke(); return; }
+    if(e.type==='ARC'&&isFinite(e.r)){ const p=this.T(e.x,e.y); g.beginPath(); g.arc(p[0],p[1],Math.abs(e.r*this.z),0,7); g.stroke(); return; }
+    if(e.type==='INSERT'){ const p=this.T(e.x||0,e.y||0); g.beginPath(); g.rect(p[0]-3,p[1]-3,6,6); g.stroke(); return; }
+    if(xs.length<2)return;
+    g.beginPath(); const p0=this.T(xs[0],ys[0]); g.moveTo(p0[0],p0[1]);
+    for(let i=1;i<xs.length;i++){ const p=this.T(xs[i],ys[i]); g.lineTo(p[0],p[1]); }
+    if(e.closed)g.closePath();
+    g.stroke();
+  },
+  async drawPDF(d,g,w,h){
+    const doc=RT.pdf[d.id];
+    if(!doc){ g.fillStyle='#6b7c91'; g.font='13px system-ui';
+      g.fillText('Re-load this PDF to view it (page images are not saved in the project file).',20,40); this.drawPdfText(d,g,w,h); return; }
+    const pg=await doc.getPage(this.page);
+    const base=pg.getViewport({scale:1});
+    const fitS=Math.min(w/base.width,h/base.height);
+    const sc=fitS*this.z*(devicePixelRatio||1);
+    if(this.pdfScale!==sc||this.pdfPage!==this.page||this.pdfId!==d.id){
+      const vp=pg.getViewport({scale:sc});
+      const off=document.createElement('canvas'); off.width=vp.width; off.height=vp.height;
+      await pg.render({canvasContext:off.getContext('2d'),viewport:vp}).promise;
+      this.pdfCanvas=off; this.pdfScale=sc; this.pdfPage=this.page; this.pdfId=d.id;
+    }
+    const c=this.pdfCanvas, r=devicePixelRatio||1;
+    g.drawImage(c,this.ox,this.oy,c.width/r,c.height/r);
+    const q=$('#vFind').value.trim().toUpperCase();
+    if(q){
+      const sz=d.sizes?.[this.page-1]; if(sz){
+        const k=(this.pdfScale/(devicePixelRatio||1));
+        g.fillStyle='rgba(255,211,61,.45)';
+        d.texts.filter(t=>t.p===this.page&&t.str.toUpperCase().includes(q)).forEach(t=>{
+          g.fillRect(this.ox+t.x*k-2,this.oy+(sz.h-t.y)*k-t.h*k,Math.max(12,t.str.length*t.h*k*0.55),t.h*k*1.25);
+        });
+      }
+    }
+    $('#vInfo').textContent=`sheet ${this.page}/${d.pages} · ${d.texts.filter(t=>t.p===this.page).length} texts · zoom ${r2(this.z)}`;
+  },
+  drawPdfText(d,g,w,h){
+    const sz=d.sizes?.[this.page-1]||{w:842,h:595};
+    const k=Math.min(w/sz.w,h/sz.h)*this.z;
+    g.fillStyle='#9fb0c3';
+    d.texts.filter(t=>t.p===this.page).forEach(t=>{
+      const s=clamp(t.h*k,4,20); if(s<4.5)return;
+      g.font=Math.round(s)+'px system-ui';
+      g.fillText(t.str.slice(0,40),this.ox+t.x*k,this.oy+(sz.h-t.y)*k);
+    });
+  },
+  pickAt(px,py){
+    const d=S.drawings.find(x=>x.id===this.id); if(!d||d.type!=='dxf')return;
+    const [wx,wy]=this.Tinv(px,py); const tol=12/this.z;
+    let best=null,bd=1e18;
+    for(const e of d.ents){ if(this.off.has(e.layer)||!e.bb)continue;
+      const cx=(e.bb[0]+e.bb[2])/2, cy=(e.bb[1]+e.bb[3])/2;
+      const inside=wx>=e.bb[0]-tol&&wx<=e.bb[2]+tol&&wy>=e.bb[1]-tol&&wy<=e.bb[3]+tol;
+      if(!inside)continue; const dd=Math.hypot(cx-wx,cy-wy); if(dd<bd){bd=dd;best=e;} }
+    if(!best){ $('#vPick').textContent='Nothing here.'; return; }
+    const sc=d.scale||1;
+    $('#vPick').innerHTML=`<div><b>${esc(best.type)}</b></div>
+      <div><span style="color:var(--tx3)">layer:</span> ${esc(best.layer)}</div>
+      ${best.text?`<div><span style="color:var(--tx3)">text:</span> ${esc(cleanTxt(best.text))}</div>`:''}
+      ${best.blk?`<div><span style="color:var(--tx3)">block:</span> ${esc(best.blk)}</div>`:''}
+      ${best.len?`<div><span style="color:var(--tx3)">length:</span> ${r2(best.len*sc)} m</div>`:''}
+      ${best.area?`<div><span style="color:var(--tx3)">area:</span> ${r2(best.area*sc*sc)} m²</div>`:''}
+      <div><span style="color:var(--tx3)">category:</span> ${esc(catOfLayer(best.layer)||'—')}</div>`;
+  }
+};
+function catOfLayer(ly){ for(const r of S.rules){ if(!r.on||!r.layer)continue; const re=rxOf(r.layer); if(re&&re.test(ly||''))return r.cat; } return ''; }
+
+/* viewer events */
+(function(){
+  const cw=$('#cw'); let drag=false,lx=0,ly=0,moved=false;
+  cw.addEventListener('mousedown',e=>{drag=true;moved=false;lx=e.offsetX;ly=e.offsetY;});
+  addEventListener('mouseup',()=>drag=false);
+  cw.addEventListener('mousemove',e=>{ if(!drag)return; moved=true;
+    viewer.ox+=e.offsetX-lx; viewer.oy+=e.offsetY-ly; lx=e.offsetX; ly=e.offsetY; viewer.draw(); });
+  cw.addEventListener('click',e=>{ if(moved)return;
+    if(viewer.measure){ const p=viewer.Tinv(e.offsetX,e.offsetY); viewer.mpts.push(p); if(viewer.mpts.length>2)viewer.mpts=[p]; viewer.draw(); }
+    else viewer.pickAt(e.offsetX,e.offsetY); });
+  cw.addEventListener('wheel',e=>{ e.preventDefault();
+    const f=e.deltaY<0?1.15:1/1.15; const mx=e.offsetX,my=e.offsetY;
+    viewer.ox=mx-(mx-viewer.ox)*f; viewer.oy=my-(my-viewer.oy)*f; viewer.z*=f; viewer.draw(); },{passive:false});
+  $('#vSel').onchange=e=>viewer.load(e.target.value);
+  $('#vPage').onchange=e=>{viewer.page=+e.target.value;viewer.pdfScale=0;viewer.draw();};
+  $('#vFit').onclick=()=>viewer.fit();
+  $('#vIn').onclick=()=>{viewer.z*=1.25;viewer.draw();};
+  $('#vOut').onclick=()=>{viewer.z/=1.25;viewer.draw();};
+  $('#vLbl').onclick=()=>{viewer.labels=!viewer.labels;viewer.draw();};
+  $('#vGrid').onclick=()=>{viewer.grid=!viewer.grid;viewer.draw();};
+  $('#vMeas').onclick=e=>{viewer.measure=!viewer.measure;viewer.mpts=[];e.target.classList.toggle('pri',viewer.measure);viewer.draw();};
+  $('#vFind').oninput=()=>viewer.draw();
+  addEventListener('resize',()=>{ if(!$('#p2').classList.contains('hide'))viewer.draw(); if(!$('#p8').classList.contains('hide'))sim.draw(); });
+})();
+
+/* ============================================================
+   GANTT
+   ============================================================ */
+function drawGantt(){
+  const host=$('#gantt');
+  if(!S.tasks.length){ host.innerHTML='<div class="empty">Develop the schedule first (step 6)</div>'; return; }
+  const scale=$('#gScale').value, grp=$('#gGroup').value;
+  const ppd={d:22,w:6,m:2}[scale];
+  const LW=320, RH=22, top=64;
+  const days=Math.max(1,S.projDays||1);
+  const W=LW+days*ppd+40, rows=[];
+  const start=s2d(S.start);
+  const tasks=[...S.tasks].sort((a,b)=>a.es-b.es);
+  const keyOf=t=>grp==='wbs'?t.group:grp==='level'?(t.level||'—'):grp==='zone'?(t.zone||'—'):'';
+  if(grp==='none'){ tasks.forEach(t=>rows.push({t})); }
+  else{
+    const gs={}; tasks.forEach(t=>{ (gs[keyOf(t)] ??= []).push(t); });
+    Object.entries(gs).forEach(([k,list])=>{
+      const es=Math.min(...list.map(t=>t.es)), ef=Math.max(...list.map(t=>t.ef));
+      rows.push({group:k,es,ef,n:list.length});
+      list.sort((a,b)=>a.es-b.es).forEach(t=>rows.push({t}));
+    });
+  }
+  const H=top+rows.length*RH+24;
+  const x=d=>LW+d*ppd;
+  let ticks='';
+  const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const stepD=Math.max(scale==='m'?22:5,Math.ceil(66/ppd));   // keep labels from colliding
+  for(let i=0;i<=days;i+=stepD){
+    const dt=workDate(Math.min(i,days-1));
+    const lbl=scale==='m'?(MON[new Date(dt).getMonth()]+' '+String(new Date(dt).getFullYear()).slice(2)):fmtD(dt);
+    ticks+=`<line x1="${x(i)}" y1="${top-16}" x2="${x(i)}" y2="${H}" stroke="#2a3441"/>`
+         +`<text x="${x(i)+3}" y="${top-21}" fill="#6b7c91" font-size="10">${lbl}</text>`;
+  }
+  let body='';
+  rows.forEach((r,i)=>{
+    const y=top+i*RH;
+    if(r.group!=null){
+      body+=`<rect x="0" y="${y}" width="${W}" height="${RH}" fill="#1c242e"/>
+        <text x="8" y="${y+15}" fill="#e6edf3" font-size="11.5" font-weight="700">${esc(String(r.group).slice(0,44))} <tspan fill="#6b7c91">(${r.n})</tspan></text>
+        <rect x="${x(r.es)}" y="${y+7}" width="${Math.max(2,(r.ef-r.es)*ppd)}" height="8" fill="#a371f7" rx="2"/>`;
+    } else {
+      const t=r.t, bw=Math.max(2,t.dur*ppd);
+      body+=`<text x="14" y="${y+15}" fill="${t.crit?'#ff8078':'#9fb0c3'}" font-size="11">${esc(t.code)}</text>
+        <text x="74" y="${y+15}" fill="#e6edf3" font-size="11">${esc(t.name.slice(0,40))}</text>
+        ${t.tf>0?`<rect x="${x(t.ef)}" y="${y+8}" width="${Math.max(1,t.tf*ppd)}" height="6" fill="#2a3441" rx="2"/>`:''}
+        <rect x="${x(t.es)}" y="${y+5}" width="${bw}" height="12" rx="3" fill="${t.crit?'#f85149':'#4f9cf9'}">
+          <title>${esc(t.name)}
+${fmtD(t.start)} → ${fmtD(t.finish)} · ${t.dur} d · TF ${t.tf}${t.qty?' · '+t.qty+' '+t.unit:''}</title></rect>
+        ${ppd>=6?`<text x="${x(t.es)+bw+5}" y="${y+15}" fill="#6b7c91" font-size="10">${t.dur}d</text>`:''}`;
+    }
+    if(i%2) body+=`<rect x="0" y="${y}" width="${W}" height="${RH}" fill="#ffffff" opacity="0.012"/>`;
+  });
+  host.innerHTML=`<svg id="gsvg" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" style="background:#151b23">
+    <rect x="0" y="0" width="${W}" height="${top-16}" fill="#1c242e"/>
+    <rect x="0" y="0" width="${W}" height="28" fill="#151b23"/>
+    <text x="10" y="19" fill="#e6edf3" font-size="13" font-weight="700">${esc(S.name)} — ${S.tasks.length} activities, ${S.projDays} working days, finish ${fmtD(S.projFinish)}</text>
+    ${ticks}<line x1="${LW}" y1="0" x2="${LW}" y2="${H}" stroke="#3a4654"/>${body}</svg>`;
+}
+function ganttSVGText(){ const s=$('#gsvg'); return s?new XMLSerializer().serializeToString(s):''; }
+
+/* ============================================================
+   4D SIMULATION
+   ============================================================ */
+const sim={
+  day:0,timer:null,id:null,
+  init(){
+    if(!S.tasks.length){ $('#simStats').innerHTML='<span style="color:var(--tx3)">Develop the schedule first.</span>'; }
+    fillSelects();
+    if(!this.id||!S.drawings.find(d=>d.id===this.id)) this.id=S.drawings[0]?.id||null;
+    if(this.id)$('#simDwg').value=this.id;
+    $('#simRange').max=Math.max(1,S.projDays||1);
+    this.draw();
+  },
+  stateOf(t){ return this.day<t.es?0:(this.day<t.ef?1:2); },   // 0 future 1 active 2 done
+  tasksFor(level,cat){
+    return S.tasks.filter(t=>{
+      if(t.level&&level&&t.level!==level)return false;
+      const p=S.norms.find(n=>n.id===t.pkgId);
+      return p?p.cats.includes(cat):false;
+    });
+  },
+  draw(){
+    const c=$('#cv4'),r=devicePixelRatio||1,w=c.parentElement.clientWidth,h=c.parentElement.clientHeight;
+    c.width=w*r;c.height=h*r;c.style.width=w+'px';c.style.height=h+'px';
+    const g=c.getContext('2d'); g.setTransform(r,0,0,r,0,0);
+    g.fillStyle='#0a0e14'; g.fillRect(0,0,w,h);
+    const d=S.drawings.find(x=>x.id===this.id);
+    const date=workDate(Math.min(this.day,Math.max(0,(S.projDays||1)-1)));
+    $('#simDate').textContent=fmtD(date);
+    if(d&&d.type==='dxf') this.drawGeom(d,g,w,h); else this.drawMatrix(g,w,h);
+    this.stats();
+  },
+  drawGeom(d,g,w,h){
+    const bb=viewer.bbox(d); if(!bb){ this.drawMatrix(g,w,h); return; }
+    const z=Math.min((w-40)/Math.max(1e-6,bb[2]-bb[0]),(h-40)/Math.max(1e-6,bb[3]-bb[1]));
+    const ox=w/2-((bb[0]+bb[2])/2)*z, oy=h/2+((bb[1]+bb[3])/2)*z;
+    const T=(x,y)=>[x*z+ox,-y*z+oy];
+    const lvl=d.meta.level||'GF';
+    const COL=['#2a3441','#d29922','#3fb950'];
+    for(const e of d.ents){
+      const cat=catOfLayer(e.layer);
+      let st=0,linked=false;
+      if(cat){ const ts=this.tasksFor(lvl,cat); if(ts.length){ linked=true; st=Math.min(...ts.map(t=>this.stateOf(t))); } }
+      g.strokeStyle=linked?COL[st]:'#1b222c'; g.fillStyle=g.strokeStyle;
+      g.lineWidth=linked&&st===1?1.8:1; g.globalAlpha=linked?1:.45;
+      const xs=e.xs||[],ys=e.ys||[];
+      if(e.type==='INSERT'||e.type==='CIRCLE'){ const p=T(e.x||0,e.y||0);
+        g.beginPath(); g.arc(p[0],p[1],Math.max(3,(e.r||300)*z),0,7); linked?g.fill():g.stroke(); continue; }
+      if(e.type==='TEXT'||e.type==='MTEXT')continue;
+      if(xs.length<2)continue;
+      g.beginPath(); const p0=T(xs[0],ys[0]); g.moveTo(p0[0],p0[1]);
+      for(let i=1;i<xs.length;i++){const p=T(xs[i],ys[i]);g.lineTo(p[0],p[1]);}
+      if(e.closed){ g.closePath(); if(linked){ g.globalAlpha=st===0?.12:.25; g.fill(); g.globalAlpha=1; } }
+      g.stroke();
+    }
+    g.globalAlpha=1;
+    $('#sim4Info').textContent=d.name+' · level '+lvl;
+  },
+  drawMatrix(g,w,h){
+    const lv=[...levelsList()].reverse(), zs=zonesList();
+    const pkgs=[...new Set(S.tasks.map(t=>t.pkgId))].filter(Boolean);
+    const padL=86,padT=30,cw=Math.min(70,(w-padL-20)/Math.max(1,zs.length*Math.max(1,pkgs.length)));
+    const rh=Math.min(34,(h-padT-20)/Math.max(1,lv.length));
+    g.font='11px system-ui';
+    lv.forEach((L,i)=>{
+      const y=padT+i*rh;
+      g.fillStyle='#9fb0c3'; g.fillText(L,8,y+rh/2+4);
+      zs.forEach((Z,zi)=>{
+        pkgs.forEach((p,pi)=>{
+          const t=S.tasks.find(t=>t.level===L&&t.zone===Z&&t.pkgId===p); if(!t)return;
+          const x=padL+(zi*pkgs.length+pi)*cw*0.9;
+          const st=this.stateOf(t);
+          g.fillStyle=['#2a3441','#d29922','#3fb950'][st];
+          g.fillRect(x,y+3,cw*0.8,rh-8);
+        });
+      });
+    });
+    g.fillStyle='#6b7c91'; g.fillText('Level × zone × work package (no DXF geometry for this sheet)',8,h-8);
+    $('#sim4Info').textContent='schematic view';
+  },
+  stats(){
+    const done=S.tasks.filter(t=>this.stateOf(t)===2), act=S.tasks.filter(t=>this.stateOf(t)===1);
+    const totD=S.tasks.reduce((a,t)=>a+t.dur,0)||1;
+    const earned=S.tasks.reduce((a,t)=>{const s=this.stateOf(t);return a+(s===2?t.dur:s===1?clamp(this.day-t.es,0,t.dur):0);},0);
+    $('#simStats').innerHTML=`<div style="font-size:22px;font-weight:700">${Math.round(earned/totD*100)}%</div>
+      <div style="color:var(--tx3);font-size:11px;margin-bottom:7px">time-based progress</div>
+      <div>Completed <b>${done.length}</b> / ${S.tasks.length}</div>
+      <div>In progress <b>${act.length}</b></div>
+      <div>Day <b>${this.day}</b> of ${S.projDays||0}</div>`;
+    $('#simActive').innerHTML=act.slice(0,14).map(t=>`<div>• ${esc(t.name)} <span class="tag">${t.dur}d</span></div>`).join('')||'<span style="color:var(--tx3)">—</span>';
+  },
+  play(){
+    if(this.timer){ clearInterval(this.timer); this.timer=null; $('#simPlay').textContent='▶ Play'; return; }
+    $('#simPlay').textContent='⏸ Pause';
+    const step=num($('#simSpeed').value,3);
+    this.timer=setInterval(()=>{
+      this.day+=step;
+      if(this.day>=(S.projDays||1)){ this.day=S.projDays||1; clearInterval(this.timer); this.timer=null; $('#simPlay').textContent='▶ Play'; }
+      $('#simRange').value=this.day; this.draw();
+    },140);
+  }
+};
+
+/* ============================================================
+   EXPORTS
+   ============================================================ */
+function needTasks(){ if(!S.tasks.length){ toast('Develop the schedule first (step 6)','warn'); return false; } return true; }
+
+/* ---------- Primavera P6 XER ---------- */
+function buildXER(){
+  const hpd=num(S.cal.hpd,8), today=d2s(new Date());
+  const L=[];
+  L.push(['ERMHDR','19.12',today,'Project','admin','Admin','Drawing 4D Planner','Project Management','USD'].join('\t'));
+  const tbl=(name,fields,rows)=>{
+    L.push('%T\t'+name); L.push('%F\t'+fields.join('\t'));
+    rows.forEach(r=>L.push('%R\t'+fields.map(f=>String(r[f]??'')).join('\t')));
+  };
+  tbl('CURRTYPE',['curr_id','decimal_digit_cnt','curr_symbol','decimal_symbol','digit_group_symbol','pos_curr_fmt_type','neg_curr_fmt_type','curr_type','curr_short_name','group_digit_cnt','base_exch_rate'],
+    [{curr_id:1,decimal_digit_cnt:2,curr_symbol:'₹',decimal_symbol:'.',digit_group_symbol:',',pos_curr_fmt_type:'#1.1',neg_curr_fmt_type:'(#1.1)',curr_type:'Rupee',curr_short_name:'INR',group_digit_cnt:3,base_exch_rate:1}]);
+
+  const PID=1000, CID=1;
+  const days=S.cal.days, work=[];
+  for(let i=0;i<7;i++) work.push(days[i]?`(0||${i+1}()(0||0(s|08:00|f|12:00)(0||1(s|13:00|f|17:00)()))`:`(0||${i+1}()())`);
+  const clndrData=`(0||CalendarData()(0||DaysOfWeek()(${work.join('')})))`;
+  tbl('CALENDAR',['clndr_id','default_flag','clndr_name','proj_id','base_clndr_id','last_chng_date','clndr_type','day_hr_cnt','week_hr_cnt','month_hr_cnt','year_hr_cnt','rsrc_private','clndr_data'],
+    [{clndr_id:CID,default_flag:'Y',clndr_name:'Project Calendar',proj_id:'',base_clndr_id:'',last_chng_date:xerDate(today),
+      clndr_type:'CA_Base',day_hr_cnt:hpd,week_hr_cnt:hpd*days.filter(Boolean).length,month_hr_cnt:hpd*22,year_hr_cnt:hpd*260,rsrc_private:'N',clndr_data:clndrData}]);
+
+  tbl('PROJECT',['proj_id','fy_start_month_num','rsrc_self_add_flag','allow_complete_flag','rsrc_multi_assign_flag','checkout_flag','project_flag','step_complete_flag','cost_qty_recalc_flag','batch_sum_flag','name_sep_char','def_complete_pct_type','proj_short_name','acct_id','orig_proj_id','source_proj_id','base_type_id','clndr_id','sum_base_proj_id','task_code_base','task_code_step','priority_num','wbs_max_sum_level','risk_level','strgy_priority_num','last_checksum','critical_drtn_hr_cnt','def_cost_per_qty','last_recalc_date','plan_start_date','plan_end_date','scd_end_date','add_date','last_tasksum_date','fcst_start_date','def_duration_type','task_code_prefix','guid','def_qty_type','add_by_name','web_local_root_path','proj_url','def_rate_type','add_act_remain_flag','act_this_per_link_flag','def_task_type','act_pct_link_flag','critical_path_type','task_code_prefix_flag','def_rollup_dates_flag','use_project_baseline_flag','rem_target_link_flag','reset_planned_flag','allow_neg_act_flag','sum_assign_level','last_fin_dates_id'],
+    [{proj_id:PID,fy_start_month_num:4,rsrc_self_add_flag:'N',allow_complete_flag:'N',rsrc_multi_assign_flag:'Y',checkout_flag:'N',project_flag:'Y',step_complete_flag:'N',cost_qty_recalc_flag:'N',batch_sum_flag:'N',name_sep_char:'.',def_complete_pct_type:'CP_Drtn',
+      proj_short_name:(S.name||'PRJ').slice(0,20).toUpperCase().replace(/\s+/g,''),clndr_id:CID,task_code_base:1000,task_code_step:10,priority_num:10,wbs_max_sum_level:10,risk_level:'RL_Abstain',strgy_priority_num:500,
+      critical_drtn_hr_cnt:0,def_cost_per_qty:0,last_recalc_date:xerDate(S.start),plan_start_date:xerDate(S.start),scd_end_date:xerDate(S.projFinish),add_date:xerDate(today),
+      def_duration_type:'DT_FixedDUR2',task_code_prefix:S.opts.idPfx||'A',guid:guid(),def_qty_type:'QT_Hour',add_by_name:'admin',def_rate_type:'COST_PER_QTY1',
+      add_act_remain_flag:'N',act_this_per_link_flag:'Y',def_task_type:'TT_Task',act_pct_link_flag:'N',critical_path_type:'CT_TotFloat',task_code_prefix_flag:'Y',def_rollup_dates_flag:'Y',use_project_baseline_flag:'N',rem_target_link_flag:'Y',reset_planned_flag:'N',allow_neg_act_flag:'N',sum_assign_level:'SL_Taskrsrc'}]);
+
+  const wbsRows=S.wbs.map((w,i)=>({wbs_id:2000+i,proj_id:PID,obs_id:1,seq_num:(i+1)*10,est_wt:1,
+    proj_node_flag:w.parent?'N':'Y',sum_data_flag:'Y',status_code:'WS_Open',wbs_short_name:w.code,wbs_name:w.name,
+    parent_wbs_id:w.parent?2000+S.wbs.findIndex(x=>x.id===w.parent):'',ev_user_pct:6,ev_etc_user_value:0.88,
+    orig_cost:0,indep_remain_total_cost:0,ann_dscnt_rate_pct:'',dscnt_period_type:'',indep_remain_work_qty:0,
+    anticip_start_date:'',anticip_end_date:'',ev_compute_type:'EC_Cmp_pct',ev_etc_compute_type:'EE_Rem_hr',guid:guid(),tmpl_guid:'',original_qty:'',rqmt_rem_qty:'',intg_type:'',status_reviewer:''}));
+  tbl('PROJWBS',Object.keys(wbsRows[0]||{wbs_id:0}),wbsRows);
+
+  const wbsId=w=>2000+Math.max(0,S.wbs.findIndex(x=>x.id===w));
+  const tFields=['task_id','proj_id','wbs_id','clndr_id','phys_complete_pct','rev_fdbk_flag','est_wt','lock_plan_flag','auto_compute_act_flag','complete_pct_type','task_type','duration_type','status_code','task_code','task_name','rsrc_id','total_float_hr_cnt','free_float_hr_cnt','remain_drtn_hr_cnt','act_work_qty','remain_work_qty','target_work_qty','target_drtn_hr_cnt','target_equip_qty','act_equip_qty','remain_equip_qty','cstr_date','act_start_date','act_end_date','late_start_date','late_end_date','expect_end_date','early_start_date','early_end_date','restart_date','reend_date','target_start_date','target_end_date','rem_late_start_date','rem_late_end_date','cstr_type','priority_type','suspend_date','resume_date','float_path','float_path_order','guid','tmpl_guid','cstr_date2','cstr_type2','driving_path_flag','act_this_per_work_qty','act_this_per_equip_qty','external_early_start_date','external_late_end_date','create_date','update_date','create_user','update_user','location_id'];
+  const tid={}; S.tasks.forEach((t,i)=>tid[t.id]=3000+i);
+  const tRows=S.tasks.map((t,i)=>({task_id:tid[t.id],proj_id:PID,wbs_id:wbsId(t.wbsId),clndr_id:CID,phys_complete_pct:0,
+    rev_fdbk_flag:'N',est_wt:1,lock_plan_flag:'N',auto_compute_act_flag:'Y',complete_pct_type:'CP_Drtn',task_type:'TT_Task',
+    duration_type:'DT_FixedDUR2',status_code:'TK_NotStart',task_code:t.code,task_name:t.name,rsrc_id:'',
+    total_float_hr_cnt:t.tf*hpd,free_float_hr_cnt:t.tf*hpd,remain_drtn_hr_cnt:t.dur*hpd,act_work_qty:0,remain_work_qty:0,
+    target_work_qty:0,target_drtn_hr_cnt:t.dur*hpd,target_equip_qty:0,act_equip_qty:0,remain_equip_qty:0,
+    early_start_date:xerDate(t.start),early_end_date:xerDate(t.finish),late_start_date:xerDate(t.lsD),late_end_date:xerDate(t.lfD),
+    target_start_date:xerDate(t.start),target_end_date:xerDate(t.finish),rem_late_start_date:xerDate(t.lsD),rem_late_end_date:xerDate(t.lfD),
+    priority_type:'PT_Normal',guid:guid(),create_date:xerDate(d2s(new Date())),update_date:xerDate(d2s(new Date())),
+    create_user:'admin',update_user:'admin'}));
+  tbl('TASK',tFields,tRows);
+
+  const pRows=S.rels.filter(r=>tid[r.p]&&tid[r.s]).map((r,i)=>({task_pred_id:5000+i,task_id:tid[r.s],pred_task_id:tid[r.p],
+    proj_id:PID,pred_proj_id:PID,pred_type:'PR_'+(r.type||'FS'),lag_hr_cnt:num(r.lag,0)*hpd,comments:'',float_path:'',aref:'',arls:''}));
+  tbl('TASKPRED',['task_pred_id','task_id','pred_task_id','proj_id','pred_proj_id','pred_type','lag_hr_cnt','comments','float_path','aref','arls'],pRows);
+  L.push('%E');
+  return L.join('\n');
+}
+function guid(){ const h=()=>Math.floor(Math.random()*65536).toString(16).padStart(4,'0').toUpperCase();
+  return `{${h()}${h()}-${h()}-${h()}-${h()}-${h()}${h()}${h()}}`; }
+
+/* ---------- Excel ---------- */
+function sheetRows(){
+  return S.tasks.map(t=>({'Activity ID':t.code,'WBS':t.wbs,'Group activity':t.group,'Activity name':t.name,
+    'Level':t.level,'Zone':t.zone,'Quantity':t.qty,'Unit':t.unit,'Original duration (d)':t.dur,
+    'Start':t.start,'Finish':t.finish,'Late start':t.lsD,'Late finish':t.lfD,'Total float (d)':t.tf,
+    'Critical':t.crit?'Yes':'No','Predecessors':t.preds||''}));
+}
+/** Navisworks/Synchro selection-set name: letters, digits and underscores only */
+const setName=parts=>parts.filter(Boolean).map(x=>String(x).replace(/[^A-Za-z0-9]+/g,'')).filter(Boolean).join('_');
+function bimRows(){
+  return S.tasks.map(t=>{
+    const els=S.elements.filter(e=>t.elements?.includes(e.id));
+    const guids=els.map(e=>e.guid).filter(Boolean);
+    return {'Task Name':t.name,'Display ID':t.code,'Task Type':'Construct','Planned Start':t.start,'Planned End':t.finish,
+      'Actual Start':'','Actual End':'','Search Set':setName([t.level,t.zone,(S.norms.find(n=>n.id===t.pkgId)||{}).name||t.group]),
+      'Level':t.level,'Zone':t.zone,'Work package':(S.norms.find(n=>n.id===t.pkgId)||{}).name||t.group,
+      'Category':[...new Set(els.map(e=>e.cat))].join('; '),'Element marks':[...new Set(els.map(e=>e.mark))].slice(0,40).join('; '),
+      'Element GUIDs':guids.join('; '),'Element count':els.length,'Quantity':t.qty,'Unit':t.unit,
+      'Duration (d)':t.dur,'Total float (d)':t.tf,'Critical':t.crit?'Yes':'No','WBS':t.wbs,'Appearance':'Construct (Green)'};
+  });
+}
+function scurve(){
+  const days=S.projDays||1,out=[];
+  const tot=S.tasks.reduce((a,t)=>a+t.dur,0)||1;
+  for(let d=0;d<=days;d+=Math.max(1,Math.round(days/60))){
+    const e=S.tasks.reduce((a,t)=>a+(d>=t.ef?t.dur:(d>t.es?d-t.es:0)),0);
+    out.push({'Day':d,'Date':d2s(workDate(Math.min(d,days-1))),'Planned % complete':r2(e/tot*100)});
+  }
+  return out;
+}
+function exportXLSX(kind){
+  if(!needTasks())return;
+  if(typeof XLSX==='undefined'){
+    toast('Excel engine not loaded (offline) — exporting CSV instead','warn');
+    dlText(toCSV(kind==='bim'?bimRows():sheetRows()),safeName()+(kind==='bim'?'_BIM_4D.csv':'_Schedule.csv'),'text/csv');
+    return;
+  }
+  const wb=XLSX.utils.book_new();
+  const add=(name,rows)=>{ if(rows.length) XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),name.slice(0,31)); };
+  if(kind==='bim'){
+    add('TimeLiner',bimRows());
+    add('Element mapping',S.elements.map(e=>({Category:e.cat,Mark:e.mark,Level:e.level,Zone:e.zone,Quantity:e.qty,Unit:e.unit,
+      'Search Set':setName([e.level,e.zone,e.cat]),'IFC GUID':e.guid||'','Source drawing':e.drawing})));
+    add('How to use',[
+      {Step:1,Action:'Navisworks → TimeLiner → Data Sources → Add → CSV/Excel, select this file (TimeLiner sheet).'},
+      {Step:2,Action:'Field selector: Task Type = "Task Type", Planned Start = "Planned Start", Planned End = "Planned End".'},
+      {Step:3,Action:'Create search/selection sets named exactly like the "Search Set" column (Level_Zone_Package).'},
+      {Step:4,Action:'TimeLiner → Auto-Attach Using Rules → attach by Selection Set name.'},
+      {Step:5,Action:'Simulate tab → Settings → interval + appearance definitions → Export animation.'},
+      {Step:6,Action:'For Synchro/Fuzor import the same sheet; map Display ID as the unique task key.'}]);
+    dl(new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/octet-stream'}),safeName()+'_BIM_4D.xlsx');
+    return;
+  }
+  add('Schedule',sheetRows());
+  add('WBS',S.wbs.map(w=>({Code:w.code,Name:w.name,Parent:S.wbs.find(x=>x.id===w.parent)?.name||''})));
+  add('Relationships',S.rels.map(r=>({Predecessor:S.tasks.find(t=>t.id===r.p)?.code,Successor:S.tasks.find(t=>t.id===r.s)?.code,Type:r.type,'Lag (d)':r.lag})));
+  add('Quantities',S.elements.map(e=>({Category:e.cat,Mark:e.mark,Level:e.level,Zone:e.zone,Quantity:e.qty,Unit:e.unit,Layer:e.layer,Drawing:e.drawing,Source:e.src,'IFC GUID':e.guid||''})));
+  add('Work packages',S.norms.map(n=>({Seq:n.seq,'Work package':n.name,Categories:n.cats.join(', '),Unit:n.unit,'Output/crew-day':n.out,Crews:n.crews,'Min d':n.min,'Max d':n.max,'Floor by floor':n.vert?'Yes':'No'})));
+  add('Read rules',S.rules.map(r=>({Category:r.cat,'Layer regex':r.layer,'Text regex':r.text,Unit:r.unit,Measure:r.measure,Factor:r.factor,Enabled:r.on?'Yes':'No'})));
+  add('S-curve',scurve());
+  add('Assumptions',[
+    {Item:'Project',Value:S.name},{Item:'Data date / start',Value:S.start},{Item:'Finish',Value:S.projFinish},
+    {Item:'Working days',Value:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].filter((d,i)=>S.cal.days[i]).join(', ')},
+    {Item:'Hours per day',Value:S.cal.hpd},{Item:'Holidays',Value:S.cal.hols.join(', ')},
+    {Item:'Zones per level',Value:S.opts.zones},{Item:'Zone overlap %',Value:S.opts.zoneOverlap},
+    {Item:'Typical floor repeat',Value:S.opts.typical?'On — levels without a drawing use the typical floor quantity':'Off'},
+    {Item:'Drawings read',Value:S.drawings.map(d=>d.name).join('; ')},
+    {Item:'Durations',Value:'quantity ÷ (output × crews), clamped to min/max; quantities from CAD geometry and text marks'}]);
+  dl(new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/octet-stream'}),safeName()+'_Schedule.xlsx');
+}
+const safeName=()=>(S.name||'project').replace(/[^\w\-]+/g,'_').slice(0,40);
+function toCSV(rows){
+  if(!rows.length)return'';
+  const h=Object.keys(rows[0]);
+  const q=v=>{ const s=String(v??''); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+  return [h.join(','),...rows.map(r=>h.map(k=>q(r[k])).join(','))].join('\n');
+}
+/* ---------- MS Project XML ---------- */
+function buildMSPXML(){
+  const hpd=num(S.cal.hpd,8), tid={}; S.tasks.forEach((t,i)=>tid[t.id]=i+1);
+  const pre={}; S.rels.forEach(r=>{ if(tid[r.p]&&tid[r.s]) (pre[r.s]??=[]).push(r); });
+  const tp={FS:1,SS:3,FF:0,SF:2};
+  const tasks=S.tasks.map(t=>`<Task><UID>${tid[t.id]}</UID><ID>${tid[t.id]}</ID><Name>${esc(t.name)}</Name>
+  <Type>1</Type><OutlineLevel>2</OutlineLevel><WBS>${esc(t.wbs)}</WBS><Start>${t.start}T08:00:00</Start><Finish>${t.finish}T17:00:00</Finish>
+  <Duration>PT${t.dur*hpd}H0M0S</Duration><DurationFormat>7</DurationFormat><Work>PT${t.dur*hpd}H0M0S</Work>
+  <TotalSlack>${t.tf*hpd*60}</TotalSlack><Critical>${t.crit?1:0}</Critical><Milestone>0</Milestone><Manual>0</Manual>
+  ${(pre[t.id]||[]).map(r=>`<PredecessorLink><PredecessorUID>${tid[r.p]}</PredecessorUID><Type>${tp[r.type]??1}</Type><LinkLag>${num(r.lag)*hpd*600}</LinkLag><LagFormat>7</LagFormat></PredecessorLink>`).join('')}
+  </Task>`).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Project xmlns="http://schemas.microsoft.com/project"><Name>${esc(S.name)}</Name><Title>${esc(S.name)}</Title>
+<StartDate>${S.start}T08:00:00</StartDate><FinishDate>${S.projFinish}T17:00:00</FinishDate><ScheduleFromStart>1</ScheduleFromStart>
+<HoursPerDay>${hpd}</HoursPerDay><HoursPerWeek>${hpd*S.cal.days.filter(Boolean).length}</HoursPerWeek><DaysPerMonth>22</DaysPerMonth>
+<Calendars><Calendar><UID>1</UID><Name>Standard</Name><IsBaseCalendar>1</IsBaseCalendar><WeekDays>
+${S.cal.days.map((w,i)=>`<WeekDay><DayType>${i+1}</DayType><DayWorking>${w}</DayWorking>${w?`<WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime><WorkingTime><FromTime>13:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime></WorkingTimes>`:''}</WeekDay>`).join('')}
+</WeekDays></Calendar></Calendars><Tasks>${tasks}</Tasks></Project>`;
+}
+function previewTable(rows){
+  const th=$('#tPrev thead'),tb=$('#tPrev tbody');
+  if(!rows.length){ th.innerHTML=''; tb.innerHTML='<tr><td class="empty">Nothing to preview</td></tr>'; return; }
+  const h=Object.keys(rows[0]);
+  th.innerHTML='<tr>'+h.map(k=>`<th>${esc(k)}</th>`).join('')+'</tr>';
+  tb.innerHTML=rows.slice(0,120).map(r=>'<tr>'+h.map(k=>`<td>${esc(r[k])}</td>`).join('')+'</tr>').join('');
+}
+
+/* ============================================================
+   WIRING
+   ============================================================ */
+function hookDrop(dropSel,inputSel,handler){
+  const d=$(dropSel),i=$(inputSel);
+  d.onclick=()=>i.click();
+  i.onchange=e=>{ if(e.target.files.length) handler([...e.target.files]); i.value=''; };
+  ['dragenter','dragover'].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.add('over');}));
+  ['dragleave','drop'].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.remove('over');}));
+  d.addEventListener('drop',e=>{ const f=[...(e.dataTransfer?.files||[])]; if(f.length)handler(f); });
+}
+hookDrop('#dropDwg','#fileDwg',ingest);
+hookDrop('#dropSch','#fileSch',f=>ingestSchedule(f[0]));
+addEventListener('dragover',e=>e.preventDefault());
+addEventListener('drop',e=>e.preventDefault());
+
+$('#projName').oninput=e=>{S.name=e.target.value;saveLocal();};
+$('#projStart').onchange=e=>{S.start=e.target.value;if(S.tasks.length){runCPM();renderTasks();renderKpis();}saveLocal();};
+$('#hpd').onchange=e=>{S.cal.hpd=num(e.target.value,8);saveLocal();};
+$('#hols').onchange=e=>{S.cal.hols=e.target.value.split(',').map(s=>s.trim()).filter(Boolean);if(S.tasks.length)runCPM();renderTasks();saveLocal();};
+['zones|nZones','zoneOverlap|zOver','lvlLag|lvlLag','levels|nLevels','tradeOverlap|tOver','idPfx|idPfx'].forEach(p=>{
+  const [k,id]=p.split('|'); const e=$('#'+id); if(!e)return;
+  e.onchange=()=>{ S.opts[k]=(k==='idPfx')?e.value:num(e.value,0); saveLocal(); };
+});
+$('#typRep').onchange=e=>{S.opts.typical=e.target.checked;saveLocal();};
+$('#eCat').onchange=$('#eLvl').onchange=$('#eZone').onchange=renderElements;
+$('#eFind').oninput=renderElements;
+$('#sFind').oninput=$('#sShow').onchange=renderTasks;
+$('#gScale').onchange=$('#gGroup').onchange=drawGantt;
+$('#rAdd').onclick=()=>{S.rules.push({id:uid('r'),on:true,cat:'New category',layer:'',text:'',unit:'nos',measure:'count',factor:1});renderRules();};
+$('#rReset').onclick=()=>{S.rules=DEF_RULES();renderRules();saveLocal();toast('Default read rules restored');};
+$('#rRerun').onclick=rerunRules;
+$('#nAdd').onclick=()=>{S.norms.push({id:uid('n'),seq:(S.norms.at(-1)?.seq||0)+10,on:true,name:'New work package',cats:[],unit:'m2',out:50,crews:1,min:2,max:30,vert:false});renderNorms();};
+$('#nReset').onclick=()=>{S.norms=DEF_NORMS();renderNorms();saveLocal();toast('Default work packages restored');};
+$('#gAdd').onclick=()=>{S.groups.push({id:uid('g'),code:'G'+((S.groups.length+1)*10),wbs:String(S.groups.length+1),name:'New group activity',dur:0,start:'',finish:'',pkgs:[],split:'level+zone'});renderGroups();};
+$('#gStd').onclick=()=>{S.groups=STD_TEMPLATE();renderGroups();saveLocal();toast('Standard building template loaded','ok');};
+$('#eAdd').onclick=()=>{S.elements.push({id:uid('e'),cat:'Column',mark:'NEW',level:S.meta.levels[0]||'GF',zone:'Z1',qty:0,unit:'m3',layer:'manual',drawing:'manual',drawingId:'',src:'manual',guid:''});refreshMeta();renderElements();};
+$('#eXls').onclick=()=>{ if(typeof XLSX==='undefined'){ dlText(toCSV(S.elements.map(e=>({Category:e.cat,Mark:e.mark,Level:e.level,Zone:e.zone,Quantity:e.qty,Unit:e.unit,Layer:e.layer,Drawing:e.drawing,'IFC GUID':e.guid||''}))),safeName()+'_Quantities.csv','text/csv'); return; }
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(S.elements.map(e=>({Category:e.cat,Mark:e.mark,Level:e.level,Zone:e.zone,Quantity:e.qty,Unit:e.unit,Layer:e.layer,Drawing:e.drawing,'IFC GUID':e.guid||''}))),'Quantities');
+  dl(new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/octet-stream'}),safeName()+'_Quantities.xlsx'); };
+$('#eBim').onclick=()=>$('#fileBim').click();
+$('#fileBim').onchange=async e=>{
+  const f=e.target.files[0]; if(!f)return;
+  let rows=[];
+  if(/\.csv$/i.test(f.name)){ const t=parseCSVText(await f.text()); const h=t[0].map(x=>x.toLowerCase());
+    rows=t.slice(1).map(r=>Object.fromEntries(h.map((k,i)=>[k,r[i]]))); }
+  else { const wb=XLSX.read(await f.arrayBuffer()); rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]); }
+  let hit=0;
+  rows.forEach(r=>{
+    const k=v=>{ for(const key of Object.keys(r)) if(key.toLowerCase().includes(v))return r[key]; return ''; };
+    const mark=String(k('mark')||k('name')||k('type')||'').toUpperCase().trim();
+    const g=String(k('guid')||k('id')||'').trim();
+    const lvl=String(k('level')||k('storey')||'').trim();
+    if(!mark||!g)return;
+    S.elements.filter(el=>el.mark.toUpperCase()===mark&&(!lvl||el.level===lvl)).forEach(el=>{ el.guid=g; hit++; });
+  });
+  renderElements(); saveLocal(); toast(hit?('GUIDs mapped to '+hit+' elements'):'No matching marks found — check the Mark column','ok');
+  e.target.value='';
+};
+$('#btnDev').onclick=()=>{ busy(true,'Developing schedule…'); setTimeout(()=>{ try{developSchedule();}catch(err){dlog('Error: '+err.message,'e');toast('Engine error: '+err.message,'bad');} busy(false); },30); };
+$('#btnRecalc').onclick=()=>{ if(!needTasks())return; runCPM(); renderTasks(); renderKpis(); drawGantt(); toast('CPM recalculated','ok'); };
+$('#simPlay').onclick=()=>sim.play();
+$('#simBack').onclick=()=>{sim.day=0;$('#simRange').value=0;sim.draw();};
+$('#simRange').oninput=e=>{sim.day=num(e.target.value);sim.draw();};
+$('#simDwg').onchange=e=>{sim.id=e.target.value;sim.draw();};
+$('#simSpeed').onchange=()=>{ if(sim.timer){ sim.play(); sim.play(); } };
+$('#fileBim').addEventListener('click',e=>e.stopPropagation());
+
+$('#xXer').onclick=()=>{ if(!needTasks())return; dlText(buildXER(),safeName()+'.xer'); previewTable(sheetRows()); };
+$('#xXls').onclick=()=>{ exportXLSX('full'); previewTable(sheetRows()); };
+$('#xBim').onclick=()=>{ if(!needTasks())return; exportXLSX('bim'); previewTable(bimRows()); };
+$('#xNwd').onclick=()=>{ if(!needTasks())return; dlText(toCSV(bimRows()),safeName()+'_TimeLiner.csv','text/csv'); previewTable(bimRows()); };
+$('#xCsv').onclick=()=>{ if(!needTasks())return; dlText(toCSV(sheetRows()),safeName()+'_Schedule.csv','text/csv'); previewTable(sheetRows()); };
+$('#xP6csv').onclick=()=>{ if(!needTasks())return;
+  const rows=S.tasks.map(t=>({'Activity ID':t.code,'Activity Name':t.name,'Original Duration':t.dur,'Start':t.start,'Finish':t.finish,'Total Float':t.tf,'WBS Code':t.wbs,'Predecessors':t.preds||''}));
+  dlText(toCSV(rows),safeName()+'_P6_import.csv','text/csv'); previewTable(rows); };
+$('#xMsp').onclick=()=>{ if(!needTasks())return; dlText(buildMSPXML(),safeName()+'.xml','application/xml'); };
+$('#xJson').onclick=()=>dlText(JSON.stringify(serialize(),null,1),safeName()+'.json','application/json');
+$('#gSvg').onclick=()=>{ const s=ganttSVGText(); if(s)dlText(s,safeName()+'_Gantt.svg','image/svg+xml'); };
+$('#gPng').onclick=()=>{ const s=ganttSVGText(); if(!s)return;
+  const svg=$('#gsvg'), img=new Image();
+  img.onload=()=>{ const c=document.createElement('canvas'); c.width=svg.width.baseVal.value; c.height=svg.height.baseVal.value;
+    const g=c.getContext('2d'); g.fillStyle='#151b23'; g.fillRect(0,0,c.width,c.height); g.drawImage(img,0,0);
+    c.toBlob(b=>dl(b,safeName()+'_Gantt.png')); };
+  img.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(s))); };
+
+$('#btnSave').onclick=()=>dlText(JSON.stringify(serialize(),null,1),safeName()+'.json','application/json');
+$('#btnLoad').onclick=()=>$('#fileProj').click();
+$('#fileProj').onchange=async e=>{ const f=e.target.files[0]; if(!f)return;
+  try{ restore(JSON.parse(await f.text())); toast('Project loaded','ok'); }catch(err){ toast('Bad project file','bad'); } e.target.value=''; };
+$('#btnReset').onclick=()=>{ if(!confirm('Clear everything and start a new project?'))return;
+  localStorage.removeItem('d4dp'); location.reload(); };
+
+/* ============================================================
+   DEMO PROJECT — synthetic G+4 tower so the flow can be tried
+   ============================================================ */
+function demoDrawing(level,i){
+  const ents=[],L=30000,B=18000;
+  const add=e=>{ ents.push(finishEnt(Object.assign({layer:'0',xs:[],ys:[]},e))); };
+  // slab outline
+  add({type:'LWPOLYLINE',layer:'S-SLAB',xs:[0,L,L,0],ys:[0,0,B,B],flags:1});
+  // column grid
+  for(let x=0;x<=L;x+=6000) for(let y=0;y<=B;y+=6000){
+    add({type:'INSERT',layer:'S-COL',blk:'COL_400x400',x,y,xs:[x],ys:[y]});
+    add({type:'TEXT',layer:'S-COL-TAG',x:x+300,y:y+300,h:300,text:'C'+(1+((x/6000)%3))});
+  }
+  // grid lines + beams
+  for(let x=0;x<=L;x+=6000) add({type:'LINE',layer:'S-BEAM',x,y:0,x2:x,y2:B,xs:[],ys:[]});
+  for(let y=0;y<=B;y+=6000) add({type:'LINE',layer:'S-BEAM',x:0,y,x2:L,y2:y,xs:[],ys:[]});
+  // internal walls + doors + windows
+  for(let y=3000;y<B;y+=6000){ add({type:'LINE',layer:'A-WALL',x:1000,y,x2:L-1000,y2:y,xs:[],ys:[]}); }
+  for(let x=3000;x<L;x+=6000){
+    add({type:'TEXT',layer:'A-DOOR',x,y:3000,h:300,text:'D1'});
+    add({type:'TEXT',layer:'A-GLAZ',x,y:B-1200,h:300,text:'W1'});
+  }
+  // services
+  for(let y=1500;y<B;y+=6000){ add({type:'LINE',layer:'M-DUCT',x:2000,y,x2:L-2000,y2:y,xs:[],ys:[]});
+    add({type:'LINE',layer:'E-CABLE-TRAY',x:2000,y:y+600,x2:L-2000,y2:y+600,xs:[],ys:[]});
+    add({type:'LINE',layer:'P-PIPE',x:2500,y:y+1200,x2:L-2500,y2:y+1200,xs:[],ys:[]}); }
+  // finishes areas
+  add({type:'LWPOLYLINE',layer:'A-FLOOR-TILE',xs:[500,L-500,L-500,500],ys:[500,500,B-500,B-500],flags:1});
+  add({type:'LWPOLYLINE',layer:'A-PAINT',xs:[500,L-500,L-500,500],ys:[500,500,B-500,B-500],flags:1});
+  if(level==='Foundation'){ for(let x=0;x<=L;x+=6000) for(let y=0;y<=B;y+=6000){
+      add({type:'LWPOLYLINE',layer:'S-FOUND-PCC',xs:[x-1200,x+1200,x+1200,x-1200],ys:[y-1200,y-1200,y+1200,y+1200],flags:1});
+      add({type:'INSERT',layer:'S-FOOT',x,y,xs:[x],ys:[y]});
+      add({type:'LWPOLYLINE',layer:'C-EXCAV',xs:[x-1800,x+1800,x+1800,x-1800],ys:[y-1800,y-1800,y+1800,y+1800],flags:1}); } }
+  const layers={}; ents.forEach(e=>{ (layers[e.layer]??={name:e.layer,color:[1,2,3,4,5,6,7][e.layer.length%7],count:0}).count++; });
+  return {id:uid('d'),name:'DEMO-'+String(i+1).padStart(2,'0')+'-'+level+'-PLAN.dxf',type:'dxf',pages:1,ents,layers,scale:0.001,
+    texts:ents.filter(e=>e.type==='TEXT').map(e=>({p:1,str:e.text,x:e.x,y:e.y,h:e.h})),
+    meta:{level,zone:'',discipline:'Structural',scale:'1:100',sheetNo:'S-'+(101+i),title:level+' FRAMING PLAN'}};
+}
+function loadDemo(){
+  busy(true,'Building demo project…');
+  setTimeout(()=>{
+    S.drawings=[]; S.elements=[];
+    ['Foundation','GF','L1','L2','L3','L4','Terrace'].forEach((lv,i)=>{
+      const d=demoDrawing(lv,i); const els=extractElements(d); d.elCount=els.length;
+      S.drawings.push(d); S.elements.push(...els);
+      log('Demo drawing '+d.name+' — '+d.ents.length+' entities, '+els.length+' element groups','s');
+    });
+    S.name='Demo Tower — G+4'; $('#projName').value=S.name;
+    S.start=d2s(new Date()); $('#projStart').value=S.start;
+    S.opts.zones=2; S.opts.levels=0;
+    S.groups=STD_TEMPLATE();
+    refreshMeta(); renderAll(); developSchedule(); drawGantt();
+    busy(false); toast('Demo project ready — open steps 3, 6, 7 and 8','ok');
+  },40);
+}
+$('#btnDemo').onclick=loadDemo;
+
+/* ============================================================
+   INIT
+   ============================================================ */
+(function init(){
+  $('#projStart').value=S.start;
+  try{ const raw=localStorage.getItem('d4dp'); if(raw){ restore(JSON.parse(raw)); log('Previous session restored from this browser.'); } }catch(e){}
+  renderAll();
+  if(!S.drawings.length) log('Ready. Drop PDF or DXF drawings above, or press “Demo data” in the header to see the full flow.');
+  setInterval(saveLocal,20000);
+})();
+</script>
+</body>
+</html>

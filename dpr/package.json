@@ -1,0 +1,17 @@
+{
+  "name": "jsw-dpr-consolidator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Consolidate vendor Daily Progress Reports of any layout into one approved-format DPR",
+  "type": "module",
+  "scripts": {
+    "build:xlsx": "python3 build_template.py",
+    "build:html": "python3 build_offline.py",
+    "build": "npm run build:xlsx && npm run build:html",
+    "samples": "python3 make_samples.py",
+    "test": "node test_e2e.mjs && python3 validate_xlsx.py test-output.xlsx && python3 verify_export.py test-output.xlsx && python3 verify_formulas.py"
+  },
+  "devDependencies": {
+    "playwright": "^1.47.0"
+  }
+}

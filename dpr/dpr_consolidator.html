@@ -1,0 +1,1716 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DPR Consolidator — JSW Utkal Steel</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{
+  --navy:#1f3864; --blue:#2e5395; --blue2:#4472c4; --red:#c00000;
+  --ink:#16202f; --muted:#5b6880; --line:#d9dfea; --bg:#f4f6fa; --card:#fff;
+  --ok:#1f7a4d; --okbg:#e6f4ec; --warn:#8a5a00; --warnbg:#fff4dc;
+  --err:#9c0006; --errbg:#fde8ea; --key:#e2efda; --calc:#e8edf7; --input:#fff7e0;
+  --radius:10px; --shadow:0 1px 2px rgba(16,32,64,.06),0 8px 24px rgba(16,32,64,.06);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:14px/1.5 "Segoe UI",Roboto,-apple-system,Helvetica,Arial,sans-serif}
+h1,h2,h3{margin:0;font-weight:650;letter-spacing:-.01em}
+button{font:inherit}
+a{color:var(--blue)}
+
+/* ---------- shell ---------- */
+header.top{background:linear-gradient(97deg,var(--navy),#2b4a86);color:#fff;
+  padding:14px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  position:sticky;top:0;z-index:50;box-shadow:0 2px 12px rgba(16,32,64,.18)}
+.logo{font-weight:800;font-size:19px;letter-spacing:.5px;
+  background:var(--red);padding:4px 10px;border-radius:6px}
+header.top h1{font-size:16px}
+header.top .sub{font-size:12px;opacity:.78;margin-top:1px}
+.spacer{flex:1}
+.hbtn{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.3);
+  color:#fff;padding:7px 13px;border-radius:7px;cursor:pointer}
+.hbtn:hover{background:rgba(255,255,255,.24)}
+
+nav.steps{display:flex;gap:4px;background:var(--card);padding:0 14px;
+  border-bottom:1px solid var(--line);overflow-x:auto;position:sticky;top:58px;z-index:40}
+nav.steps button{background:none;border:0;border-bottom:3px solid transparent;
+  padding:13px 15px;cursor:pointer;color:var(--muted);white-space:nowrap;font-weight:550}
+nav.steps button .n{display:inline-grid;place-items:center;width:20px;height:20px;
+  border-radius:50%;background:var(--line);color:var(--muted);font-size:11px;
+  margin-right:7px;font-weight:700;vertical-align:1px}
+nav.steps button.on{color:var(--navy);border-bottom-color:var(--red)}
+nav.steps button.on .n{background:var(--red);color:#fff}
+nav.steps button.done .n{background:var(--ok);color:#fff}
+
+main{max-width:1560px;margin:0 auto;padding:20px 20px 80px}
+section.pane{display:none} section.pane.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+.card>h2{font-size:15px;color:var(--navy);margin-bottom:3px}
+.card>h2+p.hint{margin:0 0 14px;color:var(--muted);font-size:12.5px}
+p.hint{color:var(--muted);font-size:12.5px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.f{display:flex;flex-direction:column;gap:5px}
+.f label{font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+input[type=text],input[type=date],input[type=number],select,textarea{
+  border:1px solid var(--line);border-radius:7px;padding:7px 9px;font:inherit;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:2px solid #b9cdf0;outline-offset:-1px;border-color:var(--blue2)}
+.btn{background:var(--blue);color:#fff;border:0;border-radius:7px;padding:8px 15px;
+  cursor:pointer;font-weight:600}
+.btn:hover{background:var(--navy)} .btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sec{background:#fff;color:var(--navy);border:1px solid var(--line)}
+.btn.sec:hover{background:#eef2f9}
+.btn.red{background:var(--red)} .btn.red:hover{background:#8f0000}
+.btn.sm{padding:4px 9px;font-size:12px;border-radius:6px}
+
+/* ---------- drop zone ---------- */
+.drop{border:2px dashed #b9c6dd;border-radius:var(--radius);background:#fbfcfe;
+  padding:34px;text-align:center;cursor:pointer;transition:.15s}
+.drop:hover,.drop.hot{border-color:var(--blue2);background:#eff4fc}
+.drop .big{font-size:15px;font-weight:650;color:var(--navy)}
+
+/* ---------- tables ---------- */
+.tw{overflow:auto;border:1px solid var(--line);border-radius:8px;max-height:62vh}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px}
+th,td{padding:6px 9px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);
+  text-align:left;white-space:nowrap}
+th{background:var(--blue);color:#fff;position:sticky;top:0;z-index:2;font-weight:600;
+  text-align:center;font-size:11.5px;line-height:1.25}
+thead tr.codes th{background:var(--blue2);font-style:italic;font-weight:400;top:31px;font-size:10.5px}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.area td{background:var(--navy);color:#fff;font-weight:700;letter-spacing:.03em}
+tr.act td{background:#dbe5f5;font-weight:700;color:var(--navy)}
+tr.sub td{background:#eef2f9;font-weight:700;border-top:2px solid var(--blue2)}
+tr.grand td{background:var(--navy);color:#fff;font-weight:800}
+tbody tr:hover td:not([class*=area]):not([class*=act]){background:#f7f9fd}
+.pill{display:inline-block;padding:1px 8px;border-radius:20px;font-size:11px;font-weight:650}
+.pill.ok{background:var(--okbg);color:var(--ok)} .pill.warn{background:var(--warnbg);color:var(--warn)}
+.pill.err{background:var(--errbg);color:var(--err)} .pill.info{background:#e7eefb;color:var(--blue)}
+
+/* ---------- kpi ---------- */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:13px 15px;box-shadow:var(--shadow)}
+.kpi .lab{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+.kpi .val{font-size:23px;font-weight:700;color:var(--navy);margin-top:3px;font-variant-numeric:tabular-nums}
+.kpi .val small{font-size:12px;color:var(--muted);font-weight:500}
+
+/* ---------- file cards / mapping ---------- */
+.fcard{border:1px solid var(--line);border-radius:9px;margin-bottom:12px;overflow:hidden}
+.fhead{display:flex;gap:11px;align-items:center;padding:11px 13px;background:#f7f9fd;
+  cursor:pointer;border-bottom:1px solid var(--line)}
+.fhead .nm{font-weight:650}
+.fbody{padding:13px;display:none} .fcard.open .fbody{display:block}
+.maprow{display:grid;grid-template-columns:220px 1fr 78px;gap:9px;align-items:center;
+  padding:5px 0;border-bottom:1px dotted var(--line)}
+.maprow .lab{font-size:12.5px;font-weight:600}
+.maprow .lab small{display:block;font-weight:400;color:var(--muted);font-size:11px}
+.maprow select{width:100%}
+.conf{font-size:11px;text-align:center}
+.prevw{max-height:190px;overflow:auto;border:1px solid var(--line);border-radius:7px;margin-top:9px}
+.prevw table th{background:#5b6880;font-size:10.5px}
+.prevw td{font-size:11.5px;color:var(--muted)}
+
+.banner{padding:10px 13px;border-radius:8px;font-size:13px;margin-bottom:12px;border:1px solid}
+.banner.ok{background:var(--okbg);border-color:#b7ddc8;color:#14603b}
+.banner.warn{background:var(--warnbg);border-color:#eccf90;color:var(--warn)}
+.banner.err{background:var(--errbg);border-color:#f0bcc2;color:var(--err)}
+.banner.info{background:#eef3fc;border-color:#c3d4f0;color:var(--navy)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:9px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:1px solid rgba(0,0,0,.12)}
+code.k{background:#eef2f9;padding:1px 5px;border-radius:4px;font-size:12px}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:1100px){.split{grid-template-columns:1fr}}
+.muted{color:var(--muted)}
+.toast{position:fixed;right:18px;bottom:18px;background:var(--navy);color:#fff;padding:11px 16px;
+  border-radius:9px;box-shadow:0 8px 30px rgba(0,0,0,.25);z-index:200;opacity:0;transform:translateY(10px);
+  transition:.22s;pointer-events:none;max-width:380px}
+.toast.on{opacity:1;transform:none}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+details.dd{border:1px solid var(--line);border-radius:8px;padding:9px 12px;margin-top:10px;background:#fbfcfe}
+details.dd summary{cursor:pointer;font-weight:600;color:var(--navy);font-size:13px}
+ol.steps2{margin:8px 0 0 18px;padding:0} ol.steps2 li{margin:5px 0}
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="logo">JSW</span>
+  <div>
+    <h1>DPR Consolidator</h1>
+    <div class="sub">Vendor DPRs (any format) &rarr; one approved-format Daily Progress Report</div>
+  </div>
+  <div class="spacer"></div>
+  <button class="hbtn" id="btnSave">Save session</button>
+  <button class="hbtn" id="btnLoad">Open session</button>
+  <button class="hbtn" id="btnReset">Reset</button>
+</header>
+
+<nav class="steps" id="nav"></nav>
+
+<main>
+  <section class="pane" data-p="0" id="p0"></section>
+  <section class="pane" data-p="1" id="p1"></section>
+  <section class="pane" data-p="2" id="p2"></section>
+  <section class="pane" data-p="3" id="p3"></section>
+  <section class="pane" data-p="4" id="p4"></section>
+</main>
+<div class="toast" id="toast"></div>
+<input type="file" id="hiddenFile" style="display:none" multiple>
+<script>
+/* =====================================================================
+   DPR CONSOLIDATOR  —  core engine
+   Mirrors dpr/schema.py.  Keep the two in step if you change a column.
+   ===================================================================== */
+
+const FIELDS = [
+  {k:'sl',          c:'a', h:'SL.',                            w:5,  t:'num'},
+  {k:'structure',   c:'b', h:'Name of the Structures',         w:38, t:'text'},
+  {k:'area',        c:'c', h:'Area',                           w:22, t:'text'},
+  {k:'activity',    c:'d', h:'Activity',                       w:24, t:'text'},
+  {k:'agency',      c:'e', h:'Agency / Contractor',            w:22, t:'text'},
+  {k:'scope',       c:'f', h:'Scope',                          w:11, t:'num'},
+  {k:'drawing',     c:'g', h:'Drawing Released',               w:12, t:'num'},
+  {k:'front',       c:'h', h:'Cum Front Available',            w:12, t:'num'},
+  {k:'last_month',  c:'i', h:'Achieved till last month',       w:13, t:'num'},
+  {k:'plan_ftm',    c:'j', h:'Plan FTM',                       w:11, t:'num'},
+  {k:'plan_ftd',    c:'k', h:'Plan FTD',                       w:11, t:'num'},
+  {k:'ach_ftd',     c:'l', h:'Achieved FTD',                   w:11, t:'num'},
+  {k:'ach_ftm_prev',c:'m', h:'Achieved FTM till previous date',w:13, t:'num'},
+  {k:'variance',    c:'n', h:'Variance for the Day',           w:12, t:'calc'},
+  {k:'reason',      c:'o', h:'Reason(s) for Variance',         w:26, t:'text'},
+  {k:'ach_ftm',     c:'p', h:'Achieved FTM till date',         w:13, t:'calc'},
+  {k:'workdone',    c:'q', h:'Workdone Till Date',             w:13, t:'calc'},
+  {k:'pct',         c:'r', h:'% Complete',                     w:10, t:'pct'},
+  {k:'balance',     c:'s', h:'Balance',                        w:11, t:'calc'},
+  {k:'remarks',     c:'t', h:'Remarks',                        w:30, t:'text'},
+  {k:'manpower',    c:'u', h:'Available Manpower',             w:11, t:'num'}
+];
+const CODES = {variance:'n = k-l', ach_ftm:'p = l+m', workdone:'q = i+p',
+               pct:'r = (q/f)x100', balance:'s = f-q'};
+/* fields a vendor file can supply (calculated ones are never imported) */
+const IMPORTABLE = FIELDS.filter(f=>f.t!=='calc'&&f.t!=='pct'&&f.k!=='sl').map(f=>f.k);
+
+const SUMF = [
+  {k:'sl',       c:'a', h:'SI No.',              w:7,  t:'text'},
+  {k:'activity', c:'b', h:'Area / Activities',   w:42, t:'text'},
+  {k:'agency',   c:'c', h:'Agency / Contractor', w:24, t:'text'},
+  {k:'scope',    c:'d', h:'Scope',               w:12, t:'num'},
+  {k:'drawing',  c:'e', h:'Drawing Released',    w:12, t:'num'},
+  {k:'front',    c:'f', h:'Front Available',     w:12, t:'num'},
+  {k:'workdone', c:'g', h:'Workdone Till Date',  w:12, t:'num'},
+  {k:'pct',      c:'h', h:'% Complete',          w:11, t:'pct'},
+  {k:'balance',  c:'i', h:'Balance',             w:12, t:'num'},
+  {k:'plan_ftm', c:'j', h:'Plan for {MON}',      w:12, t:'num'},
+  {k:'ach_ftm',  c:'k', h:'Achieved for {MON}',  w:12, t:'num'},
+  {k:'ach_ftd',  c:'l', h:'Achieved FTD',        w:12, t:'num'},
+  {k:'manpower', c:'m', h:'Available Manpower',  w:12, t:'num'}
+];
+const SUMCODES = {pct:'h = (g/d)x100', balance:'i = d-g'};
+
+const DISCIPLINES = [
+  {sheet:'Piling',           act:'Piling Works (Nos)',      uom:'Nos'},
+  {sheet:'Civil',            act:'Civil Works (Cum)',       uom:'Cum'},
+  {sheet:'Structural',       act:'Structural Supply (MT)',  uom:'MT',
+     alt:['Structural Supply (MT)','Structural Erection (MT)']},
+  {sheet:'Equipment',        act:'Equipment Erection (MT)', uom:'MT',
+     alt:['Equipment Supply (MT)','Equipment Erection (MT)']},
+  {sheet:'Piping',           act:'Piping (Inch-Mtr)',       uom:'Inch-Mtr'},
+  {sheet:'Cable Trays (Km)', act:'Cable Trays (Km)',        uom:'Km'},
+  {sheet:'Cabling (Km)',     act:'Cabling (Km)',            uom:'Km'},
+  {sheet:'Panels (Nos)',     act:'Panels (Nos)',            uom:'Nos'}
+];
+const SHEET_NAMES = DISCIPLINES.map(d=>d.sheet);
+const ACTIVITIES = DISCIPLINES.flatMap(d=>d.alt||[d.act]);
+
+/* header synonyms — same list as the Mapping sheet of the workbook */
+const SYN = {
+  structure:   ['name of the structures','name of structure','structure','description','activity description',
+                'description of work','item','item description','work description','particulars','building',
+                'location','element','activity name','name','sub activity','works'],
+  area:        ['area','zone','unit','block','package','plant area','section','area/activities','area / activities','facility'],
+  activity:    ['activity','discipline','work type','sub head','subhead','category of work','type of work','trade'],
+  agency:      ['agency','contractor','vendor','sub contractor','subcontractor','agency/contractor',
+                'agency / contractor','executing agency','party','firm','agency name'],
+  scope:       ['scope','total scope','total qty','total quantity','boq qty','boq quantity','contract qty',
+                'ordered qty','order qty','po qty','scope qty','total scope qty','tender qty','qty total mt',
+                'total mt','qty','quantity','total nos','total cum'],
+  drawing:     ['drawing released','drawings released','drg released','drawing issued','drawings issued',
+                'gfc released','ifc released','gfc','drawing release','drg release','approved drawing',
+                'drawings','drawing'],
+  front:       ['front available','cum front available','cumulative front available','front','fronts released',
+                'work front','front released','front availability','front cleared'],
+  last_month:  ['achieved till last month','cum till last month','upto last month','up to last month',
+                'progress till last month','opening balance','cum upto last month','till last month',
+                'achieved upto last month','previous month cumulative'],
+  plan_ftm:    ['plan ftm','plan for the month','monthly plan','mtd plan','target for month','plan month',
+                'month plan','planned for month','plan for month','monthly target'],
+  plan_ftd:    ['plan ftd','plan for the day','daily plan','today plan','plan today','planned today',
+                'day plan','target for the day','daily target'],
+  ach_ftd:     ['achieved ftd','actual ftd','today achievement','progress today','daily progress','done today',
+                'qty today','achievement for the day','achieved for the day','today','actual for the day',
+                'day progress','achieved today','ftd','actual day','actual today','actual for day',
+                'achievement','progress for the day','qty achieved','executed today','done for the day'],
+  ach_ftm_prev:['achieved ftm till previous date','mtd till previous day','month till yesterday',
+                'cum month previous','achieved ftm till prev date','mtd previous','month to date previous',
+                'actual month till prev','month till previous','achieved month till previous'],
+  reason:      ['reason','reason for variance','reasons for variance','reason(s) for variance','remarks for variance',
+                'constraint','constraints','hold reason','delay reason','issue'],
+  remarks:     ['remarks','remark','comment','comments','notes','observation','status'],
+  manpower:    ['manpower','available manpower','labour','labor','workmen','man power','manpower deployed',
+                'strength','total manpower','manpower nos'],
+  uom:         ['uom','unit','units','unit of measure','measurement']
+};
+
+/* ---------------------------------------------------------------- utils */
+const $  = (s,r)=>(r||document).querySelector(s);
+const $$ = (s,r)=>[...(r||document).querySelectorAll(s)];
+const esc= s=>String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const norm=s=>String(s==null?'':s).toLowerCase()
+              .replace(/[‘’“”]/g,"'").replace(/[^a-z0-9]+/g,' ').trim();
+/* aggressive key: drops legal suffixes, spaces, punctuation */
+const key = s=>norm(s).replace(/\b(m s|ms|messrs|pvt|private|ltd|limited|llp|inc|co|company|corp|corporation|constructions?|construction|enterprises?|infra|infrastructures?|projects?|engineers?|engineering|india|and|the)\b/g,'')
+              .replace(/\s+/g,'');
+const numf=(v,d)=>{ if(v==null||v==='')return d===undefined?null:d;
+  if(typeof v==='number')return isFinite(v)?v:(d===undefined?null:d);
+  let s=String(v).replace(/[,  ]/g,'').replace(/^\((.*)\)$/,'-$1').replace(/[^0-9.eE+-]/g,'');
+  if(s===''||s==='-')return d===undefined?null:d;
+  const n=parseFloat(s); return isFinite(n)?n:(d===undefined?null:d); };
+const n0=v=>numf(v,0)||0;
+const fmt=(v,dec)=>{ if(v==null||v==='')return '-';
+  const n=Number(v); if(!isFinite(n))return '-';
+  if(Math.abs(n)<1e-9)return '-';
+  return n.toLocaleString('en-IN',{minimumFractionDigits:dec||0,maximumFractionDigits:dec||0}); };
+const pctf=v=>(v==null||!isFinite(v))?'-':Math.round(v*100)+'%';
+function toast(m,ms){const t=$('#toast');t.textContent=m;t.classList.add('on');
+  clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),ms||2600);}
+const MON3=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function monLabel(d){ if(!d)return ''; const dt=new Date(d); if(isNaN(dt))return '';
+  return MON3[dt.getMonth()]+'-'+String(dt.getFullYear()).slice(2); }
+
+/* similarity: token Jaccard + substring bonus, 0..1 */
+const stem=t=>(t.length>3&&/s$/.test(t)&&!/ss$/.test(t))?t.slice(0,-1):t;
+function sim(a,b){
+  a=norm(a); b=norm(b); if(!a||!b)return 0; if(a===b)return 1;
+  const A=new Set(a.split(' ').map(stem)), B=new Set(b.split(' ').map(stem));
+  let inter=0; A.forEach(t=>{if(B.has(t))inter++;});
+  let j=inter/(A.size+B.size-inter);
+  if(a.includes(b)||b.includes(a)) j=Math.max(j,.82);
+  const ka=key(a), kb=key(b);
+  if(ka&&kb&&ka===kb) j=Math.max(j,.95);
+  return j;
+}
+
+/* ---------------------------------------------------------------- state */
+const ST = {
+  cfg:{project:'Phase-1 Greenfield Expansion Projects, JSW Utkal Steel Limited',
+       report:'Daily Progress Report', dataDate:'', repDate:'', prepared:'', reviewed:''},
+  master:[],        // {structure,area,activity,agency,scope,sheet,uom}
+  files:[],         // {id,name,sheets:[{name,aoa,use,hdr,map,disc,area,activity,agency,rows}]}
+  aliases:{area:{},activity:{},agency:{},structure:{}},
+  manual:{},        // vendorKey -> master index
+  rows:[],          // consolidated canonical rows
+  unmatched:[]
+};
+const LSKEY='jsw_dpr_consolidator_v1';
+function persist(){ try{ localStorage.setItem(LSKEY, JSON.stringify(
+    {cfg:ST.cfg, master:ST.master, aliases:ST.aliases, manual:ST.manual, profiles:ST.profiles||{}}));}catch(e){} }
+function restore(){ try{ const o=JSON.parse(localStorage.getItem(LSKEY)||'{}');
+    if(o.cfg) Object.assign(ST.cfg,o.cfg);
+    if(o.master) ST.master=o.master;
+    if(o.aliases) ST.aliases=Object.assign({area:{},activity:{},agency:{},structure:{}},o.aliases);
+    if(o.manual) ST.manual=o.manual;
+    ST.profiles=o.profiles||{};
+  }catch(e){ ST.profiles={}; } }
+function alias(type,v){ const k=key(v); return (ST.aliases[type]&&ST.aliases[type][k])||v; }
+
+/* ---------------------------------------------------------------- parsing */
+function readWorkbook(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onerror=()=>rej(new Error('cannot read '+file.name));
+    r.onload=e=>{
+      try{
+        const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true,cellStyles:false});
+        const sheets=wb.SheetNames.map(n=>({
+          name:n,
+          aoa:XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:null,blankrows:false})
+        })).filter(s=>s.aoa.length);
+        res(sheets);
+      }catch(err){ rej(err); }
+    };
+    r.readAsArrayBuffer(file);
+  });
+}
+
+/* find the header row: the row whose cells best match known column wordings */
+function detectHeader(aoa){
+  let best={row:0,score:-1};
+  const lim=Math.min(aoa.length,25);
+  for(let i=0;i<lim;i++){
+    const cells=(aoa[i]||[]).map(c=>norm(c)).filter(Boolean);
+    if(cells.length<3) continue;
+    let score=0, hits=0;
+    cells.forEach(c=>{
+      let bs=0;
+      for(const k in SYN) SYN[k].forEach(s=>{ const v=sim(c,s); if(v>bs) bs=v; });
+      if(bs>.6) hits++;
+      score+=bs;
+    });
+    /* prefer rows with many textual headers and few numbers below-ish */
+    const numish=(aoa[i]||[]).filter(c=>typeof c==='number').length;
+    score = score + hits*1.4 - numish*1.2;
+    if(score>best.score) best={row:i,score:score};
+  }
+  return best.row;
+}
+
+/* merge a 2-row header (common in vendor files) */
+function headerLabels(aoa,hdr){
+  const a=aoa[hdr]||[], b=(hdr+1<aoa.length)?aoa[hdr+1]:[];
+  const width=Math.max(a.length,b.length);
+  const bIsSub = b.length && b.filter(c=>typeof c==='string'&&norm(c)).length>=Math.max(2,Math.floor(width*0.3))
+                 && b.filter(c=>typeof c==='number').length===0;
+  const out=[]; let carry='';
+  for(let i=0;i<width;i++){
+    let top=a[i]==null?'':String(a[i]).trim();
+    if(top) carry=top; else if(!top&&carry&&bIsSub) top=carry;
+    const sub=bIsSub&&b[i]!=null?String(b[i]).trim():'';
+    out.push([top,sub].filter(Boolean).join(' ').trim());
+  }
+  return {labels:out, consumed:bIsSub?2:1};
+}
+
+/* map vendor headers -> canonical fields */
+function autoMap(labels){
+  const scores=[];
+  labels.forEach((lab,i)=>{
+    const nl=norm(lab); if(!nl) return;
+    for(const f in SYN){
+      let b=0; SYN[f].forEach(s=>{const v=sim(nl,s); if(v>b)b=v;});
+      if(b>.5) scores.push({f:f,i:i,s:b});
+    }
+  });
+  scores.sort((x,y)=>y.s-x.s);
+  const map={}, usedCol=new Set(), usedF=new Set();
+  scores.forEach(o=>{
+    if(usedF.has(o.f)||usedCol.has(o.i)) return;
+    if(!IMPORTABLE.includes(o.f)&&o.f!=='uom') return;
+    map[o.f]={col:o.i, conf:o.s};
+    usedF.add(o.f); usedCol.add(o.i);
+  });
+  /* second pass: for the columns a DPR cannot do without, accept a weaker
+     match rather than silently dropping the vendor's number. Flagged low
+     confidence so the reviewer is told to look. */
+  ['structure','ach_ftd','scope','last_month','plan_ftd','plan_ftm','ach_ftm_prev']
+    .forEach(f=>{
+      if(usedF.has(f)) return;
+      let b=0,bi=-1;
+      labels.forEach((lab,i)=>{
+        if(usedCol.has(i)) return;
+        const nl=norm(lab); if(!nl) return;
+        let s=0; SYN[f].forEach(x=>{const v=sim(nl,x); if(v>s)s=v;});
+        if(s>b){b=s;bi=i;}
+      });
+      if(bi>=0&&b>=0.38){ map[f]={col:bi,conf:b}; usedF.add(f); usedCol.add(bi); }
+    });
+  return map;
+}
+
+/* guess the discipline from sheet/file name and content */
+function guessActivity(disc,sheetName,fileName){
+  const d=DISCIPLINES.find(x=>x.sheet===disc);
+  if(!d||!d.alt) return '';
+  const hay=norm(sheetName+' '+fileName);
+  if(/erect|installat|fixing/.test(hay)) return d.alt.find(a=>/erection/i.test(a))||'';
+  if(/suppl|fabricat|delivery|dispatch/.test(hay)) return d.alt.find(a=>/supply/i.test(a))||'';
+  return '';
+}
+
+/* last-resort agency guess: the leading words of the file name */
+const MONTHS='jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec';
+function agencyFromName(fileName){
+  let s=fileName.replace(/\.[a-z0-9]+$/i,'').replace(/_/g,' ');
+  s=s.split(/\s[-–—]\s/)[0];
+  s=s.replace(/^\s*m\s*\/?\s*s\.?\s+/i,'').replace(/^[^a-z0-9]+/i,'');
+  s=s.replace(new RegExp('\\d{1,2}\\s*(' + MONTHS + ')[a-z]*\\s*\\d{0,4}','ig'),' ')
+     .replace(new RegExp('(' + MONTHS + ')[a-z]*\\s*\\d{1,4}','ig'),' ')
+     .replace(/\d{1,4}[.\-\/]\d{1,2}[.\-\/]\d{2,4}/g,' ')
+     .replace(/\b(dpr|daily|progress|report|sheet|format|final|draft|copy|update|status|rev|version|works?|data)\b/ig,' ')
+     .replace(/\b(piling|civil|structural|structure|steel|equipment|mechanical|electrical|piping|cabling|cable|trays?|panels?|instrumentation)\b/ig,' ')
+     .replace(/\b\d+\b/g,' ').replace(/[()\[\]]/g,' ').replace(/\s+/g,' ').trim();
+  return s.length>=3&&s.length<=40 ? s : '';
+}
+
+function guessDiscipline(sheetName,fileName,labels){
+  const hay=norm(sheetName+' '+fileName+' '+labels.join(' '));
+  const rules=[
+    [/pil(e|ing)|bored pile/,'Piling'],
+    [/civil|concret|rcc|found(ation)?|cum\b/,'Civil'],
+    [/structur|steel|fabricat|erection mt|\bmt\b/,'Structural'],
+    [/equip|mechanic|machin/,'Equipment'],
+    [/pip(e|ing)|inch dia|inch mtr/,'Piping'],
+    [/cable tray|tray/,'Cable Trays (Km)'],
+    [/cabl(e|ing)|ht lt cable|laying/,'Cabling (Km)'],
+    [/panel|mcc|pcc|switchgear/,'Panels (Nos)'],
+    [/manpower|labour|labor|workmen/,'Manpower']
+  ];
+  for(const [re,d] of rules) if(re.test(hay)) return d;
+  return 'Civil';
+}
+</script>
+<script>
+/* =====================================================================
+   Row extraction, master matching, aggregation
+   ===================================================================== */
+
+const TOTAL_RE = /^(sub\s*total|total|grand\s*total|g\.?\s*total|sum)\b/i;
+
+function extractRows(sh){
+  const {aoa,hdr,map}=sh;
+  const {labels,consumed}=headerLabels(aoa,hdr);
+  const start=hdr+consumed;
+  const numKeys=['scope','drawing','front','last_month','plan_ftm','plan_ftd',
+                 'ach_ftd','ach_ftm_prev','manpower'];
+  const out=[]; let curArea=sh.area||'';
+  for(let r=start;r<aoa.length;r++){
+    const raw=aoa[r]||[];
+    if(raw.every(c=>c==null||String(c).trim()==='')) continue;
+    const get=f=>map[f]?raw[map[f].col]:null;
+    const sname=String(get('structure')??'').trim();
+    const nums=numKeys.map(k=>numf(get(k)));
+    const anyNum=nums.some(v=>v!=null);
+
+    /* a lone bit of text with no numbers = a section heading -> remember as Area */
+    if(!anyNum){
+      const texts=raw.filter(c=>c!=null&&String(c).trim()!=='');
+      if(texts.length<=2 && texts.length>0){
+        const t=String(texts[0]).trim();
+        if(t && !TOTAL_RE.test(t) && t.length<60){ curArea=t; }
+        continue;
+      }
+      if(!sname) continue;
+    }
+    if(TOTAL_RE.test(sname)) continue;                 // drop vendor's own totals
+    if(!sname && !anyNum) continue;
+
+    const rowArea = (map.area? String(get('area')??'').trim():'') || curArea || sh.area || 'Plant General';
+    const rec={
+      _src:sh.fileName+' › '+sh.name, _row:r+1,
+      structure: sname || '(unnamed item)',
+      area:      alias('area',rowArea),
+      activity:  alias('activity',(map.activity?String(get('activity')??'').trim():'')||sh.activity||''),
+      agency:    alias('agency',(map.agency?String(get('agency')??'').trim():'')||sh.agency||''),
+      sheet:     sh.disc,
+      reason:    map.reason ?String(get('reason') ??'').trim():'',
+      remarks:   map.remarks?String(get('remarks')??'').trim():''
+    };
+    numKeys.forEach((k,i)=>rec[k]=nums[i]);
+    if(!rec.activity) rec.activity=(DISCIPLINES.find(d=>d.sheet===sh.disc)||{}).act||sh.disc;
+    out.push(rec);
+  }
+  return out;
+}
+
+function derive(r){
+  r.variance = n0(r.plan_ftd)-n0(r.ach_ftd);
+  r.ach_ftm  = n0(r.ach_ftd)+n0(r.ach_ftm_prev);
+  r.workdone = n0(r.last_month)+r.ach_ftm;
+  r.balance  = n0(r.scope)-r.workdone;
+  r.pct      = n0(r.scope)>0 ? r.workdone/n0(r.scope) : null;
+  return r;
+}
+
+/* --- match a vendor row against the master scope ------------------- */
+function matchMaster(rec){
+  if(!ST.master.length) return {m:null,score:0,state:'nomaster'};
+  const vk=key(rec.sheet+'|'+rec.structure+'|'+rec.agency);
+  if(ST.manual[vk]!=null){
+    const m=ST.master[ST.manual[vk]];
+    if(m) return {m:m,score:1,state:'manual',idx:ST.manual[vk]};
+  }
+  let best=null,bs=0,bi=-1;
+  ST.master.forEach((m,i)=>{
+    if(m.sheet && rec.sheet && m.sheet!==rec.sheet) return;
+    const ss=sim(m.structure,rec.structure);
+    const as=rec.agency  &&m.agency  ? sim(m.agency,rec.agency)     : 0.5;
+    /* activity matters: a master carrying the same structure under both
+       "Supply" and "Erection" must not collapse into one line */
+    const ac=rec.activity&&m.activity? sim(m.activity,rec.activity) : 0.5;
+    const ar=rec.area    &&m.area    ? sim(m.area,rec.area)         : 0.5;
+    const s=ss*0.55+as*0.20+ac*0.15+ar*0.10;
+    if(s>bs){bs=s;best=m;bi=i;}
+  });
+  if(bs>=0.72) return {m:best,score:bs,state:'auto',idx:bi};
+  if(bs>=0.48) return {m:best,score:bs,state:'weak',idx:bi};
+  return {m:null,score:bs,state:'new'};
+}
+
+function consolidate(){
+  const all=[]; ST.unmatched=[];
+  ST.files.forEach(f=>f.sheets.forEach(sh=>{
+    if(!sh.use) return;
+    sh.fileName=f.name;
+    sh.rows=extractRows(sh);
+    sh.rows.forEach(rec=>{
+      const mt=matchMaster(rec);
+      rec._match=mt.state; rec._score=mt.score; rec._midx=mt.idx;
+      if(mt.m){
+        rec.structure = mt.m.structure;
+        rec.area      = mt.m.area     || rec.area;
+        rec.activity  = mt.m.activity || rec.activity;
+        rec.agency    = mt.m.agency   || rec.agency;
+        rec.sheet     = mt.m.sheet    || rec.sheet;
+        if(rec.scope==null && mt.m.scope!=null) rec.scope=mt.m.scope;
+      }
+      if(mt.state==='weak'||mt.state==='new') ST.unmatched.push(rec);
+      all.push(derive(rec));
+    });
+  }));
+  /* one spelling per name: "Material handling facilities" and
+     "Material Handling Facilities" must not become two areas */
+  canonicalise(all,'area'); canonicalise(all,'activity'); canonicalise(all,'agency');
+
+  /* merge duplicate lines (same item reported in two files) */
+  const seen=new Map();
+  all.forEach(r=>{
+    const k=key(r.sheet+'|'+r.area+'|'+r.activity+'|'+r.agency+'|'+r.structure);
+    if(!seen.has(k)){ seen.set(k,r); r._dupes=1; return; }
+    const p=seen.get(k); p._dupes++;
+    ['drawing','front','last_month','plan_ftm','plan_ftd','ach_ftd','ach_ftm_prev','manpower']
+      .forEach(f=>{ if(p[f]==null&&r[f]!=null)p[f]=r[f];
+                    else if(p[f]!=null&&r[f]!=null) p[f]=Math.max(p[f],r[f]); });
+    if(p.scope==null) p.scope=r.scope;
+    if(!p.reason&&r.reason) p.reason=r.reason;
+    if(!p.remarks&&r.remarks) p.remarks=r.remarks;
+    p._src += ' + '+r._src;
+    derive(p);
+  });
+  ST.rows=[...seen.values()];
+  /* add master lines that no vendor reported today (zero progress, keeps scope honest) */
+  if(ST.master.length && $('#optAllMaster') && $('#optAllMaster').checked){
+    const have=new Set(ST.rows.map(r=>key(r.sheet+'|'+r.structure+'|'+r.agency)));
+    ST.master.forEach(m=>{
+      const k=key(m.sheet+'|'+m.structure+'|'+m.agency);
+      if(have.has(k)) return;
+      ST.rows.push(derive({_src:'master (not reported today)',structure:m.structure,area:m.area,
+        activity:m.activity,agency:m.agency,sheet:m.sheet,scope:m.scope,drawing:null,front:null,
+        last_month:m.last_month??null,plan_ftm:null,plan_ftd:null,ach_ftd:null,ach_ftm_prev:m.ach_ftm_prev??null,
+        reason:'',remarks:'Not reported today',_match:'master',_score:1}));
+    });
+  }
+  ST.rows.forEach(checkRow);
+  ST.rows.sort((a,b)=> a.area.localeCompare(b.area)
+      || ACTIVITIES.indexOf(a.activity)-ACTIVITIES.indexOf(b.activity)
+      || a.activity.localeCompare(b.activity)
+      || a.agency.localeCompare(b.agency)
+      || a.structure.localeCompare(b.structure));
+  return ST.rows;
+}
+
+/* pick one spelling for every distinct name and rewrite every row to use it */
+function canonicalise(rows,field){
+  const groups=new Map();
+  rows.forEach(r=>{
+    const v=(r[field]||'').trim(); if(!v) return;
+    const k=norm(v); if(!k) return;
+    if(!groups.has(k)) groups.set(k,new Map());
+    const m=groups.get(k); m.set(v,(m.get(v)||0)+1);
+  });
+  const pick=new Map();
+  const masterSpellings=new Set(ST.master.map(m=>(m[field]||'').trim()).filter(Boolean));
+  groups.forEach((m,k)=>{
+    let best=null,bs=-1;
+    m.forEach((n,v)=>{
+      let s=n;
+      if(masterSpellings.has(v)) s+=1000;                 // the master always wins
+      if(/[a-z]/.test(v)&&/[A-Z]/.test(v)) s+=0.5;        // prefer Title Case over ALL CAPS
+      if(s>bs){bs=s;best=v;}
+    });
+    pick.set(k,best);
+  });
+  rows.forEach(r=>{ const v=(r[field]||'').trim(); if(!v)return;
+    const c=pick.get(norm(v)); if(c) r[field]=c; });
+}
+
+/* arithmetic sanity checks — these are what a reviewer would query */
+function checkRow(r){
+  const out=[]; const s=n0(r.scope);
+  const bad=k=>r[k]!=null&&r[k]<0;
+  ['scope','drawing','front','last_month','plan_ftm','plan_ftd','ach_ftd','ach_ftm_prev']
+    .forEach(k=>{ if(bad(k)) out.push('negative '+FIELDS.find(f=>f.k===k).h); });
+  if(s>0){
+    if(r.workdone>s*1.001) out.push('Workdone exceeds Scope by '+fmt(r.workdone-s,2));
+    if(n0(r.front)>s*1.001) out.push('Front Available exceeds Scope');
+    if(n0(r.drawing)>s*1.001) out.push('Drawing Released exceeds Scope');
+  }else if(r.workdone>0||n0(r.ach_ftd)>0){
+    out.push('progress reported against zero / missing Scope');
+  }
+  if(r._dupes>1) out.push('reported in '+r._dupes+' places — highest value kept');
+  r._issues=out; return r;
+}
+
+const SUMNUM=['scope','drawing','front','workdone','plan_ftm','ach_ftm','ach_ftd','manpower'];
+function blank(){ const o={}; SUMNUM.forEach(k=>o[k]=0); return o; }
+function addInto(t,r){ SUMNUM.forEach(k=>t[k]+=n0(r[k])); return t; }
+function finish(t){ t.pct = t.scope>0 ? t.workdone/t.scope : null;
+                    t.balance = t.scope - t.workdone; return t; }
+
+/* build the grouped Summary-AreaWise structure */
+function buildSummary(){
+  const areas=new Map();
+  ST.rows.forEach(r=>{
+    if(!areas.has(r.area)) areas.set(r.area,new Map());
+    const acts=areas.get(r.area);
+    if(!acts.has(r.activity)) acts.set(r.activity,new Map());
+    const ags=acts.get(r.activity);
+    const ag=r.agency||'Not allotted';
+    if(!ags.has(ag)) ags.set(ag,blank());
+    addInto(ags.get(ag),r);
+  });
+  const out=[]; const grand=blank();
+  let ai=0;
+  const areaOrder=[...areas.keys()].sort();
+  areaOrder.forEach(area=>{
+    out.push({type:'area', label:String.fromCharCode(65+(ai%26)), name:area});
+    ai++;
+    const acts=areas.get(area);
+    const actOrder=[...acts.keys()].sort((x,y)=>{
+      const ix=ACTIVITIES.indexOf(x), iy=ACTIVITIES.indexOf(y);
+      return (ix<0?99:ix)-(iy<0?99:iy) || x.localeCompare(y);
+    });
+    let gi=0;
+    actOrder.forEach(act=>{
+      gi++;
+      out.push({type:'act', label:String(gi), name:act});
+      const ags=acts.get(act); const sub=blank();
+      let si=0;
+      [...ags.keys()].sort().forEach(ag=>{
+        si++;
+        const t=finish(Object.assign(blank(),ags.get(ag)));
+        out.push({type:'row', label:gi+'.'+si, name:act, agency:ag, v:t});
+        addInto(sub,ags.get(ag));
+      });
+      out.push({type:'sub', name:'Sub total: '+act, v:finish(sub)});
+      addInto(grand,sub);
+    });
+  });
+  out.push({type:'grand', name:'GRAND TOTAL', v:finish(grand)});
+  return out;
+}
+</script>
+<script>
+/* =====================================================================
+   Minimal styled-XLSX writer (OOXML + JSZip).
+   SheetJS reads the vendor files; this writes the formatted output,
+   because the community build of SheetJS cannot emit cell styles.
+   ===================================================================== */
+const X = (function(){
+  const xe = s => String(s==null?'':s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&apos;')
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'');
+  const colName = n => { let s=''; n++; while(n>0){ const m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=(n-1-m)/26; } return s; };
+
+  /* ---- style tables ---- */
+  const FONTS=[
+    {sz:11,name:'Calibri'},                                    //0
+    {sz:9, name:'Arial'},                                      //1
+    {sz:9, name:'Arial',b:1,color:'FFFFFFFF'},                 //2
+    {sz:8, name:'Arial',i:1,color:'FFFFFFFF'},                 //3
+    {sz:14,name:'Arial',b:1,color:'FF1F3864'},                 //4
+    {sz:11,name:'Arial',b:1,color:'FF1F3864'},                 //5
+    {sz:9, name:'Arial',b:1,color:'FF1F3864'},                 //6
+    {sz:16,name:'Arial',b:1,color:'FFC00000'},                 //7
+    {sz:9, name:'Arial',b:1},                                  //8
+    {sz:9, name:'Arial',b:1,color:'FF9C0006'},                 //9
+    {sz:10,name:'Arial',i:1,color:'FF5B6880'},                 //10
+    {sz:12,name:'Arial',b:1,color:'FFC00000'}                  //11
+  ];
+  const FILLS=[
+    {p:'none'},{p:'gray125'},                                  //0,1
+    {p:'solid',fg:'FF2E5395'},                                 //2 header blue
+    {p:'solid',fg:'FF4472C4'},                                 //3 code blue
+    {p:'solid',fg:'FF1F3864'},                                 //4 navy
+    {p:'solid',fg:'FFE2EFDA'},                                 //5 key green
+    {p:'solid',fg:'FFE8EDF7'},                                 //6 calc blue
+    {p:'solid',fg:'FFFFF7E0'},                                 //7 input yellow
+    {p:'solid',fg:'FFDBE5F5'},                                 //8 activity band
+    {p:'solid',fg:'FFEEF2F9'},                                 //9 subtotal
+    {p:'solid',fg:'FFFFFFFF'},                                 //10 white
+    {p:'solid',fg:'FFFDE8EA'}                                  //11 red tint
+  ];
+  const BORDERS=[
+    {},                                                        //0 none
+    {all:'FFB4C6E7'},                                          //1 thin box
+    {all:'FFB4C6E7',top:'medium'},                             //2 thick top
+    {all:'FF8EA9DB'}                                           //3
+  ];
+  const NF={164:'#,##0;[Red]-#,##0;"-"',165:'0%',166:'dd\\-mmm\\-yy',
+            167:'#,##0.00;[Red]-#,##0.00;"-"',168:'0',169:'@'};
+  const C=(h,v,w)=>({h:h,v:v||'center',wrap:w?1:0});
+  /* xf: [font,fill,border,numFmtId,align] */
+  const XFS=[
+    [0,0,0,0,null],                                    //0  default
+    [4,0,0,0,C('center')],                             //1  title
+    [5,0,0,0,C('center')],                             //2  subtitle
+    [7,0,0,0,C('left')],                               //3  logo
+    [2,2,1,0,C('center','center',1)],                  //4  header cell
+    [3,3,1,0,C('center')],                             //5  code cell
+    [1,10,1,0,C('left')],                              //6  text
+    [1,10,1,164,C('right')],                           //7  number
+    [1,10,1,165,C('center')],                          //8  percent
+    [1,5,1,0,C('left')],                               //9  key text (green)
+    [1,6,1,164,C('right')],                            //10 calc number
+    [1,7,1,164,C('right')],                            //11 input number
+    [2,4,1,0,C('left')],                               //12 area band
+    [6,8,1,0,C('left')],                               //13 activity band
+    [8,9,2,164,C('right')],                            //14 subtotal number
+    [8,9,2,0,C('left')],                               //15 subtotal label
+    [8,9,2,165,C('center')],                           //16 subtotal pct
+    [2,4,2,164,C('right')],                            //17 grand number
+    [2,4,2,0,C('left')],                               //18 grand label
+    [2,4,2,165,C('center')],                           //19 grand pct
+    [1,10,1,168,C('center')],                          //20 sl no
+    [8,0,0,0,C('right')],                              //21 label right (no border)
+    [8,0,0,166,C('left')],                             //22 date value
+    [1,10,1,167,C('right')],                           //23 number 2dp
+    [10,0,0,0,C('left')],                              //24 note italic
+    [11,0,0,0,C('left')],                              //25 section head red
+    [8,0,0,0,C('left')],                               //26 bold plain
+    [9,11,1,164,C('right')],                           //27 red number
+    [1,7,1,0,C('left')],                               //28 input text
+    [1,6,1,165,C('center')],                           //29 calc percent
+    [1,10,1,0,C('left',null,1)]                        //30 wrapped text
+  ];
+  const S={TITLE:1,SUB:2,LOGO:3,HDR:4,CODE:5,TXT:6,NUM:7,PCT:8,KEY:9,CALC:10,INP:11,
+           AREA:12,ACT:13,SUBN:14,SUBL:15,SUBP:16,GN:17,GL:18,GP:19,SL:20,LABR:21,
+           DATE:22,NUM2:23,NOTE:24,H2:25,B:26,REDN:27,INPT:28,CALCP:29,WRAP:30};
+
+  function stylesXml(){
+    const f=FONTS.map(f=>'<font><sz val="'+f.sz+'"/><name val="'+f.name+'"/>'+
+      (f.b?'<b/>':'')+(f.i?'<i/>':'')+(f.color?'<color rgb="'+f.color+'"/>':'')+'</font>').join('');
+    const fl=FILLS.map(x=>'<fill><patternFill patternType="'+x.p+'">'+
+      (x.fg?'<fgColor rgb="'+x.fg+'"/><bgColor indexed="64"/>':'')+'</patternFill></fill>').join('');
+    const bd=BORDERS.map(b=>{
+      if(!b.all) return '<border><left/><right/><top/><bottom/><diagonal/></border>';
+      const e=(s)=>'<'+s+' style="'+(b[s]||'thin')+'"><color rgb="'+b.all+'"/></'+s+'>';
+      return '<border>'+e('left')+e('right')+e('top')+e('bottom')+'<diagonal/></border>';
+    }).join('');
+    const nf=Object.keys(NF).map(id=>'<numFmt numFmtId="'+id+'" formatCode="'+xe(NF[id])+'"/>').join('');
+    const xf=XFS.map(x=>{
+      const [fo,fi,bo,n,al]=x;
+      return '<xf numFmtId="'+n+'" fontId="'+fo+'" fillId="'+fi+'" borderId="'+bo+'" xfId="0"'+
+        (n?' applyNumberFormat="1"':'')+' applyFont="1" applyFill="1" applyBorder="1"'+
+        (al?' applyAlignment="1"><alignment horizontal="'+al.h+'" vertical="'+al.v+'"'+
+            (al.wrap?' wrapText="1"':'')+'/></xf>':'/>');
+    }).join('');
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+      '<numFmts count="'+Object.keys(NF).length+'">'+nf+'</numFmts>'+
+      '<fonts count="'+FONTS.length+'">'+f+'</fonts>'+
+      '<fills count="'+FILLS.length+'">'+fl+'</fills>'+
+      '<borders count="'+BORDERS.length+'">'+bd+'</borders>'+
+      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'+
+      '<cellXfs count="'+XFS.length+'">'+xf+'</cellXfs>'+
+      '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'+
+      '</styleSheet>';
+  }
+
+  function sheetXml(sh){
+    let cols='';
+    if(sh.cols&&sh.cols.length){
+      cols='<cols>'+sh.cols.map((c,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+
+        (c&&c.w?c.w:9)+'" customWidth="1"'+(c&&c.hidden?' hidden="1"':'')+'/>').join('')+'</cols>';
+    }
+    let data='';
+    sh.rows.forEach((row,ri)=>{
+      if(!row){ return; }
+      const r=ri+1;
+      let cells='';
+      (row.cells||row).forEach((cell,ci)=>{
+        if(cell==null) return;
+        const ref=colName(ci)+r;
+        const st=(typeof cell==='object'&&cell.s!=null)?cell.s:0;
+        let v=(typeof cell==='object')?cell.v:cell;
+        const f=(typeof cell==='object')?cell.f:null;
+        const sAttr=' s="'+st+'"';
+        if(f!=null){
+          cells+='<c r="'+ref+'"'+sAttr+'><f>'+xe(f)+'</f></c>';
+        }else if(v==null||v===''){
+          cells+='<c r="'+ref+'"'+sAttr+'/>';
+        }else if(typeof v==='number'&&isFinite(v)){
+          cells+='<c r="'+ref+'"'+sAttr+'><v>'+v+'</v></c>';
+        }else{
+          cells+='<c r="'+ref+'"'+sAttr+' t="inlineStr"><is><t xml:space="preserve">'+xe(v)+'</t></is></c>';
+        }
+      });
+      const h=(row.h)?' ht="'+row.h+'" customHeight="1"':'';
+      data+='<row r="'+r+'"'+h+'>'+cells+'</row>';
+    });
+    let pane='';
+    if(sh.freeze){
+      const m=/^([A-Z]+)(\d+)$/.exec(sh.freeze);
+      let x=0; for(let i=0;i<m[1].length;i++) x=x*26+(m[1].charCodeAt(i)-64);
+      pane='<pane xSplit="'+(x-1)+'" ySplit="'+(+m[2]-1)+'" topLeftCell="'+sh.freeze+
+           '" activePane="bottomRight" state="frozen"/>'+
+           '<selection pane="bottomRight" activeCell="'+sh.freeze+'" sqref="'+sh.freeze+'"/>';
+    }
+    const merges=(sh.merges&&sh.merges.length)
+      ? '<mergeCells count="'+sh.merges.length+'">'+sh.merges.map(m=>'<mergeCell ref="'+m+'"/>').join('')+'</mergeCells>' : '';
+    const af=sh.autofilter?'<autoFilter ref="'+sh.autofilter+'"/>':'';
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+      (sh.tab?'<sheetPr><tabColor rgb="FF'+sh.tab+'"/><pageSetUpPr fitToPage="1"/></sheetPr>':'<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>')+
+      '<sheetViews><sheetView showGridLines="0" workbookViewId="0" zoomScale="85"'+
+        (sh.active?' tabSelected="1"':'')+'>'+pane+'</sheetView></sheetViews>'+
+      '<sheetFormatPr defaultRowHeight="14.5"/>'+cols+
+      '<sheetData>'+data+'</sheetData>'+af+merges+
+      '<printOptions horizontalCentered="1"/>'+
+      '<pageMargins left="0.25" right="0.25" top="0.4" bottom="0.4" header="0.2" footer="0.2"/>'+
+      '<pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0" paperSize="9"/>'+
+      '</worksheet>';
+  }
+
+  async function build(sheets, meta){
+    const zip=new JSZip();
+    zip.file('[Content_Types].xml',
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'+
+      '<Default Extension="xml" ContentType="application/xml"/>'+
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+
+      sheets.map((s,i)=>'<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join('')+
+      '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'+
+      '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'+
+      '</Types>');
+    zip.folder('_rels').file('.rels',
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'+
+      '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>'+
+      '</Relationships>');
+    zip.folder('docProps').file('core.xml',
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" '+
+      'xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" '+
+      'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'+
+      '<dc:title>'+xe((meta&&meta.title)||'Daily Progress Report')+'</dc:title>'+
+      '<dc:creator>DPR Consolidator</dc:creator>'+
+      '<cp:lastModifiedBy>DPR Consolidator</cp:lastModifiedBy>'+
+      '<dcterms:created xsi:type="dcterms:W3CDTF">'+new Date().toISOString().slice(0,19)+'Z</dcterms:created>'+
+      '</cp:coreProperties>');
+    const xl=zip.folder('xl');
+    xl.file('styles.xml',stylesXml());
+    xl.file('workbook.xml',
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '+
+      'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'+
+      '<sheets>'+sheets.map((s,i)=>'<sheet name="'+xe(s.name.slice(0,31))+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>').join('')+'</sheets>'+
+      '<calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>');
+    xl.folder('_rels').file('workbook.xml.rels',
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      sheets.map((s,i)=>'<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>').join('')+
+      '<Relationship Id="rId'+(sheets.length+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'+
+      '</Relationships>');
+    const wsf=xl.folder('worksheets');
+    sheets.forEach((s,i)=>wsf.file('sheet'+(i+1)+'.xml',sheetXml(s)));
+    return zip.generateAsync({type:'blob',compression:'DEFLATE'});
+  }
+  return {build:build, S:S, col:colName};
+})();
+
+function download(blob,name){
+  const u=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=u; a.download=name; document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(u);a.remove();},1200);
+}
+</script>
+<script>
+/* =====================================================================
+   Build the output workbook
+   ===================================================================== */
+const S=X.S;
+function C(v,s){return {v:v,s:s};}
+function F(f,s){return {f:f,s:s};}
+
+function titleRows(widthLetter, subtitleIsProject){
+  const mon=ST.cfg.repDate?monLabel(ST.cfg.repDate):'';
+  const rows=[];
+  rows[0]=[];
+  const r2=[]; r2[1]=C('JSW',S.LOGO); r2[2]=C(ST.cfg.report||'Daily Progress Report',S.TITLE);
+  rows[1]=r2;
+  const r3=[]; r3[2]=C(ST.cfg.project,S.SUB); rows[2]=r3;
+  return rows;
+}
+
+function buildSummarySheet(){
+  const rows=[]; const merges=[];
+  const mon=ST.cfg.repDate?monLabel(ST.cfg.repDate):'the Month';
+  const heads=SUMF.map(f=>f.h.replace('{MON}',mon));
+  const last=X.col(SUMF.length);           // col N when 13 columns starting at B
+  rows.push([]);                                                        // 1
+  let r=[]; r[1]=C('JSW',S.LOGO); r[2]=C(ST.cfg.report||'Daily Progress Report',S.TITLE);
+  rows.push(Object.assign(r,{h:22}));                                   // 2
+  r=[]; r[2]=C(ST.cfg.project,S.SUB); rows.push(Object.assign(r,{h:18}));// 3
+  merges.push('C2:'+last+'2','C3:'+last+'3');
+  r=[]; r[9]=C('Data date:',S.LABR); r[10]=C(ST.cfg.dataDate||'',S.DATE); rows.push(r);   // 4
+  r=[]; r[9]=C('Reporting date:',S.LABR); r[10]=C(ST.cfg.repDate||'',S.DATE); rows.push(r);//5
+  rows.push(Object.assign(heads.map(h=>C(h,S.HDR)).reduce((a,c,i)=>{a[i+1]=c;return a;},[]),{h:42}));   //6
+  rows.push(Object.assign(SUMF.map(f=>C(SUMCODES[f.k]||f.c,S.CODE)).reduce((a,c,i)=>{a[i+1]=c;return a;},[]),{h:14})); //7
+
+  const model=buildSummary();
+  const first=8; let rn=first;
+  const subRanges=[];
+  const KEYS=['scope','drawing','front','workdone','pct','balance','plan_ftm','ach_ftm','ach_ftd','manpower'];
+  const COLOF={scope:'E',drawing:'F',front:'G',workdone:'H',pct:'I',balance:'J',
+               plan_ftm:'K',ach_ftm:'L',ach_ftd:'M',manpower:'N'};
+  let dataStart=null, dataRowsForGrand=[];
+
+  model.forEach(item=>{
+    const row=[];
+    if(item.type==='area'){
+      row[1]=C(item.label,S.AREA); row[2]=C(item.name,S.AREA);
+      for(let i=3;i<=13;i++) row[i]=C('',S.AREA);
+      merges.push('C'+rn+':'+last+rn);
+    }else if(item.type==='act'){
+      row[1]=C(item.label,S.ACT); row[2]=C(item.name,S.ACT);
+      for(let i=3;i<=13;i++) row[i]=C('',S.ACT);
+      item._rn=rn; item._rows=[];
+    }else if(item.type==='row'){
+      row[1]=C(item.label,S.SL); row[2]=C(item.name,S.TXT); row[3]=C(item.agency,S.KEY);
+      row[4]=C(item.v.scope,S.NUM); row[5]=C(item.v.drawing,S.NUM); row[6]=C(item.v.front,S.NUM);
+      row[7]=C(item.v.workdone,S.NUM);
+      row[8]=F('IF(E'+rn+'=0,"",H'+rn+'/E'+rn+')',S.PCT);
+      row[9]=F('E'+rn+'-H'+rn,S.NUM);
+      row[10]=C(item.v.plan_ftm,S.NUM); row[11]=C(item.v.ach_ftm,S.NUM);
+      row[12]=C(item.v.ach_ftd,S.NUM); row[13]=C(item.v.manpower,S.NUM);
+      item._rn=rn;
+    }else if(item.type==='sub'||item.type==='grand'){
+      const isG=item.type==='grand';
+      const sl=isG?S.GL:S.SUBL, sn=isG?S.GN:S.SUBN, sp=isG?S.GP:S.SUBP;
+      row[1]=C('',sl); row[2]=C(item.name,sl); row[3]=C('',sl);
+      const rs=item._range||[];
+      const sum=col=> rs.length? 'SUM('+rs.map(x=>col+x).join(',')+')' : null;
+      ['scope','drawing','front','workdone'].forEach((k,i)=>{
+        const f=sum(COLOF[k]); row[4+i]= f? F(f,sn) : C(item.v[k],sn);
+      });
+      row[8]=F('IF(E'+rn+'=0,"",H'+rn+'/E'+rn+')',sp);
+      row[9]=F('E'+rn+'-H'+rn,sn);
+      ['plan_ftm','ach_ftm','ach_ftd','manpower'].forEach((k,i)=>{
+        const f=sum(COLOF[k]); row[10+i]= f? F(f,sn) : C(item.v[k],sn);
+      });
+    }
+    rows.push(row); item.__rn=rn; rn++;
+  });
+
+  /* second pass: subtotal / grand-total ranges now that row numbers are known */
+  let cur=[]; const allDetail=[];
+  model.forEach(item=>{
+    if(item.type==='row'){ cur.push(item.__rn); allDetail.push(item.__rn); }
+    if(item.type==='sub'){ item._range=cur.slice(); cur=[]; }
+  });
+  const subs=model.filter(i=>i.type==='sub').map(i=>i.__rn);
+  const grand=model.find(i=>i.type==='grand'); if(grand) grand._range=subs;
+  /* rebuild the total rows with real SUM() formulas */
+  model.forEach(item=>{
+    if(item.type!=='sub'&&item.type!=='grand') return;
+    const rr=item.__rn, row=rows[rr-1], rs=item._range||[];
+    const isG=item.type==='grand';
+    const sn=isG?S.GN:S.SUBN;
+    const mk=col=> rs.length? F('SUM('+rs.map(x=>col+x).join(',')+')',sn) : C(0,sn);
+    row[4]=mk('E'); row[5]=mk('F'); row[6]=mk('G'); row[7]=mk('H');
+    row[10]=mk('K'); row[11]=mk('L'); row[12]=mk('M'); row[13]=mk('N');
+  });
+
+  const cols=[{w:2.5}].concat(SUMF.map(f=>({w:f.w})));
+  return {name:'Summary-AreaWise',tab:'C00000',rows:rows,cols:cols,merges:merges,
+          freeze:'E8',active:true};
+}
+
+function buildBackupSheet(sheetName,rows){
+  const out=[]; const merges=[];
+  const last=X.col(FIELDS.length);   // V
+  out.push([]);
+  let r=[]; r[1]=C('JSW',S.LOGO);
+  r[2]=C(sheetName+'  —  Backup Sheet',S.TITLE); out.push(Object.assign(r,{h:22}));
+  r=[]; r[2]=C(ST.cfg.project,S.SUB); out.push(Object.assign(r,{h:18}));
+  merges.push('C2:'+last+'2','C3:'+last+'3');
+  r=[]; r[14]=C('Data date:',S.LABR); r[15]=C(ST.cfg.dataDate||'',S.DATE); out.push(r);
+  r=[]; r[14]=C('Reporting date:',S.LABR); r[15]=C(ST.cfg.repDate||'',S.DATE); out.push(r);
+  out.push([]);
+  out.push(Object.assign(FIELDS.map(f=>C(f.h,S.HDR)).reduce((a,c,i)=>{a[i+1]=c;return a;},[]),{h:44}));
+  out.push(Object.assign(FIELDS.map(f=>C(CODES[f.k]||f.c,S.CODE)).reduce((a,c,i)=>{a[i+1]=c;return a;},[]),{h:14}));
+
+  let rn=9;
+  rows.forEach((d,i)=>{
+    const row=[];
+    row[1]=C(i+1,S.SL);
+    row[2]=C(d.structure,S.KEY); row[3]=C(d.area,S.KEY);
+    row[4]=C(d.activity,S.KEY);  row[5]=C(d.agency,S.KEY);
+    row[6]=C(d.scope,S.INP); row[7]=C(d.drawing,S.INP); row[8]=C(d.front,S.INP);
+    row[9]=C(d.last_month,S.INP); row[10]=C(d.plan_ftm,S.INP); row[11]=C(d.plan_ftd,S.INP);
+    row[12]=C(d.ach_ftd,S.INP); row[13]=C(d.ach_ftm_prev,S.INP);
+    row[14]=F('L'+rn+'-M'+rn, (n0(d.plan_ftd)-n0(d.ach_ftd))>0?S.REDN:S.CALC);
+    row[15]=C(d.reason,S.INPT);
+    row[16]=F('M'+rn+'+N'+rn,S.CALC);
+    row[17]=F('J'+rn+'+Q'+rn,S.CALC);
+    row[18]=F('IF(G'+rn+'=0,"",R'+rn+'/G'+rn+')',S.CALCP);
+    row[19]=F('G'+rn+'-R'+rn,S.CALC);
+    row[20]=C(d.remarks,S.INPT); row[21]=C(d.manpower,S.INP);
+    out.push(row); rn++;
+  });
+  /* total row */
+  if(rows.length){
+    const a=9,b=rn-1, row=[];
+    row[1]=C('',S.GL); row[2]=C('TOTAL — '+sheetName,S.GL); row[3]=C('',S.GL); row[4]=C('',S.GL); row[5]=C('',S.GL);
+    ['G','H','I','J','K','L','M','N'].forEach((cl,i)=>row[6+i]=F('SUM('+cl+a+':'+cl+b+')',S.GN));
+    row[14]=F('SUM(O'+a+':O'+b+')',S.GN); row[15]=C('',S.GL);
+    row[16]=F('SUM(Q'+a+':Q'+b+')',S.GN); row[17]=F('SUM(R'+a+':R'+b+')',S.GN);
+    row[18]=F('IF(G'+rn+'=0,"",R'+rn+'/G'+rn+')',S.GP);
+    row[19]=F('SUM(T'+a+':T'+b+')',S.GN); row[20]=C('',S.GL);
+    row[21]=F('SUM(V'+a+':V'+b+')',S.GN);
+    out.push(row);
+  }
+  const cols=[{w:2.5}].concat(FIELDS.map(f=>({w:f.w})));
+  return {name:sheetName,tab:'4472C4',rows:out,cols:cols,merges:merges,freeze:'G9',
+          autofilter:'B7:'+last+(rn-1)};
+}
+
+function buildAuditSheet(){
+  const out=[]; out.push([]);
+  let r=[]; r[1]=C('AUDIT — rows that need a human decision',S.TITLE); out.push(r);
+  r=[]; r[1]=C('Everything the tool could not match with confidence, plus every source it read. '+
+               'Fix these in the vendor file or add an alias, then re-run.',S.NOTE); out.push(r);
+  out.push([]);
+  const heads=['Status','Source file › sheet','Row','Structure as written','Area','Activity','Agency',
+               'Scope','Achieved FTD','Workdone','Best master match','Score','Data check'];
+  out.push(Object.assign(heads.map(h=>C(h,S.HDR)).reduce((a,c,i)=>{a[i+1]=c;return a;},[]),{h:32}));
+  const lbl={auto:'matched',manual:'matched (manual)',weak:'WEAK MATCH — check',
+             'new':'NEW ITEM — not in master',nomaster:'no master loaded',master:'not reported today'};
+  ST.rows.forEach(d=>{
+    const hasIssue=d._issues&&d._issues.length;
+    if((d._match==='auto'||d._match==='manual')&&!hasIssue) return;
+    const m=(d._midx!=null&&ST.master[d._midx])?ST.master[d._midx].structure:'';
+    const st=(d._match==='weak'||d._match==='new')?S.INPT:S.TXT;
+    const row=[];
+    [lbl[d._match]||d._match, d._src, d._row, d.structure, d.area, d.activity, d.agency]
+      .forEach((v,i)=>row[i+1]=C(v,st));
+    row[8]=C(d.scope,S.NUM); row[9]=C(d.ach_ftd,S.NUM); row[10]=C(d.workdone,S.NUM);
+    row[11]=C(m,S.TXT); row[12]=C(d._score?Math.round(d._score*100)+'%':'',S.TXT);
+    row[13]=C(hasIssue?d._issues.join('; '):'ok', hasIssue?S.INPT:S.TXT);
+    out.push(row);
+  });
+  out.push([]); out.push([]);
+  let rr=[]; rr[1]=C('SOURCES READ',S.H2); out.push(rr);
+  ST.files.forEach(f=>f.sheets.filter(s=>s.use).forEach(s=>{
+    const row=[]; row[1]=C(f.name,S.TXT); row[2]=C(s.name,S.TXT);
+    row[3]=C('header row '+(s.hdr+1),S.TXT);
+    row[4]=C('→ '+s.disc,S.TXT);
+    row[5]=C((s.rows?s.rows.length:0)+' rows',S.TXT);
+    row[6]=C('mapped: '+Object.keys(s.map).join(', '),S.TXT);
+    out.push(row);
+  }));
+  const cols=[{w:2.5},{w:24},{w:38},{w:7},{w:40},{w:22},{w:24},{w:22},{w:12},{w:12},{w:12},{w:34},{w:8},{w:46}];
+  return {name:'Audit',tab:'ED7D31',rows:out,cols:cols};
+}
+
+function buildConfigSheet(){
+  const out=[]; out.push([]);
+  let r=[]; r[1]=C('DPR CONFIGURATION',S.TITLE); out.push(r); out.push([]);
+  const put=(lab,val)=>{const x=[];x[1]=C(lab,S.B);x[2]=C(val,S.INPT);out.push(x);};
+  put('Project title',ST.cfg.project); put('Report name',ST.cfg.report);
+  put('Data date',ST.cfg.dataDate); put('Reporting date',ST.cfg.repDate);
+  put('Reporting month',ST.cfg.repDate?monLabel(ST.cfg.repDate):'');
+  put('Prepared by',ST.cfg.prepared); put('Reviewed by',ST.cfg.reviewed);
+  put('Generated',new Date().toLocaleString('en-GB'));
+  put('Source files',ST.files.map(f=>f.name).join('; '));
+  out.push([]);
+  let h=[]; h[1]=C('HOW THE NUMBERS ARE DERIVED',S.H2); out.push(h);
+  [['Variance for the Day','n = Plan FTD − Achieved FTD'],
+   ['Achieved FTM till date','p = Achieved FTD + Achieved FTM till previous date'],
+   ['Workdone Till Date','q = Achieved till last month + Achieved FTM till date'],
+   ['% Complete','r = Workdone Till Date ÷ Scope'],
+   ['Balance','s = Scope − Workdone Till Date']].forEach(([a,b])=>{
+     const x=[];x[1]=C(a,S.B);x[2]=C(b,S.TXT);out.push(x);});
+  return {name:'Config',tab:'808080',rows:out,cols:[{w:2.5},{w:26},{w:70}]};
+}
+
+async function exportWorkbook(){
+  if(!ST.rows.length){ toast('Nothing to export — consolidate first.'); return; }
+  const sheets=[buildSummarySheet()];
+  SHEET_NAMES.forEach(sn=>{
+    const rs=ST.rows.filter(r=>r.sheet===sn);
+    if(rs.length) sheets.push(buildBackupSheet(sn,rs));
+  });
+  const mp=ST.rows.filter(r=>r.sheet==='Manpower');
+  if(mp.length) sheets.push(buildBackupSheet('Manpower',mp));
+  sheets.push(buildAuditSheet());
+  sheets.push(buildConfigSheet());
+  const blob=await X.build(sheets,{title:ST.cfg.report});
+  const d=(ST.cfg.repDate||new Date().toISOString().slice(0,10)).replace(/-/g,'');
+  download(blob, d+' - Daily Progress Report.xlsx');
+  toast('DPR exported — '+sheets.length+' sheets.');
+}
+</script>
+<script>
+/* =====================================================================
+   User interface
+   ===================================================================== */
+const STEPS=['Set-up &amp; Master Scope','Vendor DPRs','Match &amp; Review','Final DPR','Export'];
+let cur=0;
+function nav(){
+  $('#nav').innerHTML=STEPS.map((s,i)=>{
+    const done = (i===0&&ST.master.length) || (i===1&&ST.files.length) || (i===2&&ST.rows.length)
+              || (i===3&&ST.rows.length);
+    return '<button data-go="'+i+'" class="'+(i===cur?'on':'')+(done?' done':'')+
+           '"><span class="n">'+(done?'✓':(i+1))+'</span>'+s+'</button>';
+  }).join('');
+}
+function go(i){ cur=i; nav(); $$('.pane').forEach(p=>p.classList.toggle('on',+p.dataset.p===i));
+  [render0,render1,render2,render3,render4][i](); window.scrollTo({top:0,behavior:'smooth'}); }
+
+/* ------------------------------------------------------------ pane 0 */
+function render0(){
+  const c=ST.cfg;
+  $('#p0').innerHTML=`
+  <div class="card">
+    <h2>1 · Report header</h2>
+    <p class="hint">These go straight into the title block of every exported sheet.</p>
+    <div class="row">
+      <div class="f" style="flex:2;min-width:340px"><label>Project title</label>
+        <input type="text" id="cProject" value="${esc(c.project)}"></div>
+      <div class="f"><label>Report name</label><input type="text" id="cReport" value="${esc(c.report)}"></div>
+      <div class="f"><label>Data date</label><input type="date" id="cData" value="${esc(c.dataDate)}"></div>
+      <div class="f"><label>Reporting date</label><input type="date" id="cRep" value="${esc(c.repDate)}"></div>
+      <div class="f"><label>Prepared by</label><input type="text" id="cPrep" value="${esc(c.prepared)}"></div>
+      <div class="f"><label>Reviewed by</label><input type="text" id="cRev" value="${esc(c.reviewed)}"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2 · Master scope <span class="pill ${ST.master.length?'ok':'warn'}">${ST.master.length?ST.master.length+' line items':'optional'}</span></h2>
+    <p class="hint">Load <code class="k">JSW_DPR_Template.xlsx</code> (or last week's DPR) once. The master fixes the
+      scope, the area, the activity and the correct spelling of every structure and agency, so a vendor
+      writing <em>"Fltration Main Bldg P-1"</em> still lands on the right line. Skip it and the tool will simply
+      take every vendor's own wording as-is.</p>
+    <div class="row" style="margin-bottom:12px">
+      <button class="btn" id="bMaster">Load master workbook…</button>
+      <button class="btn sec" id="bMasterTpl">Skip &mdash; use each vendor&rsquo;s own wording</button>
+      ${ST.master.length?'<button class="btn sec" id="bMasterClear">Clear master</button>':''}
+      <label style="display:flex;gap:7px;align-items:center;font-size:13px;margin-left:8px">
+        <input type="checkbox" id="optAllMaster" ${ST.master.length?'checked':''}>
+        Carry master lines nobody reported today into the DPR (zero progress)</label>
+    </div>
+    <div id="masterPrev"></div>
+  </div>
+
+  <div class="card">
+    <h2>3 · Learned names <span class="pill info">${Object.values(ST.aliases).reduce((a,o)=>a+Object.keys(o).length,0)} aliases</span></h2>
+    <p class="hint">Every correction you make on the Review step is remembered here, in this browser,
+      for all future days.</p>
+    <div id="aliasPrev"></div>
+  </div>`;
+
+  const bind=(id,k)=>$(id).addEventListener('input',e=>{ST.cfg[k]=e.target.value;persist();});
+  bind('#cProject','project'); bind('#cReport','report'); bind('#cData','dataDate');
+  bind('#cRep','repDate'); bind('#cPrep','prepared'); bind('#cRev','reviewed');
+  $('#bMaster').onclick=()=>pick(loadMaster);
+  $('#bMasterTpl').onclick=()=>{ST.master=[];persist();render0();toast('Master cleared — vendor wording will be used as-is.');};
+  if($('#bMasterClear')) $('#bMasterClear').onclick=()=>{ST.master=[];persist();render0();};
+  drawMaster(); drawAliases();
+}
+function drawMaster(){
+  const el=$('#masterPrev'); if(!el)return;
+  if(!ST.master.length){ el.innerHTML='<div class="banner info">No master loaded. That is fine for a quick run — '+
+    'the DPR will be built purely from what the vendors sent.</div>'; return; }
+  const head=['Structure','Area','Activity','Agency','Sheet','Scope'];
+  el.innerHTML='<div class="tw" style="max-height:320px"><table><thead><tr>'+
+    head.map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'+
+    ST.master.slice(0,400).map(m=>'<tr><td>'+esc(m.structure)+'</td><td>'+esc(m.area)+'</td><td>'+
+      esc(m.activity)+'</td><td>'+esc(m.agency)+'</td><td>'+esc(m.sheet)+'</td><td class="num">'+
+      fmt(m.scope)+'</td></tr>').join('')+'</tbody></table></div>'+
+    (ST.master.length>400?'<p class="hint">showing first 400 of '+ST.master.length+'</p>':'');
+}
+function drawAliases(){
+  const el=$('#aliasPrev'); if(!el)return;
+  const list=[];
+  Object.keys(ST.aliases).forEach(t=>Object.keys(ST.aliases[t]).forEach(k=>list.push([t,k,ST.aliases[t][k]])));
+  if(!list.length){ el.innerHTML='<p class="hint">Nothing learned yet.</p>'; return; }
+  el.innerHTML='<div class="tw" style="max-height:240px"><table><thead><tr><th>Type</th><th>Vendor wording (normalised)</th><th>Master value</th><th></th></tr></thead><tbody>'+
+    list.map(([t,k,v],i)=>'<tr><td>'+t+'</td><td class="muted">'+esc(k)+'</td><td><b>'+esc(v)+'</b></td>'+
+      '<td><button class="btn sm sec" data-delalias="'+t+'|'+esc(k)+'">remove</button></td></tr>').join('')+
+    '</tbody></table></div>';
+}
+
+function pick(cb){ const inp=$('#hiddenFile'); inp.value=''; inp.onchange=()=>cb([...inp.files]); inp.click(); }
+
+async function loadMaster(files){
+  const out=[];
+  for(const f of files){
+    let sheets; try{ sheets=await readWorkbook(f);}catch(e){ toast('Could not read '+f.name); continue; }
+    sheets.forEach(sh=>{
+      const disc=SHEET_NAMES.find(n=>norm(n)===norm(sh.name));
+      if(!disc) return;
+      const hdr=detectHeader(sh.aoa);
+      const {labels}=headerLabels(sh.aoa,hdr);
+      const map=autoMap(labels);
+      if(!map.structure) return;
+      const tmp={aoa:sh.aoa,hdr:hdr,map:map,disc:disc,fileName:f.name,name:sh.name,
+                 area:'',activity:'',agency:''};
+      extractRows(tmp).forEach(r=>{
+        if(!r.structure||r.structure==='(unnamed item)')return;
+        out.push({structure:r.structure,area:r.area,activity:r.activity,agency:r.agency,
+                  sheet:disc,scope:r.scope,last_month:r.last_month,ach_ftm_prev:r.ach_ftm_prev});
+      });
+    });
+  }
+  if(!out.length){ toast('No discipline sheets found in that file. Sheet names must match Piling, Civil, Structural …'); return; }
+  ST.master=out; persist(); render0(); nav();
+  toast('Master loaded — '+out.length+' line items.');
+}
+
+/* ------------------------------------------------------------ pane 1 */
+function render1(){
+  $('#p1').innerHTML=`
+  <div class="card">
+    <h2>Drop in today's vendor DPRs</h2>
+    <p class="hint">Any layout, any column order, any sheet names — .xlsx, .xlsm, .xls or .csv.
+      The tool finds the header row itself, guesses which column is which, and tells you how sure it is.
+      Correct anything that looks wrong; the correction is remembered per file name.</p>
+    <div class="drop" id="drop">
+      <div class="big">Drop files here, or click to browse</div>
+      <p class="hint" style="margin:6px 0 0">One file per vendor, or one workbook with many sheets — both work.</p>
+    </div>
+  </div>
+  <div id="fileList"></div>
+  ${ST.files.length?'<div class="row"><button class="btn" id="bNext1">Match &amp; review &rarr;</button>'+
+    '<button class="btn sec" id="bClearFiles">Remove all files</button></div>':''}`;
+  const d=$('#drop');
+  d.onclick=()=>pick(addFiles);
+  d.ondragover=e=>{e.preventDefault();d.classList.add('hot');};
+  d.ondragleave=()=>d.classList.remove('hot');
+  d.ondrop=e=>{e.preventDefault();d.classList.remove('hot');addFiles([...e.dataTransfer.files]);};
+  if($('#bNext1')) $('#bNext1').onclick=()=>{consolidate();go(2);};
+  if($('#bClearFiles')) $('#bClearFiles').onclick=()=>{ST.files=[];ST.rows=[];render1();nav();};
+  drawFiles();
+}
+
+async function addFiles(files){
+  for(const f of files){
+    let sheets;
+    try{ sheets=await readWorkbook(f); }
+    catch(e){ toast('Could not read '+f.name+' — is it password protected?'); continue; }
+    const prof=(ST.profiles||{})[profKey(f.name)];
+    const id='f'+Math.random().toString(36).slice(2,8);
+    const fs={id:id,name:f.name,sheets:sheets.map(sh=>{
+      const hdr=detectHeader(sh.aoa);
+      const {labels}=headerLabels(sh.aoa,hdr);
+      const saved=prof&&prof[sh.name];
+      const map=saved?saved.map:autoMap(labels);
+      const disc=saved?saved.disc:guessDiscipline(sh.name,f.name,labels);
+      return {name:sh.name,aoa:sh.aoa,labels:labels,hdr:saved?saved.hdr:hdr,map:map,
+              disc:disc,
+              area:saved?saved.area:'',
+              activity:saved?saved.activity:guessActivity(disc,sh.name,f.name),
+              agency:saved?saved.agency:guessAgency(f.name,sh.aoa),
+              activityAuto:true,
+              use:sh.aoa.length>2 && Object.keys(map).length>=2};
+    })};
+    ST.files.push(fs);
+  }
+  render1(); nav(); consolidate();
+}
+const profKey=n=>key(n.replace(/\d+/g,''));
+function guessAgency(fileName,aoa){
+  const known=[...new Set(ST.master.map(m=>m.agency).filter(Boolean))];
+  const hay=norm(fileName);
+  let best='',bs=0;
+  known.forEach(a=>{ const s=hay.includes(norm(a))?1:sim(hay,a); if(s>bs){bs=s;best=a;} });
+  if(bs>.55) return best;
+  return agencyFromName(fileName);
+}
+
+function drawFiles(){
+  const el=$('#fileList'); if(!el) return;
+  if(!ST.files.length){ el.innerHTML=''; return; }
+  el.innerHTML=ST.files.map(f=>{
+    const used=f.sheets.filter(s=>s.use).length;
+    return '<div class="card" style="padding:14px"><h2 style="margin-bottom:9px">'+esc(f.name)+
+      ' <span class="pill info">'+used+' of '+f.sheets.length+' sheets in use</span>'+
+      ' <button class="btn sm sec" data-delfile="'+f.id+'" style="float:right">remove</button></h2>'+
+      f.sheets.map((sh,si)=>sheetCard(f,sh,si)).join('')+'</div>';
+  }).join('');
+}
+
+function sheetCard(f,sh,si){
+  const nRows=Math.max(0,sh.aoa.length-sh.hdr-1);
+  const mapped=Object.keys(sh.map).filter(k=>IMPORTABLE.includes(k));
+  const crit=['structure','ach_ftd'];
+  const missing=crit.filter(k=>!sh.map[k]);
+  const st = !sh.use?'<span class="pill">skipped</span>'
+        : missing.length?'<span class="pill warn">check mapping</span>'
+        : '<span class="pill ok">ready</span>';
+  const id=f.id+'_'+si;
+  const opts=(list,val)=>list.map(o=>'<option value="'+esc(o)+'"'+(norm(o)===norm(val)?' selected':'')+'>'+esc(o)+'</option>').join('');
+  const hdrOpts=sh.aoa.slice(0,Math.min(25,sh.aoa.length)).map((r,i)=>
+      '<option value="'+i+'"'+(i===sh.hdr?' selected':'')+'>row '+(i+1)+' — '+
+      esc((r||[]).filter(Boolean).slice(0,5).join(' | ')).slice(0,70)+'</option>').join('');
+  const colOpts=(sel)=>'<option value="">— not present —</option>'+sh.labels.map((l,i)=>
+      '<option value="'+i+'"'+(sel===i?' selected':'')+'>'+X.col(i)+'  ·  '+esc(l||'(blank)')+'</option>').join('');
+
+  return '<div class="fcard'+(sh.use?' open':'')+'" data-card="'+id+'">'+
+   '<div class="fhead" data-toggle="'+id+'">'+
+     '<input type="checkbox" data-use="'+id+'" '+(sh.use?'checked':'')+'>'+
+     '<span class="nm">'+esc(sh.name)+'</span>'+st+
+     '<span class="muted" style="font-size:12px">'+nRows+' rows · '+mapped.length+' columns mapped · header: '+
+       esc(sh.labels.filter(Boolean).slice(0,4).join(' | ')).slice(0,64)+'…</span>'+
+     '<span class="spacer"></span><span class="muted">▾</span></div>'+
+   '<div class="fbody">'+
+     (missing.length?'<div class="banner warn">No column found for <b>'+
+        missing.map(k=>FIELDS.find(x=>x.k===k).h).join('</b> and <b>')+
+        '</b>. Pick it below, or untick this sheet.</div>':'')+
+     '<div class="row" style="margin-bottom:10px">'+
+       '<div class="f"><label>Header row</label><select data-hdr="'+id+'">'+hdrOpts+'</select></div>'+
+       '<div class="f"><label>Goes to sheet</label><select data-disc="'+id+'">'+
+          opts(SHEET_NAMES.concat(['Manpower']),sh.disc)+'</select></div>'+
+       '<div class="f"><label>Default area <small class="muted">(if the file has none)</small></label>'+
+          '<input type="text" data-def="area|'+id+'" value="'+esc(sh.area)+'" placeholder="e.g. Filtration Unit"></div>'+
+       '<div class="f"><label>Default activity</label><select data-def="activity|'+id+'">'+
+          '<option value="">— from the sheet above —</option>'+opts(ACTIVITIES,sh.activity)+'</select></div>'+
+       '<div class="f"><label>Default agency</label><input type="text" data-def="agency|'+id+'" value="'+
+          esc(sh.agency)+'" placeholder="e.g. ITD Cementation"></div>'+
+       '<div class="f"><label>&nbsp;</label><button class="btn sm sec" data-saveprof="'+id+'">Remember this mapping</button></div>'+
+     '</div>'+
+     '<div class="split">'+
+       '<div><h3 style="font-size:13px;color:var(--navy);margin-bottom:6px">Column mapping</h3>'+
+         IMPORTABLE.map(k=>{
+           const f2=FIELDS.find(x=>x.k===k), m=sh.map[k];
+           const conf=m? (m.conf>=.85?'<span class="pill ok">auto</span>'
+                        : m.conf>=.6?'<span class="pill warn">'+Math.round(m.conf*100)+'%</span>'
+                        : '<span class="pill err">'+Math.round(m.conf*100)+'%</span>')
+                       : '<span class="pill">–</span>';
+           return '<div class="maprow"><div class="lab">'+esc(f2.h)+'<small>'+f2.c+'</small></div>'+
+             '<select data-map="'+k+'|'+id+'">'+colOpts(m?m.col:null)+'</select>'+
+             '<div class="conf">'+conf+'</div></div>';
+         }).join('')+
+       '</div>'+
+       '<div><h3 style="font-size:13px;color:var(--navy);margin-bottom:6px">What the file actually contains</h3>'+
+         previewTable(sh)+'</div>'+
+     '</div></div></div>';
+}
+function previewTable(sh){
+  const rows=sh.aoa.slice(sh.hdr,sh.hdr+9);
+  if(!rows.length)return '<p class="hint">empty</p>';
+  const w=Math.max(...rows.map(r=>(r||[]).length));
+  return '<div class="prevw"><table><thead><tr>'+
+    Array.from({length:w},(_,i)=>'<th>'+X.col(i)+'</th>').join('')+'</tr></thead><tbody>'+
+    rows.map((r,ri)=>'<tr>'+Array.from({length:w},(_,i)=>'<td'+(ri===0?' style="font-weight:700;color:#16202f"':'')+'>'+
+      esc(String((r||[])[i]??'')).slice(0,26)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
+}
+function findSheet(id){ const [fid,si]=id.split('_'); const f=ST.files.find(x=>x.id===fid);
+  return f?{f:f,sh:f.sheets[+si]}:null; }
+</script>
+<script>
+/* ------------------------------------------------------------ pane 2 */
+function render2(){
+  if(!ST.files.length){ $('#p2').innerHTML='<div class="banner warn">Load some vendor DPRs first.</div>'; return; }
+  consolidate();
+  const tot=ST.rows.length;
+  const cnt=k=>ST.rows.filter(r=>r._match===k).length;
+  const need=cnt('weak')+cnt('new');
+  const ftd=ST.rows.reduce((a,r)=>a+n0(r.ach_ftd),0);
+  const scope=ST.rows.reduce((a,r)=>a+n0(r.scope),0);
+  const done=ST.rows.reduce((a,r)=>a+n0(r.workdone),0);
+  $('#p2').innerHTML=`
+  <div class="kpis">
+    <div class="kpi"><div class="lab">Line items</div><div class="val">${tot}</div></div>
+    <div class="kpi"><div class="lab">Matched to master</div><div class="val">${cnt('auto')+cnt('manual')}</div></div>
+    <div class="kpi"><div class="lab">Need a decision</div><div class="val" style="color:${need?'var(--err)':'var(--ok)'}">${need}</div></div>
+    <div class="kpi"><div class="lab">Overall complete</div><div class="val">${scope>0?Math.round(done/scope*100):0}<small>%</small></div></div>
+    <div class="kpi"><div class="lab">Sources read</div><div class="val">${ST.files.reduce((a,f)=>a+f.sheets.filter(s=>s.use).length,0)}<small> sheets</small></div></div>
+    <div class="kpi"><div class="lab">Data checks failed</div><div class="val" style="color:${ST.rows.filter(r=>r._issues&&r._issues.length).length?'var(--warn)':'var(--ok)'}">${ST.rows.filter(r=>r._issues&&r._issues.length).length}</div></div>
+  </div>
+  ${issueBanner()}
+  ${need? '<div class="banner warn"><b>'+need+' rows could not be matched with confidence.</b> '+
+    'Pick the right master line below — the tool remembers the choice, so tomorrow it matches by itself. '+
+    'Left alone, they still appear in the DPR under the vendor\'s own wording.</div>'
+        : '<div class="banner ok">Every row matched. Nothing needs your attention.</div>'}
+  <div id="unmatched"></div>
+  <div class="card">
+    <h2>Consolidated lines</h2>
+    <div class="tools">
+      <input type="text" id="q" placeholder="filter…" style="min-width:240px">
+      <select id="qDisc"><option value="">all disciplines</option>${SHEET_NAMES.concat(['Manpower']).map(s=>'<option>'+esc(s)+'</option>').join('')}</select>
+      <select id="qState"><option value="">all rows</option><option value="weak">weak match</option>
+        <option value="new">new item</option><option value="master">not reported today</option>
+        <option value="issue">failed a data check</option></select>
+      <span class="spacer"></span>
+      <button class="btn" id="bNext2">Build the DPR &rarr;</button>
+    </div>
+    <div id="rowsTable"></div>
+  </div>`;
+  ['q','qDisc','qState'].forEach(i=>$('#'+i).addEventListener('input',drawRows));
+  $('#bNext2').onclick=()=>go(3);
+  drawUnmatched(); drawRows();
+}
+function issueBanner(){
+  const bad=ST.rows.filter(r=>r._issues&&r._issues.length);
+  if(!bad.length) return '<div class="banner ok">All arithmetic checks passed.</div>';
+  const lines=bad.slice(0,12).map(r=>'<li><b>'+esc(r.structure)+'</b> <span class="muted">('+
+      esc(r.agency||'no agency')+' · '+esc(r._src)+')</span> — '+esc(r._issues.join('; '))+'</li>').join('');
+  return '<div class="banner warn"><b>'+bad.length+' rows fail an arithmetic check.</b> '+
+    'The numbers still go into the DPR exactly as the vendor sent them — this is a flag, not a correction. '+
+    'Each one is listed on the Audit sheet of the export.<ul style="margin:7px 0 0 16px">'+lines+'</ul>'+
+    (bad.length>12?'<div class="hint">…and '+(bad.length-12)+' more</div>':'')+'</div>';
+}
+
+function drawUnmatched(){
+  const el=$('#unmatched'); const list=ST.rows.filter(r=>r._match==='weak'||r._match==='new');
+  if(!list.length||!ST.master.length){ el.innerHTML=''; return; }
+  const opts=ST.master.map((m,i)=>({i:i,t:m.structure+'  ·  '+m.agency+'  ('+m.sheet+')'}));
+  el.innerHTML='<div class="card"><h2>Rows needing a decision</h2>'+
+   '<p class="hint">"Map to" writes an alias, so this vendor wording is understood for good.</p>'+
+   '<div class="tw" style="max-height:360px"><table><thead><tr>'+
+   '<th>Source</th><th>As the vendor wrote it</th><th>Agency</th><th>FTD</th><th>Best guess</th><th>Map to master line</th><th></th>'+
+   '</tr></thead><tbody>'+
+   list.map((r,i)=>{
+     const sel=r._midx!=null?r._midx:'';
+     return '<tr><td class="muted">'+esc(r._src)+'</td><td><b>'+esc(r.structure)+'</b></td><td>'+esc(r.agency)+
+      '</td><td class="num">'+fmt(r.ach_ftd,2)+'</td><td>'+
+      (r._midx!=null&&ST.master[r._midx]?'<span class="pill '+(r._match==='weak'?'warn':'err')+'">'+
+        Math.round(r._score*100)+'%</span> '+esc(ST.master[r._midx].structure):'<span class="pill err">no match</span>')+
+      '</td><td><select data-mapmaster="'+i+'" style="max-width:340px"><option value="">— leave as a new line —</option>'+
+      opts.map(o=>'<option value="'+o.i+'"'+(o.i===sel?' selected':'')+'>'+esc(o.t)+'</option>').join('')+
+      '</select></td><td><button class="btn sm" data-applymap="'+i+'">Map &amp; remember</button></td></tr>';
+   }).join('')+'</tbody></table></div></div>';
+  el._list=list;
+}
+function drawRows(){
+  const q=norm($('#q')?$('#q').value:''), d=$('#qDisc')?$('#qDisc').value:'', s=$('#qState')?$('#qState').value:'';
+  const cols=['structure','area','activity','agency','scope','drawing','front','last_month',
+              'plan_ftm','plan_ftd','ach_ftd','ach_ftm_prev','variance','ach_ftm','workdone','pct','balance'];
+  const rows=ST.rows.filter(r=>(!d||r.sheet===d)&&
+      (!s||(s==='issue'?(r._issues&&r._issues.length):r._match===s))&&
+      (!q||norm(r.structure+' '+r.agency+' '+r.area+' '+r.activity).includes(q)));
+  const badge=r=>(({auto:'<span class="pill ok">ok</span>',manual:'<span class="pill ok">manual</span>',
+    weak:'<span class="pill warn">weak</span>','new':'<span class="pill err">new</span>',
+    master:'<span class="pill info">nil</span>',nomaster:''})[r._match]||'')+
+    (r._issues&&r._issues.length?' <span class="pill warn" title="'+esc(r._issues.join('; '))+'">!</span>':'');
+  $('#rowsTable').innerHTML='<div class="tw"><table><thead><tr><th>#</th><th></th>'+
+    cols.map(k=>'<th>'+esc(FIELDS.find(f=>f.k===k).h)+'</th>').join('')+'<th>Source</th></tr>'+
+    '<tr class="codes"><th></th><th></th>'+cols.map(k=>'<th>'+(CODES[k]||FIELDS.find(f=>f.k===k).c)+'</th>').join('')+'<th></th></tr>'+
+    '</thead><tbody>'+
+    rows.slice(0,600).map((r,i)=>'<tr><td class="num">'+(i+1)+'</td><td>'+badge(r)+'</td>'+
+      cols.map(k=>{
+        const f=FIELDS.find(x=>x.k===k);
+        if(k==='pct') return '<td class="num">'+pctf(r.pct)+'</td>';
+        if(f.t==='num'||f.t==='calc') return '<td class="num">'+fmt(r[k],2)+'</td>';
+        return '<td>'+esc(r[k]).slice(0,60)+'</td>';
+      }).join('')+'<td class="muted">'+esc(r._src)+'</td></tr>').join('')+
+    '</tbody></table></div>'+(rows.length>600?'<p class="hint">showing 600 of '+rows.length+'</p>':
+      '<p class="hint">'+rows.length+' rows</p>');
+}
+
+/* ------------------------------------------------------------ pane 3 */
+function render3(){
+  if(!ST.rows.length){ $('#p3').innerHTML='<div class="banner warn">Nothing consolidated yet.</div>'; return; }
+  const mon=ST.cfg.repDate?monLabel(ST.cfg.repDate):'the Month';
+  const model=buildSummary();
+  const heads=SUMF.map(f=>f.h.replace('{MON}',mon));
+  const body=model.map(it=>{
+    if(it.type==='area') return '<tr class="area"><td>'+esc(it.label)+'</td><td colspan="12">'+esc(it.name)+'</td></tr>';
+    if(it.type==='act')  return '<tr class="act"><td>'+esc(it.label)+'</td><td colspan="12">'+esc(it.name)+'</td></tr>';
+    const v=it.v, cls=it.type==='sub'?'sub':it.type==='grand'?'grand':'';
+    const cells=['scope','drawing','front','workdone','pct','balance','plan_ftm','ach_ftm','ach_ftd','manpower']
+      .map(k=>k==='pct'?'<td class="num">'+pctf(v.pct)+'</td>':'<td class="num">'+fmt(v[k])+'</td>').join('');
+    if(it.type==='row') return '<tr><td>'+esc(it.label)+'</td><td>'+esc(it.name)+'</td><td>'+esc(it.agency)+'</td>'+cells+'</tr>';
+    return '<tr class="'+cls+'"><td></td><td colspan="2">'+esc(it.name)+'</td>'+cells+'</tr>';
+  }).join('');
+  $('#p3').innerHTML=`
+  <div class="card">
+    <div style="text-align:center;margin-bottom:14px">
+      <div style="font-size:19px;font-weight:750;color:var(--navy)">${esc(ST.cfg.report||'Daily Progress Report')}</div>
+      <div style="font-size:13px;color:var(--muted)">${esc(ST.cfg.project)}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px">
+        Data date: <b>${esc(ST.cfg.dataDate||'—')}</b> &nbsp;·&nbsp; Reporting date: <b>${esc(ST.cfg.repDate||'—')}</b></div>
+    </div>
+    <div class="tw"><table><thead><tr>${heads.map(h=>'<th>'+esc(h)+'</th>').join('')}</tr>
+      <tr class="codes">${SUMF.map(f=>'<th>'+(SUMCODES[f.k]||f.c)+'</th>').join('')}</tr></thead>
+      <tbody>${body}</tbody></table></div>
+    <div class="legend">
+      <span><i style="background:#1f3864"></i>Area</span>
+      <span><i style="background:#dbe5f5"></i>Activity</span>
+      <span><i style="background:#eef2f9"></i>Sub total</span>
+      <span>Sub totals and % are written to Excel as live formulas, so the file stays auditable.</span>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Backup sheets</h2>
+    <p class="hint">One per discipline, in the same column layout as your existing file.</p>
+    <div class="tools" id="discTabs">${
+      SHEET_NAMES.concat(['Manpower']).filter(s=>ST.rows.some(r=>r.sheet===s))
+        .map((s,i)=>'<button class="btn '+(i?'sec':'')+'" data-disctab="'+esc(s)+'">'+esc(s)+
+        ' <span class="pill info">'+ST.rows.filter(r=>r.sheet===s).length+'</span></button>').join('')}</div>
+    <div id="discBody"></div>
+  </div>
+  <div class="row"><button class="btn" id="bNext3">Export &rarr;</button></div>`;
+  $('#bNext3').onclick=()=>go(4);
+  const first=SHEET_NAMES.concat(['Manpower']).find(s=>ST.rows.some(r=>r.sheet===s));
+  if(first) drawDisc(first);
+}
+function drawDisc(sheet){
+  $$('#discTabs .btn').forEach(b=>b.classList.toggle('sec',b.dataset.disctab!==sheet));
+  const rows=ST.rows.filter(r=>r.sheet===sheet);
+  const tot={}; ['scope','drawing','front','last_month','plan_ftm','plan_ftd','ach_ftd',
+    'ach_ftm_prev','variance','ach_ftm','workdone','balance','manpower']
+    .forEach(k=>tot[k]=rows.reduce((a,r)=>a+n0(r[k]),0));
+  $('#discBody').innerHTML='<div class="tw"><table><thead><tr>'+
+    FIELDS.map(f=>'<th>'+esc(f.h)+'</th>').join('')+'</tr><tr class="codes">'+
+    FIELDS.map(f=>'<th>'+(CODES[f.k]||f.c)+'</th>').join('')+'</tr></thead><tbody>'+
+    rows.map((r,i)=>'<tr>'+FIELDS.map(f=>{
+      if(f.k==='sl') return '<td class="num">'+(i+1)+'</td>';
+      if(f.k==='pct') return '<td class="num">'+pctf(r.pct)+'</td>';
+      if(f.t==='num'||f.t==='calc') return '<td class="num">'+fmt(r[f.k],2)+'</td>';
+      return '<td>'+esc(r[f.k]).slice(0,70)+'</td>';
+    }).join('')+'</tr>').join('')+
+    '<tr class="grand">'+FIELDS.map(f=>{
+      if(f.k==='structure') return '<td>TOTAL</td>';
+      if(f.k==='pct') return '<td class="num">'+pctf(tot.scope>0?tot.workdone/tot.scope:null)+'</td>';
+      if(f.t==='num'||f.t==='calc') return '<td class="num">'+fmt(tot[f.k],0)+'</td>';
+      return '<td></td>';
+    }).join('')+'</tr>'+
+    '</tbody></table></div>';
+}
+
+/* ------------------------------------------------------------ pane 4 */
+function render4(){
+  const n=ST.rows.length;
+  $('#p4').innerHTML=`
+  <div class="card">
+    <h2>Export</h2>
+    <p class="hint">${n} consolidated lines across ${new Set(ST.rows.map(r=>r.sheet)).size} disciplines.</p>
+    <div class="row">
+      <button class="btn red" id="bXlsx" ${n?'':'disabled'}>Download the final DPR (.xlsx)</button>
+      <button class="btn sec" id="bPrint" ${n?'':'disabled'}>Print / save as PDF</button>
+      <button class="btn sec" id="bCsv" ${n?'':'disabled'}>Flat CSV (for Power BI / Power Query)</button>
+      <button class="btn sec" id="bSess">Save session file (.json)</button>
+    </div>
+    <div class="legend" style="margin-top:14px">
+      <span><i style="background:#fff7e0"></i>yellow = typed / imported</span>
+      <span><i style="background:#e2efda"></i>green = key column</span>
+      <span><i style="background:#e8edf7"></i>blue = live formula</span>
+    </div>
+  </div>
+  <div class="card">
+    <h2>What lands in the file</h2>
+    <ol class="steps2">
+      <li><b>Summary-AreaWise</b> — the printed summary, grouped Area → Activity → Agency with sub totals
+          and a grand total. % Complete, Balance and every total are live Excel formulas.</li>
+      <li><b>One backup sheet per discipline</b> — identical to your current layout, with
+          Variance, Achieved FTM, Workdone, % Complete and Balance as formulas.</li>
+      <li><b>Audit</b> — every row the tool was unsure about, plus which file, sheet, header row and
+          column mapping each number came from. This is the sheet to hand a reviewer who asks
+          "where did this number come from?".</li>
+      <li><b>Config</b> — dates, preparer, source files, and the arithmetic used.</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h2>Tomorrow</h2>
+    <p class="hint">Open this page again, drop in tomorrow's files and export. The master scope, every
+      column mapping and every name alias you have taught it are already remembered in this browser.
+      Use <b>Save session</b> in the header to move that knowledge to another machine.</p>
+  </div>`;
+  if(!n) return;
+  $('#bXlsx').onclick=exportWorkbook;
+  $('#bPrint').onclick=()=>{go(3);setTimeout(()=>window.print(),400);};
+  $('#bCsv').onclick=exportCsv;
+  $('#bSess').onclick=saveSession;
+}
+function exportCsv(){
+  const cols=FIELDS.map(f=>f.k).filter(k=>k!=='sl');
+  const head=['discipline'].concat(cols.map(k=>FIELDS.find(f=>f.k===k).h)).concat(['source']);
+  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const body=ST.rows.map(r=>[r.sheet].concat(cols.map(k=>k==='pct'?(r.pct==null?'':(r.pct*100).toFixed(1)):r[k]))
+    .concat([r._src]).map(q).join(','));
+  download(new Blob(['﻿'+head.map(q).join(',')+'\n'+body.join('\n')],{type:'text/csv'}),
+    (ST.cfg.repDate||'dpr')+'-consolidated.csv');
+}
+function saveSession(){
+  download(new Blob([JSON.stringify({cfg:ST.cfg,master:ST.master,aliases:ST.aliases,
+    manual:ST.manual,profiles:ST.profiles||{}},null,1)],{type:'application/json'}),
+    'dpr-session.json');
+}
+
+/* ------------------------------------------------------------ events */
+document.addEventListener('click',e=>{
+  const t=e.target;
+  const d=t.dataset||{};
+  if(d.go!=null){ go(+d.go); return; }
+  if(t.closest('[data-toggle]')&&!t.matches('input')){
+    const id=t.closest('[data-toggle]').dataset.toggle;
+    $('[data-card="'+id+'"]').classList.toggle('open'); return;
+  }
+  if(d.delfile){ ST.files=ST.files.filter(f=>f.id!==d.delfile); consolidate(); render1(); nav(); return; }
+  if(d.delalias){ const [ty,k]=d.delalias.split('|'); delete ST.aliases[ty][k]; persist(); drawAliases(); return; }
+  if(d.disctab){ drawDisc(d.disctab); return; }
+  if(d.saveprof){ const o=findSheet(d.saveprof); if(!o)return;
+    ST.profiles=ST.profiles||{}; const pk=profKey(o.f.name);
+    ST.profiles[pk]=ST.profiles[pk]||{};
+    ST.profiles[pk][o.sh.name]={map:o.sh.map,hdr:o.sh.hdr,disc:o.sh.disc,
+      area:o.sh.area,activity:o.sh.activity,agency:o.sh.agency};
+    persist(); toast('Mapping remembered for files named like "'+o.f.name+'".'); return; }
+  if(d.applymap){
+    const list=$('#unmatched')._list, r=list[+d.applymap];
+    const sel=$('[data-mapmaster="'+d.applymap+'"]').value;
+    if(sel===''){ toast('Nothing selected.'); return; }
+    const m=ST.master[+sel];
+    ST.manual[key(r.sheet+'|'+r.structure+'|'+r.agency)]=+sel;
+    if(r.structure&&m.structure) ST.aliases.structure[key(r.structure)]=m.structure;
+    if(r.agency&&m.agency)       ST.aliases.agency[key(r.agency)]=m.agency;
+    persist(); render2(); toast('Mapped and remembered.'); return;
+  }
+});
+document.addEventListener('change',e=>{
+  const d=e.target.dataset||{};
+  if(d.use!=null){ const o=findSheet(d.use); if(o){o.sh.use=e.target.checked; consolidate(); drawFiles(); nav();} return; }
+  if(d.hdr){ const o=findSheet(d.hdr); if(o){ o.sh.hdr=+e.target.value;
+      const hl=headerLabels(o.sh.aoa,o.sh.hdr); o.sh.labels=hl.labels; o.sh.map=autoMap(hl.labels);
+      consolidate(); drawFiles(); } return; }
+  if(d.disc){ const o=findSheet(d.disc); if(o){o.sh.disc=e.target.value; consolidate(); drawFiles();} return; }
+  if(d.def){ const [fld,id]=d.def.split('|'); const o=findSheet(id);
+    if(o){ o.sh[fld]=e.target.value; consolidate(); } return; }
+  if(d.map){ const [fld,id]=d.map.split('|'); const o=findSheet(id); if(!o)return;
+    const v=e.target.value;
+    if(v==='') delete o.sh.map[fld];
+    else { Object.keys(o.sh.map).forEach(k=>{ if(o.sh.map[k].col===+v && k!==fld) delete o.sh.map[k]; });
+           o.sh.map[fld]={col:+v,conf:1}; }
+    consolidate(); drawFiles(); return; }
+});
+
+/* header buttons */
+$('#btnSave').onclick=saveSession;
+$('#btnLoad').onclick=()=>pick(async files=>{
+  const txt=await files[0].text();
+  try{ const o=JSON.parse(txt);
+    Object.assign(ST.cfg,o.cfg||{}); ST.master=o.master||[];
+    ST.aliases=Object.assign({area:{},activity:{},agency:{},structure:{}},o.aliases||{});
+    ST.manual=o.manual||{}; ST.profiles=o.profiles||{};
+    persist(); go(0); toast('Session restored.');
+  }catch(err){ toast('That is not a session file.'); }
+});
+$('#btnReset').onclick=()=>{ if(!confirm('Clear the master, the aliases, the mappings and every loaded file?'))return;
+  localStorage.removeItem(LSKEY); location.reload(); };
+
+/* ------------------------------------------------------------ boot */
+restore();
+if(!ST.cfg.repDate){ const t=new Date(); ST.cfg.repDate=t.toISOString().slice(0,10);
+  const y=new Date(t.getTime()-864e5); ST.cfg.dataDate=y.toISOString().slice(0,10); }
+nav(); go(0);
+window.addEventListener('beforeunload',persist);
+</script>
+</body>
+</html>

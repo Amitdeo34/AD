@@ -115,6 +115,25 @@ ul.pts li .ed:focus{background:#f6f9ff}
 .note{font-size:12px;color:var(--muted);background:#f7f9fc;border:1px solid var(--line);border-left:3px solid var(--kpmg-light);
   padding:9px 12px;border-radius:0 6px 6px 0;margin-top:10px}
 .note b{color:var(--kpmg-blue)}
+.tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:16px;flex-wrap:wrap}
+.tab{border:1px solid transparent;border-bottom:none;background:none;color:var(--muted);padding:9px 16px;
+  border-radius:6px 6px 0 0;font-weight:600;font-size:13px;margin-bottom:-1px}
+.tab.active{background:#fff;border-color:var(--line);color:var(--kpmg-blue);border-bottom:1px solid #fff}
+.tab .badge{background:var(--kpmg-green);color:#fff;font-size:9.5px;padding:1px 6px;border-radius:10px;margin-left:6px;letter-spacing:.3px}
+.pane{display:none}
+.pane.active{display:block}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:26px 18px;text-align:center;color:var(--muted);cursor:pointer;background:#fbfcfe}
+.drop:hover,.drop.over{border-color:var(--kpmg-light);background:#f2f8fe;color:var(--kpmg-blue)}
+.drop b{display:block;color:var(--kpmg-blue);font-size:15px;margin-bottom:4px}
+.bar{height:7px;background:#e8ecf3;border-radius:4px;overflow:hidden;margin-top:10px}
+.bar i{display:block;height:100%;width:0;background:var(--kpmg-light);transition:width .25s}
+.bar i.done{background:var(--kpmg-green)}
+.prog{font-size:12.5px;color:var(--muted);margin-top:6px;font-weight:600}
+.timer{font-size:26px;font-weight:700;color:var(--kpmg-blue);font-variant-numeric:tabular-nums}
+.langgrid{display:flex;gap:6px;flex-wrap:wrap}
+.chip.on{background:var(--kpmg-green);border-color:var(--kpmg-green);color:#fff}
+.chip .tick{margin-right:5px}
+.miclang{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(80px);background:var(--kpmg-blue);color:#fff;
   padding:11px 20px;border-radius:26px;box-shadow:0 6px 22px rgba(0,0,0,.25);opacity:0;transition:.25s;z-index:99;font-weight:600;font-size:13px}
 .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
@@ -132,7 +151,7 @@ footer{max-width:1180px;margin:0 auto;padding:0 16px 40px;font-size:11.5px;color
     <span class="logo">KPMG</span>
     <div>
       <h1>Review Meeting &mdash; Automated Minutes Generator</h1>
-      <p>Voice capture in English, हिन्दी, বাংলা, ଓଡ଼ିଆ, తెలుగు, தமிழ் &rarr; crisp English minutes &rarr; Word / Excel / PowerPoint</p>
+      <p>Speak or upload a recording in any mix of English, हिन्दी, বাংলা, ଓଡ଼ିଆ, తెలుగు, தமிழ் &rarr; crisp English minutes &rarr; Word / Excel / PowerPoint</p>
     </div>
   </div>
 </header>
@@ -174,34 +193,92 @@ footer{max-width:1180px;margin:0 auto;padding:0 16px 40px;font-size:11.5px;color
 
 <!-- 2. CAPTURE -->
 <section class="card" id="panel-capture">
-  <h2><span class="num">2</span> Record the review</h2>
+  <h2><span class="num">2</span> Capture the review</h2>
   <div class="body">
-    <div class="grid g3">
-      <div><label for="lang">Speaking language</label>
-        <select id="lang">
-          <option value="en-IN" data-t="en">English (India)</option>
-          <option value="hi-IN" data-t="hi">हिन्दी &mdash; Hindi</option>
-          <option value="bn-IN" data-t="bn">বাংলা &mdash; Bengali</option>
-          <option value="or-IN" data-t="or">ଓଡ଼ିଆ &mdash; Odia</option>
-          <option value="te-IN" data-t="te">తెలుగు &mdash; Telugu</option>
-          <option value="ta-IN" data-t="ta">தமிழ் &mdash; Tamil</option>
-        </select>
-        <div class="chips" id="langchips"></div>
-        <button id="btnPrep" class="btn-ghost btn-sm" style="margin-top:8px;display:none">Enable offline translation</button>
-      </div>
-      <div><label for="speaker">Current speaker</label>
-        <input type="text" id="speaker" placeholder="Name of person speaking" />
-        <div class="chips" id="spchips"></div>
-      </div>
-      <div><label>Controls</label>
-        <div class="row">
-          <button id="btnRec" class="btn-rec">&#9679; Start recording</button>
-          <button id="btnClear" class="btn-ghost btn-sm">Clear</button>
+    <div class="tabs">
+      <button class="tab active" data-pane="pane-live">Live microphone</button>
+      <button class="tab" data-pane="pane-rec">Record &amp; auto-transcribe<span class="badge">any language</span></button>
+      <button class="tab" data-pane="pane-up">Upload a recording<span class="badge">any language</span></button>
+    </div>
+
+    <!-- LIVE -->
+    <div class="pane active" id="pane-live">
+      <div class="grid g3">
+        <div>
+          <label>Languages spoken in this meeting</label>
+          <div class="langgrid" id="langpicks"></div>
+          <label style="margin-top:12px">Microphone is listening in</label>
+          <div class="miclang" id="langchips"></div>
+          <button id="btnPrep" class="btn-ghost btn-sm" style="margin-top:8px;display:none">Enable offline translation</button>
         </div>
-        <div class="status" style="margin-top:10px"><span class="dot" id="dot"></span><span id="status">Idle</span></div>
+        <div><label for="speaker">Current speaker</label>
+          <input type="text" id="speaker" placeholder="Name of person speaking" />
+          <div class="chips" id="spchips"></div>
+        </div>
+        <div><label>Controls</label>
+          <div class="row">
+            <button id="btnRec" class="btn-rec">&#9679; Start listening</button>
+            <button id="btnClear" class="btn-ghost btn-sm">Clear all</button>
+          </div>
+          <div class="status" style="margin-top:10px"><span class="dot" id="dot"></span><span id="status">Idle</span></div>
+        </div>
+      </div>
+      <div class="interim" id="interim">Interim speech appears here while you speak&hellip;</div>
+      <div class="note" id="capnote"></div>
+    </div>
+
+    <!-- RECORD -->
+    <div class="pane" id="pane-rec">
+      <div class="grid g2">
+        <div>
+          <label>Record the meeting audio</label>
+          <div class="row">
+            <button id="btnAud" class="btn-rec">&#9679; Start recording</button>
+            <span class="timer" id="audTimer">00:00</span>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <button id="btnAudGo" class="btn-primary" disabled>Transcribe to English &rarr;</button>
+            <button id="btnAudSave" class="btn-ghost btn-sm" disabled>Save audio file</button>
+            <button id="btnAudDrop" class="btn-ghost btn-sm" disabled>Discard</button>
+          </div>
+        </div>
+        <div>
+          <div class="note" style="margin-top:22px">
+            <b>Speak in any language, in any mix.</b> The recording is transcribed on this device and the text comes out in
+            English, so Hindi, Odia, Bengali, Telugu, Tamil and English can be used in the same meeting without switching anything.
+          </div>
+        </div>
       </div>
     </div>
-    <div class="interim" id="interim">Interim speech appears here while you speak&hellip;</div>
+
+    <!-- UPLOAD -->
+    <div class="pane" id="pane-up">
+      <div class="drop" id="drop">
+        <b>Drop a recording here, or click to choose a file</b>
+        MP3, WAV, M4A, OGG, WebM or a video file (MP4 / MOV) &mdash; a Teams, Zoom or phone recording works
+      </div>
+      <input type="file" id="fileAudio" accept="audio/*,video/*" style="display:none" />
+      <div class="row" style="margin-top:12px">
+        <span id="upname" style="color:var(--muted);font-size:12.5px"></span>
+      </div>
+    </div>
+
+    <!-- SHARED: engine + progress + manual entry -->
+    <div class="grid g3" style="margin-top:16px">
+      <div><label for="asrModel">Transcription model (for Record &amp; Upload)</label>
+        <select id="asrModel">
+          <option value="onnx-community/whisper-base" data-mb="73">Balanced &mdash; Whisper base (~73 MB)</option>
+          <option value="onnx-community/whisper-tiny" data-mb="38">Fastest &mdash; Whisper tiny (~38 MB)</option>
+          <option value="onnx-community/whisper-small" data-mb="237">Most accurate for Indian languages &mdash; Whisper small (~237 MB)</option>
+        </select>
+      </div>
+      <div style="grid-column:span 2">
+        <label>Transcription progress</label>
+        <div class="bar"><i id="asrBar"></i></div>
+        <div class="prog" id="asrProg">Not started. The model is downloaded once on first use and then works offline.</div>
+      </div>
+    </div>
+
     <div class="grid g2" style="margin-top:14px">
       <div><label for="manual">Type a point manually (any language)</label>
         <div class="row"><input type="text" id="manual" placeholder="Type and press Enter" style="flex:1;min-width:200px" />
@@ -210,7 +287,6 @@ footer{max-width:1180px;margin:0 auto;padding:0 16px 40px;font-size:11.5px;color
         <div class="row"><textarea id="bulk" style="flex:1;min-width:200px;min-height:38px"></textarea>
         <button id="btnBulk" class="btn-ghost">Import</button></div></div>
     </div>
-    <div class="note" id="capnote"></div>
   </div>
 </section>
 
@@ -257,7 +333,7 @@ footer{max-width:1180px;margin:0 auto;padding:0 16px 40px;font-size:11.5px;color
   </div>
 </section>
 </main>
-<footer>Built for review-meeting record keeping &middot; Speech capture uses your browser's on-device speech service (Chrome / Edge recommended) &middot; Colour palette follows the KPMG India brand family.</footer>
+<footer>Built for review-meeting record keeping &middot; Live capture uses your browser's speech service; recordings are transcribed on this device by Whisper (downloaded once, then offline) &middot; Colour palette follows the KPMG India brand family.</footer>
 <div class="toast" id="toast"></div>
 <script>
 "use strict";
@@ -315,54 +391,97 @@ function meta(){
   };
 }
 
-/* ---------- quick chips ---------- */
-function buildLangChips(){
-  var box=$("langchips"); box.innerHTML="";
+/* ---------- languages: many per meeting, one active on the mic ---------- */
+var enabledLangs = ["en-IN", "hi-IN"];      /* languages expected in this meeting */
+var activeLang   = "en-IN";                 /* what the microphone listens in right now */
+
+var SCRIPTS = [
+  { code:"hi-IN", re:/[\u0900-\u097F]/g },   /* Devanagari */
+  { code:"bn-IN", re:/[\u0980-\u09FF]/g },   /* Bengali    */
+  { code:"or-IN", re:/[\u0B00-\u0B7F]/g },   /* Odia       */
+  { code:"ta-IN", re:/[\u0B80-\u0BFF]/g },   /* Tamil      */
+  { code:"te-IN", re:/[\u0C00-\u0C7F]/g }    /* Telugu     */
+];
+function detectScript(text){
+  var best = null, bestN = 0;
+  SCRIPTS.forEach(function(S){
+    var m = String(text).match(S.re);
+    if(m && m.length > bestN){ bestN = m.length; best = S.code; }
+  });
+  return bestN >= 2 ? best : null;           /* Latin script stays with the selected language */
+}
+function buildLangPicks(){
+  var box = $("langpicks"); box.innerHTML = "";
   LANGS.forEach(function(L){
-    var c=el("button","chip",L.label); c.type="button"; c.dataset.code=L.code;
-    c.onclick=function(){ $("lang").value=L.code; syncLangChips(); if(rec.on){ restartRecognition(); } };
+    var on = enabledLangs.indexOf(L.code) >= 0;
+    var c = el("button", on ? "chip on" : "chip"); c.type = "button";
+    c.innerHTML = '<span class="tick">' + (on ? "&#10003;" : "+") + '</span>' + L.label;
+    c.onclick = function(){
+      var i = enabledLangs.indexOf(L.code);
+      if(i >= 0){
+        if(enabledLangs.length === 1) return;                 /* keep at least one */
+        enabledLangs.splice(i, 1);
+        if(activeLang === L.code) activeLang = enabledLangs[0];
+      } else enabledLangs.push(L.code);
+      buildLangPicks(); buildLangChips(); save();
+      if(rec.on) restartRecognition();
+    };
     box.appendChild(c);
   });
-  syncLangChips();
 }
-function syncLangChips(){
-  var v=$("lang").value;
-  Array.prototype.forEach.call($("langchips").children,function(c){ c.classList.toggle("active", c.dataset.code===v); });
+function buildLangChips(){
+  var box = $("langchips"); box.innerHTML = "";
+  if(enabledLangs.indexOf(activeLang) < 0) activeLang = enabledLangs[0] || "en-IN";
+  enabledLangs.forEach(function(code){
+    var L = LANGS.filter(function(x){ return x.code === code; })[0];
+    if(!L) return;
+    var c = el("button", "chip" + (code === activeLang ? " active" : ""), L.label);
+    c.type = "button"; c.dataset.code = code;
+    c.onclick = function(){ activeLang = code; buildLangChips(); save(); if(rec.on) restartRecognition(); };
+    box.appendChild(c);
+  });
 }
 function buildSpeakerChips(){
-  var box=$("spchips"); box.innerHTML="";
-  meta().attendees.slice(0,8).forEach(function(n){
-    var c=el("button","chip",n); c.type="button";
-    c.onclick=function(){ $("speaker").value=n; };
+  var box = $("spchips"); box.innerHTML = "";
+  meta().attendees.slice(0, 8).forEach(function(n){
+    var c = el("button", "chip", n); c.type = "button";
+    c.onclick = function(){ $("speaker").value = n; };
     box.appendChild(c);
   });
 }
 
 /* ---------- transcript ---------- */
 function addLine(raw, langCode, speaker){
-  raw=(raw||"").trim(); if(!raw) return;
-  lines.push({ id:++seq, time:nowHHMM(), speaker:(speaker||$("speaker").value||"").trim()||"Participant",
-               raw:raw, lang:langCode||$("lang").value, en:null });
+  raw = (raw || "").trim(); if(!raw) return;
+  var lang = langCode || activeLang;
+  var byScript = detectScript(raw);          /* a Hindi line spoken while the mic is set to Odia is still Hindi */
+  if(byScript) lang = byScript;
+  lines.push({ id:++seq, time:nowHHMM(), speaker:(speaker || $("speaker").value || "").trim() || "Participant",
+               raw:raw, lang:lang, en:null });
   renderTranscript(); save();
 }
 function renderTranscript(){
-  var box=$("transcript"); box.innerHTML="";
-  $("tcount").textContent = lines.length ? "("+lines.length+")" : "";
-  if(!lines.length){ box.appendChild(el("div","empty","No points captured yet. Start recording or type a point above.")); return; }
-  lines.forEach(function(L,i){
-    var row=el("div","tline");
-    row.appendChild(el("div","t",L.time));
-    var sp=el("div","sp"); var si=document.createElement("input"); si.type="text"; si.value=L.speaker;
-    si.oninput=function(){ L.speaker=si.value; save(); }; sp.appendChild(si); row.appendChild(sp);
-    var tx=el("div","tx");
-    var ed=el("div"); ed.contentEditable="true"; ed.textContent=L.raw;
-    ed.oninput=function(){ L.raw=ed.textContent; L.en=null; save(); };
+  var box = $("transcript"); box.innerHTML = "";
+  $("tcount").textContent = lines.length ? "(" + lines.length + ")" : "";
+  if(!lines.length){
+    box.appendChild(el("div","empty","No points captured yet. Use the microphone, upload a recording, or type a point above."));
+    return;
+  }
+  lines.forEach(function(L, i){
+    var row = el("div","tline");
+    row.appendChild(el("div","t", L.time));
+    var sp = el("div","sp"); var si = document.createElement("input"); si.type = "text"; si.value = L.speaker;
+    si.oninput = function(){ L.speaker = si.value; save(); }; sp.appendChild(si); row.appendChild(sp);
+    var tx = el("div","tx");
+    var ed = el("div"); ed.contentEditable = "true"; ed.textContent = L.raw;
+    ed.oninput = function(){ L.raw = ed.textContent; L.en = null; save(); };
     tx.appendChild(ed);
-    var lg=LANGS.filter(function(x){return x.code===L.lang;})[0];
-    var tagTxt=(lg?lg.label:L.lang)+(L.en?" → "+L.en:"");
-    var meta2=el("div","orig",tagTxt); tx.appendChild(meta2);
+    var lg = LANGS.filter(function(x){ return x.code === L.lang; })[0];
+    var tag = (L.src === "asr") ? "From recording — English" : (lg ? lg.label : L.lang);
+    tx.appendChild(el("div","orig", tag + (L.en && L.en !== L.raw ? " → " + L.en : "")));
     row.appendChild(tx);
-    var d=el("button","del","×"); d.title="Remove"; d.onclick=function(){ lines.splice(i,1); renderTranscript(); save(); };
+    var d = el("button","del","×"); d.title = "Remove";
+    d.onclick = function(){ lines.splice(i, 1); renderTranscript(); save(); };
     row.appendChild(d);
     box.appendChild(row);
   });
@@ -379,7 +498,7 @@ function setStatus(txt, live){
 function startRecognition(){
   if(!SR){ toast("Speech recognition is not available in this browser. Use Chrome or Edge, or type points manually.", true); return; }
   var e = new SR();
-  e.lang = $("lang").value; e.continuous = true; e.interimResults = true; e.maxAlternatives = 1;
+  e.lang = activeLang; e.continuous = true; e.interimResults = true; e.maxAlternatives = 1;
   e.onresult = function(ev){
     var interim = "";
     for(var i=ev.resultIndex; i<ev.results.length; i++){
@@ -403,14 +522,14 @@ function startRecognition(){
   };
   rec.engine = e; rec.on = true; rec.stopping = false;
   try{ e.start(); }catch(err){}
-  $("btnRec").textContent = "■ Stop recording"; $("btnRec").className = "btn-primary";
-  var lg = LANGS.filter(function(x){ return x.code===$("lang").value; })[0];
-  setStatus("Recording — "+(lg?lg.label:$("lang").value), true);
+  $("btnRec").textContent = "■ Stop listening"; $("btnRec").className = "btn-primary";
+  var lg = LANGS.filter(function(x){ return x.code === activeLang; })[0];
+  setStatus("Listening — " + (lg ? lg.label : activeLang), true);
 }
 function stopRecognition(){
   rec.stopping = true; rec.on = false;
   if(rec.engine){ try{ rec.engine.stop(); }catch(e){} }
-  $("btnRec").textContent = "● Start recording"; $("btnRec").className = "btn-rec";
+  $("btnRec").textContent = "● Start listening"; $("btnRec").className = "btn-rec";
   setStatus("Stopped", false); $("interim").textContent = "Interim speech appears here while you speak…";
 }
 function restartRecognition(){ if(!rec.on) return; stopRecognition(); setTimeout(startRecognition, 250); }
@@ -449,7 +568,7 @@ async function getTranslator(src, allowDownload){
   }catch(e){ translators[src] = undefined; return undefined; }
 }
 async function prepareTranslation(){
-  var code = tcodeOf($("lang").value);
+  var code = tcodeOf(activeLang);
   if(code === "en"){ toast("English needs no translation."); return; }
   if(!translationSupported()){ toast("This browser has no built-in translation. Use Chrome 138+ on desktop.", true); return; }
   var btn = $("btnPrep"); btn.disabled = true; btn.textContent = "Preparing…";
@@ -464,6 +583,7 @@ function tcodeOf(langCode){
   return L ? L.t : "en";
 }
 async function toEnglish(L){
+  if(L.src === "asr") return L.raw;          /* the recording engine already produced English */
   var src = tcodeOf(L.lang);
   if(src === "en") return L.raw;
   if(L.en) return L.en;
@@ -1314,18 +1434,184 @@ function exportPpt(){
 }
 
 /* ============================================================
+   Recording engine: any spoken language in, English text out.
+   Whisper runs inside this browser (WebAssembly); the model is
+   downloaded once and then works offline.
+   ============================================================ */
+var TFJS_URL = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1/dist/transformers.min.js";
+var ASR = { pipe:null, model:null, busy:false };
+
+function setProg(pct, msg, done){
+  var bar = $("asrBar");
+  bar.style.width = Math.max(0, Math.min(100, pct)) + "%";
+  bar.className = done ? "done" : "";
+  if(msg) $("asrProg").textContent = msg;
+}
+function mmss(sec){
+  sec = Math.max(0, Math.round(sec));
+  return String(Math.floor(sec/60)).padStart(2,"0") + ":" + String(sec%60).padStart(2,"0");
+}
+async function ensureASR(){
+  var want = $("asrModel").value;
+  if(ASR.pipe && ASR.model === want) return ASR.pipe;
+  var mb = $("asrModel").selectedOptions[0].dataset.mb;
+  setProg(3, "Loading the transcription engine…");
+  var mod;
+  try{ mod = await import(TFJS_URL); }
+  catch(e){ throw new Error("Could not load the transcription engine. An internet connection is needed the first time."); }
+  var files = {};
+  setProg(6, "Downloading the language model (~" + mb + " MB, one time)…");
+  var pipe = await mod.pipeline("automatic-speech-recognition", want, {
+    dtype:"q8", device:"wasm",
+    progress_callback: function(p){
+      if(p.status === "progress" && p.file){
+        files[p.file] = p.progress || 0;
+        var ks = Object.keys(files);
+        var avg = ks.reduce(function(a,k){ return a + files[k]; }, 0) / ks.length;
+        setProg(6 + avg * 0.34, "Downloading the language model: " + Math.round(avg) + "% (one time, then cached)");
+      }
+    }
+  });
+  ASR.pipe = pipe; ASR.model = want;
+  return pipe;
+}
+async function decodeTo16k(blob){
+  var buf = await blob.arrayBuffer();
+  var Ctx = window.AudioContext || window.webkitAudioContext;
+  var ctx = new Ctx({ sampleRate:16000 });
+  var decoded;
+  try{ decoded = await ctx.decodeAudioData(buf); }
+  catch(e){ try{ ctx.close(); }catch(e2){} throw new Error("This file's audio could not be read. Convert it to MP3 or WAV and try again."); }
+  var data;
+  if(decoded.sampleRate === 16000 && decoded.numberOfChannels === 1){ data = decoded.getChannelData(0); }
+  else {
+    var off = new OfflineAudioContext(1, Math.max(1, Math.ceil(decoded.duration * 16000)), 16000);
+    var src = off.createBufferSource(); src.buffer = decoded; src.connect(off.destination); src.start();
+    data = (await off.startRendering()).getChannelData(0);
+  }
+  try{ ctx.close(); }catch(e){}
+  return data;
+}
+function normWords(t){ return String(t).toLowerCase().replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim().split(" "); }
+function dropOverlap(prevText, text){
+  /* consecutive windows overlap by a second or two: trim the repeated opening */
+  if(!prevText || !text) return text;
+  var pw = normWords(prevText), nw = normWords(text);
+  var max = Math.min(12, pw.length, nw.length);
+  for(var n = max; n >= 3; n--){
+    if(pw.slice(-n).join(" ") === nw.slice(0, n).join(" ")){
+      var words = text.trim().split(/\s+/).slice(n);
+      return words.join(" ");
+    }
+  }
+  return text;
+}
+function splitSentences(text){
+  var parts = String(text).trim().split(/(?<=[.!?])\s+/), out = [];
+  parts.forEach(function(p){
+    p = p.trim(); if(!p) return;
+    if(out.length && p.split(/\s+/).length < 4) out[out.length-1] += " " + p;   /* keep fragments attached */
+    else out.push(p);
+  });
+  return out;
+}
+async function transcribeBlob(blob, label){
+  if(ASR.busy){ toast("A transcription is already running.", true); return; }
+  ASR.busy = true;
+  var t0 = Date.now(), added = 0;
+  try{
+    var pipe = await ensureASR();
+    setProg(42, "Reading the audio…");
+    var audio = await decodeTo16k(blob);
+    var RATE = 16000, WIN = 30 * RATE, STEP = 28 * RATE;   /* 30s windows, 2s overlap */
+    var total = audio.length, pos = 0, prevText = "";
+    if(!total) throw new Error("That recording has no audio in it.");
+    while(pos < total){
+      var end = Math.min(pos + WIN, total);
+      setProg(45 + 54 * (pos / total), "Transcribing " + mmss(pos/RATE) + " of " + mmss(total/RATE) + " — output is English");
+      await new Promise(function(r){ setTimeout(r, 0); });          /* let the page repaint */
+      var out = await pipe(audio.subarray(pos, end), { task:"translate", chunk_length_s:30 });
+      var text = dropOverlap(prevText, ((out && out.text) || "").trim());
+      text = text.replace(/\s+/g, " ").trim();
+      if(text && !/^\[?(BLANK_AUDIO|MUSIC|SILENCE)\]?\.?$/i.test(text)){
+        var at = pos / RATE;
+        splitSentences(text).forEach(function(sn){
+          lines.push({ id:++seq, time:mmss(at), speaker:"Speaker", raw:sn, lang:"en-IN", en:sn, src:"asr" });
+          added++;
+        });
+        prevText = text;
+      }
+      renderTranscript();
+      if(end >= total) break;
+      pos += STEP;
+    }
+    save();
+    var secs = Math.round((Date.now() - t0) / 1000);
+    setProg(100, added + " point(s) from " + mmss(total/RATE) + " of audio in " + secs + "s" + (label ? " — " + label : ""), true);
+    if(added){
+      toast("Transcribed " + added + " point(s). Generating the minutes…");
+      await generate();                                             /* upload in, minutes out */
+    } else {
+      toast("No speech was recognised in that recording.", true);
+    }
+  }catch(e){
+    setProg(0, "Transcription failed: " + (e && e.message ? e.message : e));
+    toast(e && e.message ? e.message : "Transcription failed.", true);
+  }finally{ ASR.busy = false; }
+}
+
+/* ---------- record the meeting audio in the browser ---------- */
+var aud = { mr:null, chunks:[], blob:null, t0:0, timer:null, stream:null };
+function audButtons(hasClip){
+  $("btnAudGo").disabled = !hasClip; $("btnAudSave").disabled = !hasClip; $("btnAudDrop").disabled = !hasClip;
+}
+function audTick(){ $("audTimer").textContent = mmss((Date.now() - aud.t0) / 1000); }
+async function startAudio(){
+  if(!navigator.mediaDevices || !window.MediaRecorder){ toast("This browser cannot record audio.", true); return; }
+  var stream;
+  try{ stream = await navigator.mediaDevices.getUserMedia({ audio:true }); }
+  catch(e){ toast("Microphone permission denied.", true); return; }
+  var mr = new MediaRecorder(stream);
+  aud.chunks = []; aud.blob = null; aud.stream = stream;
+  mr.ondataavailable = function(e){ if(e.data && e.data.size) aud.chunks.push(e.data); };
+  mr.onstop = function(){
+    aud.blob = new Blob(aud.chunks, { type: mr.mimeType || "audio/webm" });
+    stream.getTracks().forEach(function(t){ t.stop(); });
+    clearInterval(aud.timer);
+    $("btnAud").textContent = "● Start recording"; $("btnAud").className = "btn-rec";
+    audButtons(true);
+    toast("Recording saved in the page — press Transcribe to English.");
+  };
+  mr.start(1000); aud.mr = mr; aud.t0 = Date.now();
+  aud.timer = setInterval(audTick, 500); audTick();
+  audButtons(false);
+  $("btnAud").textContent = "■ Stop recording"; $("btnAud").className = "btn-primary";
+}
+function stopAudio(){ if(aud.mr && aud.mr.state !== "inactive") aud.mr.stop(); aud.mr = null; }
+
+/* ---------- upload a recording ---------- */
+function handleUpload(file){
+  if(!file) return;
+  $("upname").textContent = file.name + "  (" + (file.size/1048576).toFixed(1) + " MB)";
+  transcribeBlob(file, file.name);
+}
+
+/* ============================================================
    Persistence, project file, wiring
    ============================================================ */
 var STORE = "kpmg-review-mom-v1";
 var META_IDS = ["m_title","m_date","m_type","m_start","m_end","m_venue","m_chair","m_scribe","m_next","m_att","m_abs","m_agenda"];
 function snapshot(){
   var f = {}; META_IDS.forEach(function(id){ f[id] = $(id).value; });
-  return { v:1, fields:f, lines:lines, mom:mom };
+  return { v:2, fields:f, langs:enabledLangs, active:activeLang, lines:lines, mom:mom };
 }
 function save(){ try{ localStorage.setItem(STORE, JSON.stringify(snapshot())); }catch(e){} }
 function restore(data){
   if(!data) return;
   if(data.fields) META_IDS.forEach(function(id){ if(data.fields[id] != null) $(id).value = data.fields[id]; });
+  if(Array.isArray(data.langs) && data.langs.length) enabledLangs = data.langs;
+  if(data.active) activeLang = data.active;
+  buildLangPicks(); buildLangChips();
   lines = Array.isArray(data.lines) ? data.lines : [];
   seq = lines.reduce(function(a,l){ return Math.max(a, l.id||0); }, 0);
   mom = data.mom || null;
@@ -1348,7 +1634,6 @@ function importJson(file){
 
 /* ---- wiring ---- */
 $("btnRec").onclick   = function(){ rec.on ? stopRecognition() : startRecognition(); };
-$("lang").onchange    = function(){ syncLangChips(); if(rec.on) restartRecognition(); };
 $("btnAdd").onclick   = function(){ addLine($("manual").value); $("manual").value = ""; $("manual").focus(); };
 $("manual").addEventListener("keydown", function(e){ if(e.key === "Enter"){ e.preventDefault(); $("btnAdd").click(); } });
 $("btnBulk").onclick  = function(){
@@ -1373,10 +1658,36 @@ $("exJson").onclick   = exportJson;
 $("imJson").onclick   = function(){ $("fileJson").click(); };
 $("fileJson").onchange = function(){ if(this.files[0]) importJson(this.files[0]); this.value = ""; };
 $("btnPrep").onclick  = prepareTranslation;
+$("btnAud").onclick   = function(){ (aud.mr && aud.mr.state === "recording") ? stopAudio() : startAudio(); };
+$("btnAudGo").onclick = function(){ if(aud.blob) transcribeBlob(aud.blob, "recorded in this page"); };
+$("btnAudSave").onclick = function(){
+  if(!aud.blob) return;
+  var ext = (aud.blob.type.indexOf("ogg") >= 0) ? "ogg" : "webm";
+  download(aud.blob, baseName() + "-recording." + ext);
+};
+$("btnAudDrop").onclick = function(){ aud.blob = null; aud.chunks = []; audButtons(false); $("audTimer").textContent = "00:00"; };
+$("fileAudio").onchange = function(){ handleUpload(this.files[0]); this.value = ""; };
+$("drop").onclick = function(){ $("fileAudio").click(); };
+["dragenter","dragover"].forEach(function(ev){
+  $("drop").addEventListener(ev, function(e){ e.preventDefault(); $("drop").classList.add("over"); });
+});
+["dragleave","drop"].forEach(function(ev){
+  $("drop").addEventListener(ev, function(e){ e.preventDefault(); $("drop").classList.remove("over"); });
+});
+$("drop").addEventListener("drop", function(e){
+  if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) handleUpload(e.dataTransfer.files[0]);
+});
+Array.prototype.forEach.call(document.querySelectorAll(".tab"), function(t){
+  t.onclick = function(){
+    Array.prototype.forEach.call(document.querySelectorAll(".tab"), function(x){ x.classList.remove("active"); });
+    Array.prototype.forEach.call(document.querySelectorAll(".pane"), function(x){ x.classList.remove("active"); });
+    t.classList.add("active"); $(t.dataset.pane).classList.add("active");
+  };
+});
 $("m_att").addEventListener("input", buildSpeakerChips);
 META_IDS.forEach(function(id){ $(id).addEventListener("change", save); });
 window.addEventListener("beforeunload", function(e){
-  if(rec.on){ e.preventDefault(); e.returnValue = ""; }
+  if(rec.on || ASR.busy || (aud.mr && aud.mr.state === "recording")){ e.preventDefault(); e.returnValue = ""; }
 });
 
 /* ---- init ---- */
@@ -1384,13 +1695,13 @@ window.addEventListener("beforeunload", function(e){
   var today = new Date().toISOString().slice(0,10);
   $("m_date").value = today;
   $("m_start").value = nowHHMM();
-  buildLangChips();
+  buildLangPicks(); buildLangChips();
   load();
   buildSpeakerChips();
   if(!$("m_date").value) $("m_date").value = today;
   var msgs = [];
-  msgs.push(SR ? "<b>Voice capture ready.</b> Pick the speaking language, press Start and speak — each sentence is added as a point. You can switch language mid-meeting; the recogniser restarts automatically."
-                : "<b>This browser cannot capture speech.</b> Open the file in Chrome or Edge for voice input — everything else (typing, minutes, exports) works here.");
+  msgs.push(SR ? "<b>Live capture.</b> Mark every language spoken in this meeting, then tap one to point the microphone at it — tap another any time, the recogniser restarts by itself. Each line's language is also detected from its script. For a meeting that keeps switching languages, the <b>Record</b> or <b>Upload</b> tab is easier: those transcribe straight into English with no switching at all."
+                : "<b>This browser cannot listen live.</b> Open the file in Chrome or Edge for the microphone — the Record and Upload tabs, typing, minutes and exports still work here.");
   if(translationSupported()){
     $("btnPrep").style.display = "inline-flex";
     msgs.push("This browser can translate on device. If a language has not been downloaded yet, press <b>Enable offline translation</b> once for that language.");

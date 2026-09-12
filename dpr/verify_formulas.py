@@ -62,3 +62,48 @@ if fail:
     for f in fail: print('  -', f)
     sys.exit(1)
 print('OK — every cross-sheet reference lands on the column it claims.')
+
+# ---- the Excel-side importer ("2-Map and convert") ------------------------
+mp = wb['2-Map and convert']
+mh = {c.column_letter: c.value for c in mp[8] if c.value}
+fail2 = []
+calc = {'SL.', 'Variance for the Day', 'Achieved FTM till date', 'Workdone Till Date',
+        '% Complete', 'Balance'}
+pulled = 0
+for L, head in mh.items():
+    if head in calc:
+        continue
+    idx = mp['%s7' % L].value or ''
+    if 'MATCH(%s$5' % L not in idx.replace(' ', ''):
+        fail2.append('%s: row 7 does not resolve row 5 of its own column (%r)' % (head, idx))
+    if "'1-Paste vendor data'!$B$5:$BI$5" not in idx:
+        fail2.append('%s: row 7 does not look at the pasted header row' % head)
+    d = mp['%s10' % L].value or ''
+    if '%s$7' % L not in d:
+        fail2.append('%s: data row ignores its own column index' % head)
+    if "'1-Paste vendor data'!$B$6:$BI$1005" not in d:
+        fail2.append('%s: data row does not read the pasted block' % head)
+    if head != 'Name of the Structures' and '$%s10=""' % 'C' not in d:
+        fail2.append('%s: data row is not gated on the structure column' % head)
+    pulled += 1
+
+mchecks = [('O10', 'Variance for the Day',   ['Plan FTD', 'Achieved FTD']),
+           ('Q10', 'Achieved FTM till date', ['Achieved FTD', 'Achieved FTM till previous date']),
+           ('R10', 'Workdone Till Date',     ['Achieved till last month', 'Achieved FTM till date']),
+           ('S10', '% Complete',             ['Workdone Till Date', 'Scope']),
+           ('T10', 'Balance',                ['Scope', 'Workdone Till Date'])]
+for cell, owner, operands in mchecks:
+    if mh.get(cell[0]) != owner:
+        fail2.append('map %s sits under %r' % (cell, mh.get(cell[0]))); continue
+    f = mp[cell].value or ''
+    seen = [mh.get(l) for l in re.findall(r'\$?([A-Z])10', f) if l != cell[0]]
+    for need in operands:
+        if need not in seen:
+            fail2.append('map %s (%s) references %s, missing %r' % (cell, owner, seen, need))
+
+print('map sheet: %d vendor columns wired' % pulled)
+if fail2:
+    print('MAP FAILURES (%d):' % len(fail2))
+    for f in fail2: print('  -', f)
+    sys.exit(1)
+print('OK — the Excel importer pulls every column from the pasted block.')

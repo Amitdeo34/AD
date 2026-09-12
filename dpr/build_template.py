@@ -363,31 +363,226 @@ def build_summary(wb):
 CANON_FIELDS = [k for k, *_r in BACKUP_COLUMNS if k not in ("sl", "variance", "ach_ftm", "workdone", "pct", "balance")]
 
 
-def build_import(wb):
-    ws = wb.create_sheet("Vendor-Import")
+PASTE_FIRST_COL = 2          # column B on "1-Paste vendor data"
+PASTE_LAST_COL  = 61         # column BI  -> 60 vendor columns
+PASTE_HDR_ROW   = 5
+PASTE_ROWS      = 1000
+
+
+def build_paste(wb):
+    """A free area the user pastes any vendor DPR into, headers on row 5."""
+    ws = wb.create_sheet("1-Paste vendor data")
     ws.sheet_properties.tabColor = "ED7D31"
-    ws["B2"] = "VENDOR IMPORT  —  staging area"
-    ws["B2"].font = Font(name="Arial", size=13, bold=True, color=NAVY)
-    ws["B3"] = ("Paste the normalised rows exported by dpr_consolidator.html here "
-                "(or paste vendor data and fix the 4 green key columns by hand). "
-                "Then copy the block into the matching discipline sheet.")
-    ws["B3"].font = Font(name="Arial", size=9, italic=True, color="595959")
-    heads = ["Discipline (sheet)"] + [h for k, l, h, w, kd in BACKUP_COLUMNS if k in CANON_FIELDS]
-    for i, h in enumerate(heads):
-        c = ws.cell(row=5, column=2 + i, value=h)
-        c.fill = PatternFill("solid", fgColor=HDR_BLUE)
-        c.font = Font(name="Arial", size=9, bold=True, color="FFFFFF")
-        c.alignment = Alignment(horizontal="center", wrap_text=True)
-        c.border = BORDER
-        ws.column_dimensions[CL(2 + i)].width = 18
-    ws.row_dimensions[5].height = 32
-    for r in range(6, 706):
-        for i in range(len(heads)):
-            c = ws.cell(row=r, column=2 + i)
+    ws.column_dimensions["A"].width = 2.5
+    ws["B2"] = "STEP 1  —  PASTE THE VENDOR'S SHEET HERE"
+    ws["B2"].font = Font(name="Arial", size=14, bold=True, color=NAVY)
+    ws["B3"] = ("Open the vendor's file, select their whole table INCLUDING the header row, copy, "
+                "then click cell B5 below and Paste Special > Values.  Any column order is fine, "
+                "any wording is fine, extra columns are fine.  Then go to the sheet "
+                "'2-Map and convert'.")
+    ws["B3"].font = Font(name="Arial", size=10, italic=True, color="595959")
+    ws.merge_cells("B3:N3")
+    ws["B4"] = "\u25bc  header row goes in row 5, first data row in row 6"
+    ws["B4"].font = Font(name="Arial", size=9, bold=True, color="C00000")
+
+    for c in range(PASTE_FIRST_COL, PASTE_LAST_COL + 1):
+        cell = ws.cell(row=PASTE_HDR_ROW, column=c)
+        cell.fill = PatternFill("solid", fgColor=HDR_BLUE)
+        cell.font = Font(name="Arial", size=9, bold=True, color="FFFFFF")
+        cell.border = BORDER
+        cell.alignment = Alignment(horizontal="center", wrap_text=True)
+        ws.column_dimensions[CL(c)].width = 15
+    ws.row_dimensions[PASTE_HDR_ROW].height = 30
+    for r in range(PASTE_HDR_ROW + 1, PASTE_HDR_ROW + 1 + PASTE_ROWS):
+        for c in range(PASTE_FIRST_COL, PASTE_LAST_COL + 1):
+            cell = ws.cell(row=r, column=c)
+            cell.fill = PatternFill("solid", fgColor=INPUT_BG)
+            cell.font = Font(name="Arial", size=9)
+    ws.freeze_panes = "B6"
+    return ws
+
+
+# vendor wordings the Excel side auto-suggests, most specific first
+SUGGEST = {
+    "structure":    ["name of the structure", "name of structure", "description of work",
+                     "description", "structure", "particular", "item"],
+    "area":         ["area", "zone", "location", "block"],
+    "activity":     ["activity", "discipline", "sub head"],
+    "agency":       ["agency", "contractor", "vendor", "party"],
+    "scope":        ["total scope", "scope", "boq", "contract qty", "total qty", "quantity"],
+    "drawing":      ["drawing released", "drawing issued", "drawing", "gfc", "ifc"],
+    "front":        ["front available", "front"],
+    "last_month":   ["till last month", "upto last month", "up to last month", "last month",
+                     "cum. upto", "opening"],
+    "plan_ftm":     ["plan ftm", "plan for the month", "monthly target", "target this month",
+                     "monthly plan", "plan month"],
+    "plan_ftd":     ["plan ftd", "plan for the day", "daily target", "target today",
+                     "daily plan", "today plan", "plan day"],
+    "ach_ftd":      ["achieved ftd", "achieved for the day", "progress for the day",
+                     "progress today", "achieved today", "actual day", "done today"],
+    "ach_ftm_prev": ["till previous", "previous day", "till yesterday", "month till prev",
+                     "mtd previous", "ftm till previous"],
+    "reason":       ["reason", "constraint", "slippage"],
+    "remarks":      ["remark", "comment", "status"],
+    "manpower":     ["manpower", "labour", "labor", "workmen"],
+}
+
+MAP_VCOL_ROW  = 5     # dropdown: which vendor column
+MAP_FIXED_ROW = 6     # or a fixed value for every row
+MAP_IDX_ROW   = 7     # helper: resolved column number
+MAP_HDR_ROW   = 8
+MAP_CODE_ROW  = 9
+MAP_DATA_ROW  = 10
+MAP_ROWS      = 500
+
+
+def build_map(wb):
+    """Pulls the pasted block into the approved column order and computes the rest."""
+    ws = wb.create_sheet("2-Map and convert")
+    ws.sheet_properties.tabColor = "FFC000"
+    last = CL(1 + len(BACKUP_COLUMNS))
+    ws.column_dimensions["A"].width = 2.5
+    ws["B2"] = "STEP 2  —  TELL IT WHICH VENDOR COLUMN IS WHICH"
+    ws["B2"].font = Font(name="Arial", size=14, bold=True, color=NAVY)
+    ws.merge_cells("B3:" + last + "3")
+    ws["B3"] = ("Row 5 is a drop-down of the headings you pasted - pick the matching one. "
+                "A suggestion is already filled in wherever the wording was recognisable; change "
+                "any that look wrong.  Row 6 is for a value the vendor did not send at all "
+                "(their Area, or their own name) - it is applied to every row.  "
+                "When row 10 downwards looks right, copy it into the discipline sheet.")
+    ws["B3"].font = Font(name="Arial", size=10, italic=True, color="595959")
+    ws.row_dimensions[3].height = 30
+    ws["B3"].alignment = Alignment(wrap_text=True, vertical="top")
+
+    hdr_rng = "'1-Paste vendor data'!$%s$%d:$%s$%d" % (
+        CL(PASTE_FIRST_COL), PASTE_HDR_ROW, CL(PASTE_LAST_COL), PASTE_HDR_ROW)
+    data_rng = "'1-Paste vendor data'!$%s$%d:$%s$%d" % (
+        CL(PASTE_FIRST_COL), PASTE_HDR_ROW + 1, CL(PASTE_LAST_COL), PASTE_HDR_ROW + PASTE_ROWS)
+
+    C = COL_INDEX
+    lab = {k: CL(v) for k, v in C.items()}
+    calc_keys = {"sl", "variance", "ach_ftm", "workdone", "pct", "balance"}
+
+    for k, letter, head, width, kind in BACKUP_COLUMNS:
+        col = C[k]
+        L = lab[k]
+        ws.column_dimensions[L].width = width
+
+        if k in calc_keys:
+            c = ws.cell(row=MAP_VCOL_ROW, column=col, value="calculated")
+            c.font = Font(name="Arial", size=8, italic=True, color="595959")
+            c.alignment = Alignment(horizontal="center")
+            c.fill = PatternFill("solid", fgColor=CALC_BG)
+            for r in (MAP_FIXED_ROW, MAP_IDX_ROW):
+                ws.cell(row=r, column=col).fill = PatternFill("solid", fgColor=CALC_BG)
+        else:
+            # suggestion: first pasted heading that contains one of the known wordings
+            expr = '""'
+            for kw in reversed(SUGGEST.get(k, [])):
+                expr = 'IFERROR(INDEX(%s,MATCH("*%s*",%s,0)),%s)' % (hdr_rng, kw, hdr_rng, expr)
+            c = ws.cell(row=MAP_VCOL_ROW, column=col, value="=" + expr)
+            c.fill = PatternFill("solid", fgColor=KEY_BG)
+            c.font = Font(name="Arial", size=9, bold=True)
             c.border = BORDER
-            c.fill = PatternFill("solid", fgColor=INPUT_BG)
-            c.font = Font(name="Arial", size=9)
-    ws.freeze_panes = "C6"
+            c.alignment = Alignment(horizontal="center", wrap_text=True)
+
+            f = ws.cell(row=MAP_FIXED_ROW, column=col)
+            f.fill = PatternFill("solid", fgColor=INPUT_BG)
+            f.font = Font(name="Arial", size=9, italic=True)
+            f.border = BORDER
+            f.alignment = Alignment(horizontal="center")
+
+            i = ws.cell(row=MAP_IDX_ROW, column=col,
+                        value='=IFERROR(MATCH(%s$%d,%s,0),0)' % (L, MAP_VCOL_ROW, hdr_rng))
+            i.fill = PatternFill("solid", fgColor=HELP_BG)
+            i.font = Font(name="Arial", size=8, color="A6A6A6")
+            i.alignment = Alignment(horizontal="center")
+
+    # two fields pointing at the same pasted column is the one mistake this
+    # layout invites, so say so loudly
+    first_L = CL(C["structure"]); last_L = CL(C["manpower"])
+    for k, *_r in BACKUP_COLUMNS:
+        if k in calc_keys:
+            continue
+        L = lab[k]
+        w = ws.cell(row=4, column=C[k],
+                    value='=IF(AND(%s$%d<>"",COUNTIF($%s$%d:$%s$%d,%s$%d)>1),"used twice","")'
+                          % (L, MAP_VCOL_ROW, first_L, MAP_VCOL_ROW, last_L, MAP_VCOL_ROW,
+                             L, MAP_VCOL_ROW))
+        w.font = Font(name="Arial", size=8, bold=True, color="C00000")
+        w.alignment = Alignment(horizontal="center")
+
+    ws.cell(row=MAP_VCOL_ROW, column=1, value=None)
+    for r, txt in ((MAP_VCOL_ROW, "vendor column \u25b6"),
+                   (MAP_FIXED_ROW, "or fixed value \u25b6"),
+                   (MAP_IDX_ROW, "col no.")):
+        ws.cell(row=r, column=1).value = None
+    ws.row_dimensions[MAP_VCOL_ROW].height = 26
+
+    style_header(ws, MAP_HDR_ROW, BACKUP_COLUMNS)
+    style_codes(ws, MAP_CODE_ROW, BACKUP_COLUMNS, BACKUP_CODES)
+
+    struct_L = lab["structure"]
+    for r in range(MAP_DATA_ROW, MAP_DATA_ROW + MAP_ROWS):
+        rel = r - MAP_CODE_ROW                      # 1 for the first data row
+        gate = '$%s%d=""' % (struct_L, r)
+        for k, letter, head, width, kind in BACKUP_COLUMNS:
+            col, L = C[k], lab[k]
+            cell = ws.cell(row=r, column=col)
+            cell.border = BORDER
+            cell.font = Font(name="Arial", size=9)
+            if k == "sl":
+                cell.value = '=IF(%s,"",COUNTA($%s$%d:$%s%d))' % (gate, struct_L, MAP_DATA_ROW, struct_L, r)
+                cell.number_format = "0"
+                cell.alignment = Alignment(horizontal="center")
+            elif k == "variance":
+                cell.value = '=IF(%s,"",N(%s%d)-N(%s%d))' % (gate, lab["plan_ftd"], r, lab["ach_ftd"], r)
+            elif k == "ach_ftm":
+                cell.value = '=IF(%s,"",N(%s%d)+N(%s%d))' % (gate, lab["ach_ftd"], r, lab["ach_ftm_prev"], r)
+            elif k == "workdone":
+                cell.value = '=IF(%s,"",N(%s%d)+N(%s%d))' % (gate, lab["last_month"], r, lab["ach_ftm"], r)
+            elif k == "pct":
+                cell.value = '=IF(OR(%s,N($%s%d)=0),"",%s%d/$%s%d)' % (
+                    gate, lab["scope"], r, lab["workdone"], r, lab["scope"], r)
+                cell.number_format = "0%"
+            elif k == "balance":
+                cell.value = '=IF(%s,"",N($%s%d)-N(%s%d))' % (gate, lab["scope"], r, lab["workdone"], r)
+            else:
+                pull = 'INDEX(%s,%d,%s$%d)' % (data_rng, rel, L, MAP_IDX_ROW)
+                if k == "structure":
+                    cell.value = '=IF(%s$%d=0,"",IFERROR(IF(%s="","",%s),""))' % (
+                        L, MAP_IDX_ROW, pull, pull)
+                elif kind == "num":
+                    # vendor numbers arrive as text often enough to be worth handling
+                    clean = 'SUBSTITUTE(SUBSTITUTE(TRIM(%s&""),",",""),CHAR(160),"")' % pull
+                    cell.value = ('=IF(%s,"",IF(%s$%d=0,IF(%s$%d="","",%s$%d),'
+                                  'IFERROR(--%s,"")))') % (
+                        gate, L, MAP_IDX_ROW, L, MAP_FIXED_ROW, L, MAP_FIXED_ROW, clean)
+                else:
+                    cell.value = '=IF(%s,"",IF(%s$%d=0,%s$%d,IFERROR(%s&"","")))' % (
+                        gate, L, MAP_IDX_ROW, L, MAP_FIXED_ROW, pull)
+
+            if k in calc_keys:
+                cell.fill = PatternFill("solid", fgColor=CALC_BG)
+            elif k in ("area", "activity", "agency", "structure"):
+                cell.fill = PatternFill("solid", fgColor=KEY_BG)
+            else:
+                cell.fill = PatternFill("solid", fgColor=CALC_BG)
+            if kind in ("num", "formula") and k != "sl" and k != "pct":
+                cell.number_format = '#,##0.00;[Red]-#,##0.00;"-"'
+                cell.alignment = Alignment(horizontal="right")
+
+    dv = DataValidation(type="list", formula1=hdr_rng, allow_blank=True, showErrorMessage=False)
+    ws.add_data_validation(dv)
+    for k, *_r in BACKUP_COLUMNS:
+        if k not in calc_keys:
+            dv.add("%s%d" % (lab[k], MAP_VCOL_ROW))
+    _add_dv(ws, "=Areas", "%s%d" % (lab["area"], MAP_FIXED_ROW))
+    _add_dv(ws, "=Activities", "%s%d" % (lab["activity"], MAP_FIXED_ROW))
+    _add_dv(ws, "=Agencies", "%s%d" % (lab["agency"], MAP_FIXED_ROW))
+
+    ws.freeze_panes = ws.cell(row=MAP_DATA_ROW, column=C["scope"])
+    ws.sheet_view.zoomScale = 85
     return ws
 
 
@@ -484,7 +679,10 @@ def build_readme(wb):
         ("                   to look.  Columns P and Q are outside the print area.", 10, False, "000000"),
         ("Piling … Panels    Backup sheets, one per discipline, identical column layout.", 10, False, "000000"),
         ("Manpower           Area / agency / category-wise deployment.", 10, False, "000000"),
-        ("Vendor-Import      Staging area - paste the consolidator's normalised output here.", 10, False, "000000"),
+        ("1-Paste vendor     Paste any vendor's table here, header row on row 5.", 10, False, "000000"),
+        ("2-Map and convert  Pick which pasted column is which - a suggestion is pre-filled -", 10, False, "000000"),
+        ("                   and it rebuilds the rows in the approved order, ready to copy into", 10, False, "000000"),
+        ("                   the discipline sheet.  Row 6 supplies anything the vendor omitted.", 10, False, "000000"),
         ("Mapping            Header synonyms + name aliases.  Teach it once, it remembers forever.", 10, False, "000000"),
         ("", 10, False, "000000"),
         ("COLOUR CODE", 12, True, "C00000"),
@@ -525,11 +723,12 @@ def main(out="JSW_DPR_Template.xlsx"):
         build_backup(wb, sheet, act, uom)
     build_manpower(wb)
     build_summary(wb)
-    build_import(wb)
+    build_paste(wb)
+    build_map(wb)
     build_mapping(wb)
     build_readme(wb)
     order = ["READ ME", "Summary-AreaWise"] + [d[0] for d in DISCIPLINES] + \
-            ["Manpower", "Vendor-Import", "Mapping", "Config"]
+            ["Manpower", "1-Paste vendor data", "2-Map and convert", "Mapping", "Config"]
     wb._sheets = [wb[n] for n in order]
     wb.save(out)
     print("written:", out, "| sheets:", len(order))

@@ -341,6 +341,143 @@ function sim(a,b){
   return j;
 }
 
+/* ------------------------------------------------- name matching (fuzzy) */
+/* Site engineers abbreviate and mistype. "Fltration Main Bldg (P-1)" and
+   "Filtration Main Building (Part-1)" are the same pile cap, and a token
+   Jaccard score cannot see that. This expands the abbreviations a site uses,
+   normalises equipment codes (JH-02 / JH02 / JH2), then compares token by
+   token with an edit distance, so one wrong letter costs almost nothing. */
+const NAME_ABBR={bldg:'building',bldgs:'building',blg:'building',bld:'building',bldng:'building',
+  stn:'station',substn:'substation',subst:'substation',
+  elect:'electrical',elec:'electrical',electl:'electrical',
+  conv:'conveyor',convr:'conveyor',conveyer:'conveyor',
+  gall:'gallery',gal:'gallery',galy:'gallery',
+  jn:'junction',jnc:'junction',jncn:'junction',
+  interm:'intermediate',intmd:'intermediate',intermed:'intermediate',
+  tk:'tank',tnk:'tank',tks:'tank',fdn:'foundation',fdns:'foundation',foundn:'foundation',
+  pt:'part',p:'part',prt:'part',pmp:'pump',hse:'house',hs:'house',
+  wtp:'water treatment plant',mhs:'material handling',rmhs:'raw material handling',
+  ess:'electrical substation',ctrl:'control',rm:'room',engg:'engineering',
+  clg:'cooling',twr:'tower',strl:'structural',struct:'structural',mech:'mechanical',
+  ph:'pump house',ug:'underground',oh:'overhead',
+  thickner:'thickener',
+  ht:'high tension',lt:'low tension',dm:'demineralised',ro:'reverse osmosis',
+  mcc:'motor control centre',pcc:'power control centre',
+  rd:'road',rds:'road',drn:'drain',drns:'drain',
+  qty:'quantity',mtr:'metre',mtrs:'metre'};
+const NAME_STOP=new Set(['of','the','and','a','an','at','for','to','in','on','from','with']);
+
+function lev(a,b){
+  if(a===b) return 0;
+  const m=a.length,n=b.length;
+  if(!m) return n; if(!n) return m;
+  let prev=new Array(n+1), cur=new Array(n+1);
+  for(let j=0;j<=n;j++) prev[j]=j;
+  for(let i=1;i<=m;i++){
+    cur[0]=i;
+    const ca=a.charCodeAt(i-1);
+    for(let j=1;j<=n;j++){
+      const c=ca===b.charCodeAt(j-1)?0:1;
+      let v=prev[j-1]+c;
+      if(prev[j]+1<v) v=prev[j]+1;
+      if(cur[j-1]+1<v) v=cur[j-1]+1;
+      cur[j]=v;
+    }
+    const t=prev; prev=cur; cur=t;
+  }
+  return prev[n];
+}
+const levr=(a,b)=>{ if(a===b) return 1; const L=Math.max(a.length,b.length);
+                    return L? Math.max(0,1-lev(a,b)/L) : 1; };
+
+const _tokCache=new Map();
+function nameTokens(s,kind){
+  const ck=kind+' '+s;
+  if(_tokCache.has(ck)) return _tokCache.get(ck);
+  let t=norm(s);
+  if(kind==='agency'){
+    t=t.replace(/^\s*m\s+s\s+/,'')
+       .replace(/\b(pvt|private|ltd|limited|llp|inc|co|company|corp|corporation|india|indian|group)\b/g,' ');
+  }
+  t=t.split(/\s+/)
+     .filter(function(w){ return w&&!NAME_STOP.has(w); })
+     .map(function(w){ return NAME_ABBR[w]||w; }).join(' ');
+  t=t.replace(/\b([a-z]+)\s+(\d+)\b/g,function(m,a,d){
+      return (a.length<=3&&!/^(no|nos)$/.test(a))? a+d : a+' '+d; });
+  const out=[];
+  t.split(/\s+/).forEach(function(w){
+    if(!w||NAME_STOP.has(w)) return;
+    let y=w;
+    if(/\d/.test(y)) y=y.replace(/0*(\d+)/g,'$1');     /* JH02 and JH2 are one thing */
+    out.push(y);
+  });
+  const r={t:out, j:out.join(''), nums:(out.join(' ').match(/\d+/g)||[])};
+  _tokCache.set(ck,r);
+  return r;
+}
+function orphanCode(A,B){
+  /* "BS - Filtration Main Building" and "TS - Filtration Main Building" differ
+     by two letters out of twenty-four, and are different structures. A short
+     token with no counterpart anywhere in the other name settles it. */
+  const test=(X,Y,yj)=>X.some(function(x){
+    if(x.length>5) return false;
+    if(yj.indexOf(x)>=0) return false;
+    return !Y.some(function(y){ return y===x||levr(x,y)>=0.72; });
+  });
+  return test(A.t,B.t,B.j)||test(B.t,A.t,A.j);
+}
+function tokScore(A,B){
+  if(!A.length||!B.length) return 0;
+  const used=new Array(B.length).fill(false);
+  let sum=0;
+  A.forEach(function(a){
+    let bs=0,bi=-1;
+    for(let i=0;i<B.length;i++){
+      if(used[i]) continue;
+      const b=B[i];
+      const r=(a===b)?1:(Math.abs(a.length-b.length)>Math.max(a.length,b.length)*0.6?0:levr(a,b));
+      if(r>bs){bs=r;bi=i;}
+    }
+    if(bi>=0&&bs>=0.72){ used[bi]=true; sum+=bs; }
+  });
+  return sum/Math.max(A.length,B.length);
+}
+/* structures whose numbers differ are different structures — Part-1 is not
+   Part-2, JH01 is not JH02 — whatever the rest of the words say */
+function numbersAgree(A,B){
+  if(!A.nums.length&&!B.nums.length) return true;
+  if(!A.nums.length||!B.nums.length) return false;   /* Tower vs Tower-1 */
+  if(A.nums.join(',')===B.nums.join(',')) return true;
+  const sa=new Set(A.nums), sb=new Set(B.nums);
+  let common=0; sa.forEach(function(x){ if(sb.has(x)) common++; });
+  return common>=Math.min(sa.size,sb.size);
+}
+function simName(a,b,kind){
+  if(!a||!b) return 0;
+  if(norm(a)===norm(b)) return 1;
+  const A=nameTokens(a,kind), B=nameTokens(b,kind);
+  if(!A.t.length||!B.t.length) return 0;
+  let s=tokScore(A.t,B.t);
+  const j=levr(A.j,B.j);
+  if(j>s) s=j;
+  if(A.j&&B.j&&(A.j.indexOf(B.j)>=0||B.j.indexOf(A.j)>=0))
+    s=Math.max(s,0.86*Math.min(A.j.length,B.j.length)/Math.max(A.j.length,B.j.length)+0.12);
+  /* "MHS" -> "Material Handling Facilities": every word of the short name is
+     in the long one, which for an area or an agency means the same thing */
+  const sub=(X,Y)=>X.every(function(x){return Y.indexOf(x)>=0;});
+  const subset=sub(A.t,B.t)||sub(B.t,A.t);
+  if(subset)
+    s=Math.max(s,0.78+0.12*Math.min(A.t.length,B.t.length)/Math.max(A.t.length,B.t.length));
+  /* two contractors both called "… Constructions" are still two contractors */
+  if(kind==='agency'){
+    const f=levr(A.t[0],B.t[0]);
+    if(f<0.7&&A.t.indexOf(B.t[0])<0&&B.t.indexOf(A.t[0])<0) s=Math.min(s,0.55);
+  }
+  if(!numbersAgree(A,B)) s*=0.55;
+  if(!subset&&orphanCode(A,B)) s=Math.min(s,0.68);
+  return Math.min(1,s);
+}
+
 /* ---------------------------------------------------------------- state */
 const ST = {
   cfg:{project:'Phase-1 Greenfield Expansion Projects, JSW Utkal Steel Limited',
@@ -365,138 +502,464 @@ function restore(){ try{ const o=JSON.parse(localStorage.getItem(LSKEY)||'{}');
 function alias(type,v){ const k=key(v); return (ST.aliases[type]&&ST.aliases[type][k])||v; }
 
 /* ---------------------------------------------------------------- parsing */
+/* A vendor sheet is read into a DENSE grid with merged ranges expanded, so an
+   Area merged down ten rows is readable on every one of those rows, and a
+   merged group header ("Plan" over "Month | Day") sits above each sub-column. */
+const MAXR=6000, MAXC=220;
+const MERGE_BANNER=0.6;          /* a merge this wide is a title banner, not data */
+
 function readWorkbook(file){
   return new Promise((res,rej)=>{
     const r=new FileReader();
     r.onerror=()=>rej(new Error('cannot read '+file.name));
     r.onload=e=>{
       try{
-        const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true,cellStyles:false});
-        const sheets=wb.SheetNames.map(n=>({
-          name:n,
-          aoa:XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:null,blankrows:false})
-        })).filter(s=>s.aoa.length);
-        res(sheets);
+        const wb=XLSX.read(new Uint8Array(e.target.result),
+                           {type:'array',cellDates:true,cellStyles:false});
+        const out=[];
+        wb.SheetNames.forEach(nm=>{
+          const ws=wb.Sheets[nm];
+          if(!ws||!ws['!ref']) return;
+          const R=XLSX.utils.decode_range(ws['!ref']);
+          const nr=Math.min(R.e.r-R.s.r+1,MAXR), nc=Math.min(R.e.c-R.s.c+1,MAXC);
+          if(nr<1||nc<1) return;
+          const grid=[];
+          for(let i=0;i<nr;i++){
+            const row=new Array(nc).fill(null);
+            for(let j=0;j<nc;j++){
+              const c=ws[XLSX.utils.encode_cell({r:R.s.r+i,c:R.s.c+j})];
+              if(c&&c.v!==undefined&&c.v!==null) row[j]=c.v;
+            }
+            grid.push(row);
+          }
+          (ws['!merges']||[]).forEach(m=>{
+            if((m.e.c-m.s.c+1)>nc*MERGE_BANNER) return;          /* title banner */
+            const r0=m.s.r-R.s.r, c0=m.s.c-R.s.c;
+            if(r0<0||r0>=nr||c0<0||c0>=nc) return;
+            const v=grid[r0][c0]; if(v==null) return;
+            for(let i=Math.max(0,m.s.r-R.s.r);i<=Math.min(nr-1,m.e.r-R.s.r);i++)
+              for(let j=Math.max(0,m.s.c-R.s.c);j<=Math.min(nc-1,m.e.c-R.s.c);j++)
+                if(grid[i][j]==null) grid[i][j]=v;
+          });
+          out.push({name:nm,grid:grid});
+        });
+        res(out);
       }catch(err){ rej(err); }
     };
     r.readAsArrayBuffer(file);
   });
 }
 
-/* find the header row: the row whose cells best match known column wordings */
-function detectHeader(aoa){
-  let best={row:0,score:-1};
-  const lim=Math.min(aoa.length,25);
-  for(let i=0;i<lim;i++){
-    const cells=(aoa[i]||[]).map(c=>norm(c)).filter(Boolean);
-    if(cells.length<3) continue;
-    let score=0, hits=0;
-    cells.forEach(c=>{
-      let bs=0;
-      for(const k in SYN) SYN[k].forEach(s=>{ const v=sim(c,s); if(v>bs) bs=v; });
-      if(bs>.6) hits++;
-      score+=bs;
-    });
-    /* prefer rows with many textual headers and few numbers below-ish */
-    const numish=(aoa[i]||[]).filter(c=>typeof c==='number').length;
-    score = score + hits*1.4 - numish*1.2;
-    if(score>best.score) best={row:i,score:score};
-  }
-  return best.row;
+/* ------------------------------------------------------- row classification */
+const CODE_ONLY  = /^[a-z]\s*(=.*)?$/i;               /* the a,b,c row under a JSW header */
+const CCODE_EXPR = /^[a-z]\s*=\s*[^=]{1,24}$/i;       /* h = (g/d)x100 */
+const FOOTER_RE  = /^(prepared|checked|approved|verified|signature|sign\b|for\s+m\/s|note\s*[:\-]|notes\s*[:\-]|encl|cc\s*[:\-]|issued by|reviewed|page\s+\d)/i;
+const TOTALCELL  = /^(sub\s*[- ]?total|grand\s*total|g\.?\s*total|total|totals|sum|net total)\b/i;
+
+const cellTxt = v => v==null?'':String(v).trim();
+const isBlankRow = row => !row||row.every(c=>c==null||String(c).trim()==='');
+function isCodeRow(row){
+  if(!row) return false;
+  const t=row.map(cellTxt).filter(Boolean);
+  if(t.length<3) return false;
+  return t.filter(c=>CODE_ONLY.test(c)||CCODE_EXPR.test(c)).length>=t.length*0.6;
 }
 
-/* merge a 2-row header (common in vendor files) */
-function headerLabels(aoa,hdr){
-  const a=aoa[hdr]||[], b=(hdr+1<aoa.length)?aoa[hdr+1]:[];
-  const width=Math.max(a.length,b.length);
-  const bIsSub = b.length && b.filter(c=>typeof c==='string'&&norm(c)).length>=Math.max(2,Math.floor(width*0.3))
-                 && b.filter(c=>typeof c==='number').length===0;
-  const out=[]; let carry='';
-  for(let i=0;i<width;i++){
-    let top=a[i]==null?'':String(a[i]).trim();
-    if(top) carry=top; else if(!top&&carry&&bIsSub) top=carry;
-    const sub=bIsSub&&b[i]!=null?String(b[i]).trim():'';
-    out.push([top,sub].filter(Boolean).join(' ').trim());
-  }
-  return {labels:out, consumed:bIsSub?2:1};
+function looksNumeric(v){
+  if(typeof v==='number') return true;
+  const s=cellTxt(v); if(!s) return false;
+  return /^[\s(+-]*[\d][\d,. ]*\)?\s*%?$/.test(s);
+}
+function isHeaderish(row){
+  if(!row) return false;
+  const cells=row.map(cellTxt).filter(Boolean);
+  if(cells.length<3) return false;
+  const strs=cells.filter(c=>!looksNumeric(c));
+  return strs.length>=Math.max(3,cells.length*0.6);
+}
+function isTotalRow(row){
+  if(!row) return false;
+  const t=row.map(cellTxt).filter(Boolean);
+  return t.slice(0,6).some(c=>TOTALCELL.test(c));
 }
 
-/* map vendor headers -> canonical fields */
-function autoMap(labels){
-  const scores=[];
-  labels.forEach((lab,i)=>{
-    const nl=norm(lab); if(!nl) return;
-    for(const f in SYN){
-      let b=0; SYN[f].forEach(s=>{const v=sim(nl,s); if(v>b)b=v;});
-      if(b>.5) scores.push({f:f,i:i,s:b});
+/* --------------------------------------------------------- header labels */
+function composeLabels(grid,r0,r1){
+  let width=0;
+  for(let r=r0;r<=r1;r++) width=Math.max(width,(grid[r]||[]).length);
+  const labels=[];
+  for(let c=0;c<width;c++){
+    const parts=[];
+    for(let r=r0;r<=r1;r++){
+      const s=cellTxt((grid[r]||[])[c]);
+      if(!s) continue;
+      if(CODE_ONLY.test(s)||CCODE_EXPR.test(s)) continue;      /* letter-code row */
+      if(parts.some(p=>norm(p)===norm(s))) continue;           /* merged A5:A6 repeat */
+      parts.push(s);
     }
+    labels.push(parts.join(' ').replace(/\s+/g,' ').trim());
+  }
+  return labels;
+}
+
+/* ------------------------------------------------- semantic classification */
+/* A DPR column is not a string to be matched — it is a (what, when) pair.
+   "Plan for today", "Daily Target" and "Plan FTD" are the same column; so are
+   "Completed till 31.08.26" and "Progress upto last month". Classifying the
+   pair beats any synonym list, because vendors invent wordings endlessly but
+   almost never invent a new meaning. */
+const ABBR={mnth:'month',mth:'month',mon:'month',qty:'quantity',qtty:'quantity',
+  nos:'number of',drg:'drawing',drgs:'drawing',dwg:'drawing',dwgs:'drawing',
+  avl:'available',avail:'available',avlbl:'available',cum:'cumulative',cumm:'cumulative',
+  cumul:'cumulative',prev:'previous',compl:'completed',comp:'completed',ach:'achieved',
+  achv:'achieved',achd:'achieved',prog:'progress',tgt:'target',mtd:'month to date',
+  ftd:'for the day',ftm:'for the month',gfc:'drawing',ifc:'drawing',uom:'unit of measure',
+  bal:'balance',mp:'manpower',rem:'remarks',desc:'description',qnty:'quantity',
+  reqd:'required',compltd:'completed',cml:'cumulative',upto:'up to'};
+function expand(s){
+  return String(s).split(/\s+/).map(w=>ABBR[w]||w).join(' ').trim();
+}
+const SERIAL_RE=/^(s\.?\s*no\.?|sl\.?\s*no\.?|sr\.?\s*no\.?|sl\.?|sr\.?|serial(\s*no\.?)?|item\s*no\.?|#|no\.?)$/i;
+const UOMV=/^(nos?|no\.?|cum|cu\.?\s?m|m3|mt|ton|tons|tonne|te|kg|km|m|mtr|mtrs|rm|rmt|sqm|sq\.?\s?m|inch|inch[- ]?m|inch[- ]?dia|ltr|set|sets|lot|job|ea|each|point|points)$/i;
+const MONTHS_RE=/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\b/i;
+const MONNUM={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,sept:8,oct:9,nov:10,dec:11};
+
+function reportCtx(){
+  const dd=ST.cfg.dataDate?new Date(ST.cfg.dataDate):new Date();
+  const rd=ST.cfg.repDate?new Date(ST.cfg.repDate):dd;
+  const anchor=isNaN(dd)?rd:dd;
+  return {data:anchor, month:anchor.getMonth(), year:anchor.getFullYear(),
+          monthStart:new Date(anchor.getFullYear(),anchor.getMonth(),1)};
+}
+/* a date written into a column heading tells you the period outright */
+function dateIn(raw,ctx){
+  let m=/(\d{1,2})\s*[.\-\/]\s*(\d{1,2})(?:\s*[.\-\/]\s*(\d{2,4}))?/.exec(raw);
+  let d=null;
+  if(m){
+    const day=+m[1], mon=+m[2]-1;
+    let yr=m[3]?+m[3]:ctx.year; if(yr<100) yr+=2000;
+    if(day>=1&&day<=31&&mon>=0&&mon<=11) d=new Date(yr,mon,day);
+  }
+  if(!d){
+    const mm=MONTHS_RE.exec(raw);
+    const dm=/(\d{1,2})\s*[-.\s]?\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)/i.exec(raw);
+    if(dm){ let yr=ctx.year; const ym=/(?:19|20)?(\d{2})\s*$/.exec(raw);
+            if(ym) yr=+ym[1]<100?2000+ +ym[1]:+ym[1];
+            d=new Date(yr,MONNUM[dm[2].toLowerCase()],+dm[1]); }
+    else if(mm) return MONNUM[mm[1].toLowerCase()]===ctx.month?'thismonth':'last';
+  }
+  if(!d||isNaN(d)) return null;
+  if(d<ctx.monthStart) return 'last';
+  if(d<ctx.data) return 'prev';
+  return 'today';
+}
+function periodOf(raw,s,ctx){
+  const p={day:false,month:false,prev:false,lastm:false,todate:false};
+  if(/\b(today|to day|day|daily|for the day)\b/.test(s)) p.day=true;
+  if(/\b(month|monthly|for the month|month to date|this month)\b/.test(s)) p.month=true;
+  if(/\b(previous|yesterday|till prev|up to prev)\b/.test(s)) p.prev=true;
+  if(/\b(last month|previous month|opening)\b/.test(s)||/\b(up to|till|upto)\s+last month\b/.test(s)){
+    p.lastm=true; p.month=false; p.prev=false; }
+  if(/\b(till date|to date|up to date|cumulative|overall|as on date)\b/.test(s)) p.todate=true;
+  const d=dateIn(raw,ctx);
+  if(d==='last'){ p.lastm=true; p.month=false; p.prev=false; p.todate=false; }
+  else if(d==='prev'){ p.prev=true; p.month=true; p.lastm=false; p.todate=false; }
+  else if(d==='today'){ p.day=true; }
+  else if(d==='thismonth'&&!p.lastm){ p.month=true; }
+  return p;
+}
+
+const TRAIL_UNIT=/\s*\((?:nos?|cum|cu\.?\s?m|m3|mt|te|tons?|tonnes?|kg|kgs|km|mtr?s?|rmt?|sqm|sq\.?\s?m|inch(?:[- ]?(?:dia|m|mtr))?|ltr|set|lot|job|each|ea|%)\.?\)\s*$/i;
+function classify(label,prof){
+  let raw=cellTxt(label); if(!raw) return null;
+  /* "BOQ Quantity (Cum)" is a scope column in cubic metres — without this the
+     "Cum" reads as "cumulative" and the whole column lands in the wrong field */
+  raw=raw.replace(TRAIL_UNIT,'').trim()||cellTxt(label);
+  const nl=norm(raw); if(!nl) return null;
+  if(SERIAL_RE.test(raw.replace(/\s+/g,' ').trim())) return {f:'_serial',c:1};
+  const s=' '+expand(nl)+' ';
+  const ctx=reportCtx();
+  const has=re=>re.test(s);
+
+  if(raw.indexOf('%')>=0||has(/\bpercent(age)?\b/)) return {f:'pct_given',c:.85};
+  if(has(/\bunit of measure\b/)||(/^(uom|unit|units)$/i.test(raw.trim())&&(!prof||prof.uomish)))
+    return {f:'uom',c:.9};
+  if(has(/\bmanpower\b|\bman power\b|\blabour\b|\blabor\b|\bworkmen\b|\bworkman\b|\bstrength\b/))
+    return {f:'manpower',c:.95};
+  if(has(/\breason\b|\breasons\b|\bconstraint\b|\bconstraints\b|\bslippage\b|\bhold\b|\bdelay\b|\bbottleneck\b/))
+    return {f:'reason',c:.92};
+  if(has(/\bremark\b|\bremarks\b|\bcomment\b|\bcomments\b|\bobservation\b|\bstatus\b|\bnote\b/))
+    return {f:'remarks',c:.88};
+  if(has(/\bdrawing\b|\bdrawings\b/)) return {f:'drawing',c:.95};
+  if(has(/\bfront\b|\bfronts\b/)) return {f:'front',c:.95};
+  if(has(/\bbalance\b|\bremaining\b|\bleft\b/)) return {f:'balance_given',c:.8};
+  if(has(/\bagency\b|\bcontractor\b|\bvendor\b|\bsub contractor\b|\bsubcontractor\b|\bparty\b|\bfirm\b/))
+    return {f:'agency',c:.95};
+  if(/^(activity|activities|sub activity|sub activities|activity type|work type|discipline|trade|sub head|subhead|category|category of work|type of work)$/.test(nl))
+    return {f:'activity',c:.93};
+  if(has(/\bdiscipline\b|\btrade\b|\bsub head\b|\bsubhead\b|\bwork type\b|\btype of work\b|\bcategory of work\b/))
+    return {f:'activity',c:.85};
+  if(has(/\barea\b|\bzone\b|\blocation\b|\bblock\b|\bpackage\b|\bsector\b|\bfacility\b|\bplant\b|\bsite\b/))
+    return {f:'area',c:.9};
+  if(has(/\bname\b|\bdescription\b|\bstructure\b|\bstructures\b|\bitem\b|\bitems\b|\bparticulars?\b|\belement\b|\bactivity\b|\bactivities\b|\bwork\b|\bworks\b|\bbuilding\b/))
+    return {f:'structure',c:.9};
+
+  const p=periodOf(raw,s,ctx);
+  const scopeWord=has(/\bscope\b|\bboq\b|\bcontract\b|\bordered\b|\border\b|\btender\b|\bawarded\b|\bquantity\b|\bnumber of\b|\bqty\b/);
+  const plan=has(/\bplan\b|\bplanned\b|\bplanning\b|\btarget\b|\bprogramme\b|\bprogram\b|\bschedule[d]?\b|\brequired\b/);
+  const ach =has(/\bachieved\b|\bachievement\b|\bactual[s]?\b|\bcompleted\b|\bcomplete\b|\bcompletion\b|\bprogress\b|\bdone\b|\bexecuted\b|\bexecution\b|\berected\b|\bcasted\b|\bcast\b|\bpoured\b|\bcovered\b/);
+  if(scopeWord&&!p.day&&!p.prev&&!p.lastm&&
+     !has(/\bplan\b|\bplanned\b|\btarget\b|\bachieved\b|\bactual\b|\bcompleted\b|\bprogress\b|\bdone\b|\bbalance\b/))
+    return {f:'scope',c:.9};
+  if(plan){
+    if(p.day&&!p.month) return {f:'plan_ftd',c:.95};
+    if(p.month||p.lastm) return {f:'plan_ftm',c:.92};
+    return {f:'plan_ftm',c:.45};
+  }
+  if(ach||p.lastm||p.prev||p.todate||p.day||p.month){
+    if(p.lastm)             return {f:'last_month',c:.95};
+    if(p.day&&!p.month)     return {f:'ach_ftd',c:.95};
+    if(p.month&&p.prev)     return {f:'ach_ftm_prev',c:.95};
+    if(p.month&&p.todate)   return {f:'ach_ftm_all',c:.88};
+    if(p.month)             return {f:'ach_ftm_all',c:.6};
+    if(p.todate)            return {f:'workdone_given',c:.82};
+    if(ach)                 return {f:'ach_ftd',c:.4};
+  }
+  if(has(/\bscope\b|\bboq\b|\bcontract\b|\bordered\b|\border\b|\btender\b|\bawarded\b/)||
+     has(/\bquantity\b|\bnumber of\b|\btotal\b|\bqty\b/))
+    return {f:'scope',c:.85};
+
+  let bf=null,bs=0;
+  for(const f in SYN) SYN[f].forEach(x=>{const v=sim(nl,x); if(v>bs){bs=v;bf=f;}});
+  if(bs>=0.52&&bf) return {f:bf,c:bs*0.75};
+  return null;
+}
+
+/* --------------------------------------------------------- column profiles */
+function profileCols(grid,r0,r1,width){
+  const out=[];
+  for(let c=0;c<width;c++){
+    let filled=0,num=0,txt=0; const vals=new Set(); const seq=[];
+    for(let r=r0;r<=r1&&r<grid.length;r++){
+      const row=grid[r]; if(!row) continue;
+      const v=row[c]; const s=cellTxt(v);
+      if(!s) continue;
+      filled++;
+      if(looksNumeric(v)){ num++; const n=numf(v); if(n!=null) seq.push(n); }
+      else { txt++; vals.add(norm(s)); }
+    }
+    const serial = seq.length>=3 && seq.every((x,i)=>i===0||x===seq[i-1]+1) && seq[0]<=5;
+    const uomish = txt>0 && vals.size<=8 &&
+                   [...vals].filter(v=>UOMV.test(v)).length>=Math.max(1,vals.size*0.6);
+    out.push({filled:filled, num:filled?num/filled:0, txt:filled?txt/filled:0,
+              distinct:txt?vals.size/txt:0, serial:serial, uomish:uomish});
+  }
+  return out;
+}
+
+const NUMERIC_FIELDS=new Set(['scope','drawing','front','last_month','plan_ftm','plan_ftd',
+  'ach_ftd','ach_ftm_prev','ach_ftm_all','workdone_given','balance_given','manpower','pct_given']);
+const EXTRA_FIELDS=['pct_given','ach_ftm_all','workdone_given','balance_given','uom'];
+const MAPPABLE=IMPORTABLE.concat(EXTRA_FIELDS);
+
+function typeFactor(f,p){
+  if(!p) return 1;
+  if(NUMERIC_FIELDS.has(f)){
+    if(p.serial) return .05;
+    if(p.filled===0) return .5;                 /* empty today, still the right column */
+    if(p.num>=.6) return 1;
+    if(p.num>=.25) return .55;
+    return .12;
+  }
+  if(f==='structure'){
+    if(p.serial) return .05;
+    if(p.filled===0) return .2;
+    if(p.num>=.7) return .1;
+    return .45+Math.min(.55,p.distinct);
+  }
+  if(p.num>=.8&&p.filled>0) return .2;
+  return 1;
+}
+
+function autoMapBlock(labels,profs){
+  const cands=[];
+  labels.forEach((lab,i)=>{
+    const cl=classify(lab,profs?profs[i]:null);
+    if(!cl||!MAPPABLE.includes(cl.f)) return;
+    const tf=typeFactor(cl.f,profs?profs[i]:null);
+    if(tf<=0) return;
+    cands.push({f:cl.f,i:i,s:cl.c*tf});
   });
-  scores.sort((x,y)=>y.s-x.s);
-  const map={}, usedCol=new Set(), usedF=new Set();
-  scores.forEach(o=>{
-    if(usedF.has(o.f)||usedCol.has(o.i)) return;
-    if(!IMPORTABLE.includes(o.f)&&o.f!=='uom') return;
-    map[o.f]={col:o.i, conf:o.s};
-    usedF.add(o.f); usedCol.add(o.i);
+  cands.sort((a,b)=>b.s-a.s||a.i-b.i);
+  const map={},uc=new Set(),uf=new Set();
+  cands.forEach(o=>{
+    if(uf.has(o.f)||uc.has(o.i)) return;
+    if(o.s<0.22) return;
+    map[o.f]={col:o.i,conf:o.s};
+    uf.add(o.f); uc.add(o.i);
   });
-  /* second pass: for the columns a DPR cannot do without, accept a weaker
-     match rather than silently dropping the vendor's number. Flagged low
-     confidence so the reviewer is told to look. */
-  ['structure','ach_ftd','scope','last_month','plan_ftd','plan_ftm','ach_ftm_prev']
-    .forEach(f=>{
-      if(usedF.has(f)) return;
-      let b=0,bi=-1;
-      labels.forEach((lab,i)=>{
-        if(usedCol.has(i)) return;
-        const nl=norm(lab); if(!nl) return;
-        let s=0; SYN[f].forEach(x=>{const v=sim(nl,x); if(v>s)s=v;});
-        if(s>b){b=s;bi=i;}
-      });
-      if(bi>=0&&b>=0.38){ map[f]={col:bi,conf:b}; usedF.add(f); usedCol.add(bi); }
+  /* a DPR without a structure column is useless — take the most distinctive
+     unclaimed text column rather than dropping the whole sheet */
+  if(!map.structure&&profs){
+    let bi=-1,bs=0;
+    profs.forEach((p,i)=>{
+      if(uc.has(i)||p.serial||p.filled===0||p.num>0.4) return;
+      const s=p.distinct*Math.min(1,p.filled/3)+(labels[i]?0.1:0);
+      if(s>bs){bs=s;bi=i;}
     });
+    if(bi>=0){ map.structure={col:bi,conf:0.3}; uc.add(bi); }
+  }
   return map;
 }
 
-/* guess the discipline from sheet/file name and content */
-function guessActivity(disc,sheetName,fileName){
+/* ------------------------------------------------------- table detection */
+function scoreBlock(grid,r0,r1){
+  const labels=composeLabels(grid,r0,r1);
+  let score=0; const fields=new Set();
+  labels.forEach(l=>{
+    const c=classify(l,null);
+    if(!c) return;
+    score+=c.c;
+    fields.add(c.f);
+  });
+  const keyF=['scope','ach_ftd','plan_ftd','plan_ftm','last_month','drawing','front',
+              'ach_ftm_prev','ach_ftm_all','workdone_given'].filter(f=>fields.has(f)).length;
+  const hits=fields.size;
+  return {labels:labels,fields:fields,hits:hits,
+          score:score+hits*1.1+(fields.has('structure')?2.5:0)+keyF*0.9};
+}
+
+function detectTables(grid){
+  const cands=[];
+  const lim=Math.min(grid.length,500);
+  for(let i=0;i<lim;i++){
+    if(!isHeaderish(grid[i])) continue;
+    let best=null;
+    for(let span=1;span<=3;span++){
+      const j=i+span-1; if(j>=grid.length) break;
+      if(span>1&&!(isHeaderish(grid[j])||isCodeRow(grid[j]))) break;
+      const sc=scoreBlock(grid,i,j);
+      if(!best||sc.score>best.score) best=Object.assign({r0:i,r1:j},sc);
+    }
+    if(best&&best.hits>=3&&best.fields.size>=3) cands.push(best);
+  }
+  if(!cands.length) return [];
+  const ranked=cands.slice().sort((a,b)=>b.score-a.score);
+  const top=ranked[0].score;
+  const taken=[];
+  ranked.forEach(c=>{
+    if(c.score<Math.max(4,top*0.45)) return;
+    if(taken.some(t=>!(c.r1<t.r0-1||c.r0>t.r1+1))) return;   /* overlaps or abuts */
+    taken.push(c);
+  });
+  taken.sort((a,b)=>a.r0-b.r0);
+  taken.forEach((t,i)=>{
+    let s=t.r1+1;
+    while(s<grid.length&&(isBlankRow(grid[s])||isCodeRow(grid[s]))) s++;
+    t.dataStart=s;
+    t.dataEnd=(i+1<taken.length)? taken[i+1].r0-1 : grid.length-1;
+  });
+  return taken.filter(t=>t.dataStart<=t.dataEnd);
+}
+
+/* the text row just above a header block usually names the table */
+function blockTitle(grid,r0){
+  for(let r=r0-1;r>=Math.max(0,r0-4);r--){
+    const t=(grid[r]||[]).map(cellTxt).filter(Boolean);
+    if(t.length===0) continue;
+    if(t.length<=2&&t[0].length<80) return t[0];
+    return '';
+  }
+  return '';
+}
+
+/* --------------------------------------------------------------- guessing */
+const UOM2DISC={cum:'Civil','cu m':'Civil',m3:'Civil',mt:'Structural',ton:'Structural',
+  tonne:'Structural',te:'Structural',km:'Cabling (Km)'};
+function guessDiscipline(sheetName,fileName,labels,title,uomVals){
+  const hay=norm([title,sheetName,fileName].join(' '));
+  const rules=[
+    [/\bpiling\b|\bpile\b|\bpiles\b|bored pile/,'Piling'],
+    [/\bcivil\b|concret|\brcc\b|foundation|\bcum\b/,'Civil'],
+    [/structural|\bsteel\b|fabricat|erection/,'Structural'],
+    [/equipment|mechanical|machinery/,'Equipment'],
+    [/piping|\bpipe\b|inch dia|inch mtr/,'Piping'],
+    [/cable tray|\btray\b|\btrays\b/,'Cable Trays (Km)'],
+    [/cabling|\bcable\b|laying/,'Cabling (Km)'],
+    [/panel|panels|\bmcc\b|\bpcc\b|switchgear/,'Panels (Nos)'],
+    [/manpower|labour|labor|workmen/,'Manpower']
+  ];
+  for(const [re,d] of rules) if(re.test(hay)) return d;
+  const u=(uomVals||[]).map(v=>norm(v)).filter(Boolean);
+  if(u.length){
+    const hit=u.map(v=>UOM2DISC[v]).filter(Boolean);
+    if(hit.length) return hit[0];
+    if(u.some(v=>/^nos?$/.test(v))) return 'Piling';
+  }
+  const hay2=norm(labels.join(' '));
+  for(const [re,d] of rules) if(re.test(hay2)) return d;
+  return 'Civil';
+}
+function guessActivity(disc,sheetName,fileName,title){
   const d=DISCIPLINES.find(x=>x.sheet===disc);
   if(!d||!d.alt) return '';
-  const hay=norm(sheetName+' '+fileName);
+  const hay=norm([title,sheetName,fileName].join(' '));
   if(/erect|installat|fixing/.test(hay)) return d.alt.find(a=>/erection/i.test(a))||'';
   if(/suppl|fabricat|delivery|dispatch/.test(hay)) return d.alt.find(a=>/supply/i.test(a))||'';
   return '';
 }
 
-/* last-resort agency guess: the leading words of the file name */
-const MONTHS='jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec';
+/* A DPR nearly always names the contractor in its first few rows. That beats
+   guessing from the file name, which is how the last version got it wrong. */
+const COMPANY_RE=/\b(pvt|private|ltd|limited|llp|inc|corp|constructions?|construction|infra|infrastructures?|enterprises?|engineers?|engineering|foundations?|builders?|projects?|industries|contractors?|cementation)\b/i;
+function agencyFromPreamble(grid,upto){
+  for(let r=0;r<Math.min(upto,12);r++){
+    const cells=(grid[r]||[]).map(cellTxt).filter(Boolean);
+    for(const c of cells){
+      if(c.length<4||c.length>60) continue;
+      if(!COMPANY_RE.test(c)) continue;
+      if(/\bjsw\b|utkal|client|project\s*:|package\s*:|contract\s*no/i.test(c)) continue;
+      return tidyAgency(c);
+    }
+  }
+  return '';
+}
+function tidyAgency(s){
+  let t=String(s).split(/\s[-–—]\s|\|/)[0];
+  t=t.replace(/\([^)]*\)/g,' ').replace(/^\s*m\s*\/?\s*s\.?\s+/i,'')
+     .replace(/\b(daily|progress|report|dpr|consolidated|sheet|format)\b/ig,' ')
+     .replace(/\s+/g,' ').trim().replace(/[,.\-]+$/,'');
+  if(t===t.toUpperCase()&&t.length>3)
+    t=t.toLowerCase().replace(/\b[a-z]/g,m=>m.toUpperCase())
+       .replace(/\b(Jsw|Itd|Vsi|Spd|Nks|Rmhs|Ardee)\b/g,m=>m.toUpperCase());
+  for(let i=0;i<4;i++)
+    t=t.replace(/[\s,.]*\b(pvt|private|ltd|limited|llp|inc|co|company|india|indi)\b\.?\s*$/i,'').trim();
+  return t.replace(/[,.\-]+$/,'').trim();
+}
+const MONTHS_FN='jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec';
 function agencyFromName(fileName){
   let s=fileName.replace(/\.[a-z0-9]+$/i,'').replace(/_/g,' ');
   s=s.split(/\s[-–—]\s/)[0];
   s=s.replace(/^\s*m\s*\/?\s*s\.?\s+/i,'').replace(/^[^a-z0-9]+/i,'');
-  s=s.replace(new RegExp('\\d{1,2}\\s*(' + MONTHS + ')[a-z]*\\s*\\d{0,4}','ig'),' ')
-     .replace(new RegExp('(' + MONTHS + ')[a-z]*\\s*\\d{1,4}','ig'),' ')
+  s=s.replace(new RegExp('\\d{1,2}\\s*('+MONTHS_FN+')[a-z]*\\s*\\d{0,4}','ig'),' ')
+     .replace(new RegExp('('+MONTHS_FN+')[a-z]*\\s*\\d{1,4}','ig'),' ')
      .replace(/\d{1,4}[.\-\/]\d{1,2}[.\-\/]\d{2,4}/g,' ')
-     .replace(/\b(dpr|daily|progress|report|sheet|format|final|draft|copy|update|status|rev|version|works?|data)\b/ig,' ')
+     .replace(/\b(dpr|daily|progress|report|sheet|format|final|draft|copy|update|status|rev|version|works?|data|consolidated)\b/ig,' ')
      .replace(/\b(piling|civil|structural|structure|steel|equipment|mechanical|electrical|piping|cabling|cable|trays?|panels?|instrumentation)\b/ig,' ')
      .replace(/\b\d+\b/g,' ').replace(/[()\[\]]/g,' ').replace(/\s+/g,' ').trim();
-  return s.length>=3&&s.length<=40 ? s : '';
+  return s.length>=3&&s.length<=40?s:'';
 }
-
-function guessDiscipline(sheetName,fileName,labels){
-  const hay=norm(sheetName+' '+fileName+' '+labels.join(' '));
-  const rules=[
-    [/pil(e|ing)|bored pile/,'Piling'],
-    [/civil|concret|rcc|found(ation)?|cum\b/,'Civil'],
-    [/structur|steel|fabricat|erection mt|\bmt\b/,'Structural'],
-    [/equip|mechanic|machin/,'Equipment'],
-    [/pip(e|ing)|inch dia|inch mtr/,'Piping'],
-    [/cable tray|tray/,'Cable Trays (Km)'],
-    [/cabl(e|ing)|ht lt cable|laying/,'Cabling (Km)'],
-    [/panel|mcc|pcc|switchgear/,'Panels (Nos)'],
-    [/manpower|labour|labor|workmen/,'Manpower']
-  ];
-  for(const [re,d] of rules) if(re.test(hay)) return d;
-  return 'Civil';
+function guessAgency(fileName,grid,hdrStart){
+  const known=[...new Set(ST.master.map(m=>m.agency).filter(Boolean))];
+  const pre=agencyFromPreamble(grid,hdrStart);
+  const fromName=agencyFromName(fileName);
+  for(const cand of [pre,fromName]){
+    if(!cand) continue;
+    let best='',bs=0;
+    known.forEach(a=>{const s=simName(cand,a,'agency'); if(s>bs){bs=s;best=a;}});
+    if(bs>=0.78) return best;                 /* snap to the master's spelling */
+  }
+  return pre||fromName||'';
 }
 </script>
 <script>
@@ -504,48 +967,81 @@ function guessDiscipline(sheetName,fileName,labels){
    Row extraction, master matching, aggregation
    ===================================================================== */
 
-const TOTAL_RE = /^(sub\s*total|total|grand\s*total|g\.?\s*total|sum)\b/i;
+/* =====================================================================
+   Row extraction, master matching, aggregation
+   ===================================================================== */
+
+const NUMKEYS=['scope','drawing','front','last_month','plan_ftm','plan_ftd',
+               'ach_ftd','ach_ftm_prev','manpower'];
+const DERIVED_IN=['ach_ftm_all','workdone_given','balance_given','pct_given'];
 
 function extractRows(sh){
-  const {aoa,hdr,map}=sh;
-  const {labels,consumed}=headerLabels(aoa,hdr);
-  const start=hdr+consumed;
-  const numKeys=['scope','drawing','front','last_month','plan_ftm','plan_ftd',
-                 'ach_ftd','ach_ftm_prev','manpower'];
-  const out=[]; let curArea=sh.area||'';
-  for(let r=start;r<aoa.length;r++){
-    const raw=aoa[r]||[];
-    if(raw.every(c=>c==null||String(c).trim()==='')) continue;
-    const get=f=>map[f]?raw[map[f].col]:null;
-    const sname=String(get('structure')??'').trim();
-    const nums=numKeys.map(k=>numf(get(k)));
-    const anyNum=nums.some(v=>v!=null);
+  const g=sh.grid, map=sh.map||{};
+  const out=[];
+  let curArea=sh.area||'';
+  const start=sh.dataStart, end=Math.min(sh.dataEnd, g.length-1);
+  for(let r=start;r<=end;r++){
+    const raw=g[r]; if(!raw) continue;
+    if(isBlankRow(raw)||isCodeRow(raw)) continue;
+    const texts=raw.map(cellTxt).filter(Boolean);
+    if(!texts.length) continue;
+    if(isTotalRow(raw)) continue;                       /* the vendor's own totals */
+    if(FOOTER_RE.test(texts[0])) continue;              /* prepared by / signature */
 
-    /* a lone bit of text with no numbers = a section heading -> remember as Area */
+    const get=f=>map[f]?raw[map[f].col]:null;
+    const sname=cellTxt(get('structure'));
+    const nums={}; NUMKEYS.forEach(k=>nums[k]=numf(get(k)));
+    const extra={}; DERIVED_IN.forEach(k=>extra[k]=numf(get(k)));
+    const anyNum=NUMKEYS.some(k=>nums[k]!=null)||DERIVED_IN.some(k=>extra[k]!=null);
+
     if(!anyNum){
-      const texts=raw.filter(c=>c!=null&&String(c).trim()!=='');
-      if(texts.length<=2 && texts.length>0){
-        const t=String(texts[0]).trim();
-        if(t && !TOTAL_RE.test(t) && t.length<60){ curArea=t; }
+      /* a lone piece of text with no numbers is a section heading — in most
+         vendor DPRs that is how the area is written */
+      if(texts.length<=2){
+        const t=texts[0];
+        if(t&&t.length<70&&!FOOTER_RE.test(t)&&!TOTALCELL.test(t)&&!/^[a-z]$/i.test(t))
+          curArea=t.replace(/^[A-Z]\.\s*/,'').replace(/\s*[:\-]\s*$/,'');
         continue;
       }
       if(!sname) continue;
     }
-    if(TOTAL_RE.test(sname)) continue;                 // drop vendor's own totals
-    if(!sname && !anyNum) continue;
+    if(!sname&&!anyNum) continue;
 
-    const rowArea = (map.area? String(get('area')??'').trim():'') || curArea || sh.area || 'Plant General';
+    const rowArea=(map.area?cellTxt(get('area')):'')||curArea||sh.area||'Plant General';
     const rec={
       _src:sh.fileName+' › '+sh.name, _row:r+1,
-      structure: sname || '(unnamed item)',
+      structure: sname||'(unnamed item)',
       area:      alias('area',rowArea),
-      activity:  alias('activity',(map.activity?String(get('activity')??'').trim():'')||sh.activity||''),
-      agency:    alias('agency',(map.agency?String(get('agency')??'').trim():'')||sh.agency||''),
+      activity:  alias('activity',(map.activity?cellTxt(get('activity')):'')||sh.activity||''),
+      agency:    alias('agency',(map.agency?cellTxt(get('agency')):'')||sh.agency||''),
       sheet:     sh.disc,
-      reason:    map.reason ?String(get('reason') ??'').trim():'',
-      remarks:   map.remarks?String(get('remarks')??'').trim():''
+      uom:       map.uom?cellTxt(get('uom')):'',
+      reason:    map.reason ?cellTxt(get('reason')) :'',
+      remarks:   map.remarks?cellTxt(get('remarks')):''
     };
-    numKeys.forEach((k,i)=>rec[k]=nums[i]);
+    NUMKEYS.forEach(k=>rec[k]=nums[k]);
+    rec._from=[];
+
+    /* --- fill the gaps the vendor's own layout leaves ------------------ */
+    if(rec.ach_ftm_prev==null&&extra.ach_ftm_all!=null){
+      rec.ach_ftm_prev=extra.ach_ftm_all-(rec.ach_ftd||0);
+      rec._from.push('Achieved FTM till previous date = month-to-date − today');
+    }
+    if(rec.last_month==null&&extra.workdone_given!=null){
+      rec.last_month=extra.workdone_given-((rec.ach_ftd||0)+(rec.ach_ftm_prev||0));
+      rec._from.push('Achieved till last month = workdone till date − this month');
+    }
+    if(rec.scope==null&&extra.workdone_given!=null&&extra.balance_given!=null){
+      rec.scope=extra.workdone_given+extra.balance_given;
+      rec._from.push('Scope = workdone + balance');
+    }
+    if(rec.scope==null&&extra.pct_given!=null&&extra.pct_given>0){
+      const pc=extra.pct_given>1.5?extra.pct_given/100:extra.pct_given;
+      const wd=(extra.workdone_given!=null)?extra.workdone_given
+              :((rec.last_month||0)+(rec.ach_ftd||0)+(rec.ach_ftm_prev||0));
+      if(pc>0.01&&wd>0){ rec.scope=Math.round(wd/pc); rec._from.push('Scope back-calculated from % complete'); }
+    }
+    if(extra.pct_given!=null) rec._pctGiven=extra.pct_given>1.5?extra.pct_given/100:extra.pct_given;
     if(!rec.activity) rec.activity=(DISCIPLINES.find(d=>d.sheet===sh.disc)||{}).act||sh.disc;
     out.push(rec);
   }
@@ -571,14 +1067,16 @@ function matchMaster(rec){
   }
   let best=null,bs=0,bi=-1;
   ST.master.forEach((m,i)=>{
-    if(m.sheet && rec.sheet && m.sheet!==rec.sheet) return;
-    const ss=sim(m.structure,rec.structure);
-    const as=rec.agency  &&m.agency  ? sim(m.agency,rec.agency)     : 0.5;
+    /* the discipline is a hint, not a gate — "site engineer sheet.xlsx" carries
+       no clue which discipline it is, and the master is what settles it */
+    const ds=(m.sheet&&rec.sheet)?(m.sheet===rec.sheet?1:0.3):0.7;
+    const ss=simName(m.structure,rec.structure,'structure');
+    const as=rec.agency  &&m.agency  ? simName(m.agency,rec.agency,'agency')     : 0.5;
     /* activity matters: a master carrying the same structure under both
        "Supply" and "Erection" must not collapse into one line */
-    const ac=rec.activity&&m.activity? sim(m.activity,rec.activity) : 0.5;
-    const ar=rec.area    &&m.area    ? sim(m.area,rec.area)         : 0.5;
-    const s=ss*0.55+as*0.20+ac*0.15+ar*0.10;
+    const ac=rec.activity&&m.activity? simName(m.activity,rec.activity,'activity') : 0.5;
+    const ar=rec.area    &&m.area    ? simName(m.area,rec.area,'area')           : 0.5;
+    const s=(ss*0.55+as*0.18+ac*0.13+ar*0.09+ds*0.05);
     if(s>bs){bs=s;best=m;bi=i;}
   });
   if(bs>=0.72) return {m:best,score:bs,state:'auto',idx:bi};
@@ -611,22 +1109,36 @@ function consolidate(){
      "Material Handling Facilities" must not become two areas */
   canonicalise(all,'area'); canonicalise(all,'activity'); canonicalise(all,'agency');
 
-  /* merge duplicate lines (same item reported in two files) */
-  const seen=new Map();
+  /* The same item reported in two files is one line. Matching it needs the
+     fuzzy matcher too — one vendor's "JH-02" is another's "JH02". Only ever
+     merge inside one sheet + activity + agency, so Supply never eats Erection. */
+  const buckets=new Map();
+  const MERGE_NUM=['drawing','front','last_month','plan_ftm','plan_ftd',
+                   'ach_ftd','ach_ftm_prev','manpower'];
   all.forEach(r=>{
-    const k=key(r.sheet+'|'+r.area+'|'+r.activity+'|'+r.agency+'|'+r.structure);
-    if(!seen.has(k)){ seen.set(k,r); r._dupes=1; return; }
-    const p=seen.get(k); p._dupes++;
-    ['drawing','front','last_month','plan_ftm','plan_ftd','ach_ftd','ach_ftm_prev','manpower']
-      .forEach(f=>{ if(p[f]==null&&r[f]!=null)p[f]=r[f];
-                    else if(p[f]!=null&&r[f]!=null) p[f]=Math.max(p[f],r[f]); });
-    if(p.scope==null) p.scope=r.scope;
-    if(!p.reason&&r.reason) p.reason=r.reason;
-    if(!p.remarks&&r.remarks) p.remarks=r.remarks;
-    p._src += ' + '+r._src;
-    derive(p);
+    const bk=key(r.sheet+'|'+r.activity+'|'+r.agency);
+    if(!buckets.has(bk)) buckets.set(bk,[]);
+    const list=buckets.get(bk);
+    let hit=null;
+    for(const q of list){
+      if(q.structure===r.structure||simName(q.structure,r.structure,'structure')>=0.90){ hit=q; break; }
+    }
+    if(!hit){ r._dupes=1; list.push(r); return; }
+    hit._dupes=(hit._dupes||1)+1;
+    MERGE_NUM.forEach(f=>{
+      if(hit[f]==null) hit[f]=r[f];
+      else if(r[f]!=null) hit[f]=Math.max(hit[f],r[f]);
+    });
+    if(hit.scope==null) hit.scope=r.scope;
+    if(!hit.reason&&r.reason) hit.reason=r.reason;
+    if(!hit.remarks&&r.remarks) hit.remarks=r.remarks;
+    if(r.structure.length>hit.structure.length) hit.structure=r.structure;
+    hit._src+=' + '+r._src;
+    derive(hit);
   });
-  ST.rows=[...seen.values()];
+  ST.rows=[];
+  buckets.forEach(l=>l.forEach(r=>ST.rows.push(derive(r))));
+
   /* add master lines that no vendor reported today (zero progress, keeps scope honest) */
   if(ST.master.length && $('#optAllMaster') && $('#optAllMaster').checked){
     const have=new Set(ST.rows.map(r=>key(r.sheet+'|'+r.structure+'|'+r.agency)));
@@ -651,9 +1163,20 @@ function consolidate(){
 /* pick one spelling for every distinct name and rewrite every row to use it */
 function canonicalise(rows,field){
   const groups=new Map();
+  const kind=(field==='agency')?'agency':'area';
+  const keys=[];
+  const keyFor=v=>{
+    const k=norm(v); if(!k) return '';
+    if(field==='structure') return k;
+    for(const e of keys){
+      if(e===k) return e;
+      if(simName(v,e,kind)>=0.82) return e;      /* one spelling, fuzzily */
+    }
+    keys.push(k); return k;
+  };
   rows.forEach(r=>{
     const v=(r[field]||'').trim(); if(!v) return;
-    const k=norm(v); if(!k) return;
+    const k=keyFor(v); if(!k) return;
     if(!groups.has(k)) groups.set(k,new Map());
     const m=groups.get(k); m.set(v,(m.get(v)||0)+1);
   });
@@ -670,7 +1193,7 @@ function canonicalise(rows,field){
     pick.set(k,best);
   });
   rows.forEach(r=>{ const v=(r[field]||'').trim(); if(!v)return;
-    const c=pick.get(norm(v)); if(c) r[field]=c; });
+    const c=pick.get(keyFor(v)); if(c) r[field]=c; });
 }
 
 /* arithmetic sanity checks — these are what a reviewer would query */
@@ -1146,7 +1669,7 @@ function buildAuditSheet(){
   let rr=[]; rr[1]=C('SOURCES READ',S.H2); out.push(rr);
   ST.files.forEach(f=>f.sheets.filter(s=>s.use).forEach(s=>{
     const row=[]; row[1]=C(f.name,S.TXT); row[2]=C(s.name,S.TXT);
-    row[3]=C('header row '+(s.hdr+1),S.TXT);
+    row[3]=C('header line '+(s.r0+1)+(s.r1>s.r0?'–'+(s.r1+1):''),S.TXT);
     row[4]=C('→ '+s.disc,S.TXT);
     row[5]=C((s.rows?s.rows.length:0)+' rows',S.TXT);
     row[6]=C('mapped: '+Object.keys(s.map).join(', '),S.TXT);
@@ -1293,16 +1816,17 @@ async function loadMaster(files){
     sheets.forEach(sh=>{
       const disc=SHEET_NAMES.find(n=>norm(n)===norm(sh.name));
       if(!disc) return;
-      const hdr=detectHeader(sh.aoa);
-      const {labels}=headerLabels(sh.aoa,hdr);
-      const map=autoMap(labels);
-      if(!map.structure) return;
-      const tmp={aoa:sh.aoa,hdr:hdr,map:map,disc:disc,fileName:f.name,name:sh.name,
-                 area:'',activity:'',agency:''};
-      extractRows(tmp).forEach(r=>{
-        if(!r.structure||r.structure==='(unnamed item)')return;
-        out.push({structure:r.structure,area:r.area,activity:r.activity,agency:r.agency,
-                  sheet:disc,scope:r.scope,last_month:r.last_month,ach_ftm_prev:r.ach_ftm_prev});
+      detectTables(sh.grid).forEach(t=>{
+        const profs=profileCols(sh.grid,t.dataStart,t.dataEnd,t.labels.length);
+        const map=autoMapBlock(t.labels,profs);
+        if(!map.structure) return;
+        extractRows({grid:sh.grid,dataStart:t.dataStart,dataEnd:t.dataEnd,map:map,
+                     disc:disc,fileName:f.name,name:sh.name,area:'',activity:'',agency:''})
+          .forEach(r=>{
+            if(!r.structure||r.structure==='(unnamed item)') return;
+            out.push({structure:r.structure,area:r.area,activity:r.activity,agency:r.agency,
+                      sheet:disc,scope:r.scope,last_month:r.last_month,ach_ftm_prev:r.ach_ftm_prev});
+          });
       });
     });
   }
@@ -1344,34 +1868,45 @@ async function addFiles(files){
     catch(e){ toast('Could not read '+f.name+' — is it password protected?'); continue; }
     const prof=(ST.profiles||{})[profKey(f.name)];
     const id='f'+Math.random().toString(36).slice(2,8);
-    const fs={id:id,name:f.name,sheets:sheets.map(sh=>{
-      const hdr=detectHeader(sh.aoa);
-      const {labels}=headerLabels(sh.aoa,hdr);
-      const saved=prof&&prof[sh.name];
-      const map=saved?saved.map:autoMap(labels);
-      const disc=saved?saved.disc:guessDiscipline(sh.name,f.name,labels);
-      return {name:sh.name,aoa:sh.aoa,labels:labels,hdr:saved?saved.hdr:hdr,map:map,
-              disc:disc,
-              area:saved?saved.area:'',
-              activity:saved?saved.activity:guessActivity(disc,sh.name,f.name),
-              agency:saved?saved.agency:guessAgency(f.name,sh.aoa),
-              activityAuto:true,
-              use:sh.aoa.length>2 && Object.keys(map).length>=2};
-    })};
-    ST.files.push(fs);
+    const blocks=[];
+    sheets.forEach(sh=>{
+      const tables=detectTables(sh.grid);
+      if(!tables.length) return;
+      tables.forEach((t,ti)=>{
+        const title=blockTitle(sh.grid,t.r0);
+        const profs=profileCols(sh.grid,t.dataStart,t.dataEnd,t.labels.length);
+        const nm=sh.name+(tables.length>1?'  ▸  '+(title||('table '+(ti+1))):'');
+        const saved=prof&&prof[nm];
+        const map=saved?saved.map:autoMapBlock(t.labels,profs);
+        const uomVals=map.uom?sampleCol(sh.grid,t.dataStart,t.dataEnd,map.uom.col):[];
+        const disc=saved?saved.disc:guessDiscipline(sh.name,f.name,t.labels,title,uomVals);
+        blocks.push({
+          name:nm, sheetName:sh.name, title:title,
+          grid:sh.grid, r0:t.r0, r1:t.r1, dataStart:t.dataStart, dataEnd:t.dataEnd,
+          labels:t.labels, profs:profs, map:map, disc:disc,
+          area:     saved?saved.area:'',
+          activity: saved?saved.activity:guessActivity(disc,sh.name,f.name,title),
+          agency:   saved?saved.agency:guessAgency(f.name,sh.grid,t.r0),
+          use:      Object.keys(map).length>=2
+        });
+      });
+    });
+    if(!blocks.length){
+      toast('No readable table found in '+f.name+' — open it and check the header row.');
+      continue;
+    }
+    ST.files.push({id:id,name:f.name,sheets:blocks});
   }
   render1(); nav(); consolidate();
 }
-const profKey=n=>key(n.replace(/\d+/g,''));
-function guessAgency(fileName,aoa){
-  const known=[...new Set(ST.master.map(m=>m.agency).filter(Boolean))];
-  const hay=norm(fileName);
-  let best='',bs=0;
-  known.forEach(a=>{ const s=hay.includes(norm(a))?1:sim(hay,a); if(s>bs){bs=s;best=a;} });
-  if(bs>.55) return best;
-  return agencyFromName(fileName);
+function sampleCol(grid,r0,r1,c){
+  const v=[];
+  for(let r=r0;r<=r1&&r<grid.length&&v.length<40;r++){
+    const s=cellTxt((grid[r]||[])[c]); if(s) v.push(s);
+  }
+  return v;
 }
-
+const profKey=n=>key(n.replace(/\d+/g,''));
 function drawFiles(){
   const el=$('#fileList'); if(!el) return;
   if(!ST.files.length){ el.innerHTML=''; return; }
@@ -1385,7 +1920,7 @@ function drawFiles(){
 }
 
 function sheetCard(f,sh,si){
-  const nRows=Math.max(0,sh.aoa.length-sh.hdr-1);
+  const nRows=Math.max(0,sh.dataEnd-sh.dataStart+1);
   const mapped=Object.keys(sh.map).filter(k=>IMPORTABLE.includes(k));
   const crit=['structure','ach_ftd'];
   const missing=crit.filter(k=>!sh.map[k]);
@@ -1394,25 +1929,30 @@ function sheetCard(f,sh,si){
         : '<span class="pill ok">ready</span>';
   const id=f.id+'_'+si;
   const opts=(list,val)=>list.map(o=>'<option value="'+esc(o)+'"'+(norm(o)===norm(val)?' selected':'')+'>'+esc(o)+'</option>').join('');
-  const hdrOpts=sh.aoa.slice(0,Math.min(25,sh.aoa.length)).map((r,i)=>
-      '<option value="'+i+'"'+(i===sh.hdr?' selected':'')+'>row '+(i+1)+' — '+
-      esc((r||[]).filter(Boolean).slice(0,5).join(' | ')).slice(0,70)+'</option>').join('');
-  const colOpts=(sel)=>'<option value="">— not present —</option>'+sh.labels.map((l,i)=>
-      '<option value="'+i+'"'+(sel===i?' selected':'')+'>'+X.col(i)+'  ·  '+esc(l||'(blank)')+'</option>').join('');
+  const hdrOpts=sh.grid.slice(0,Math.min(40,sh.grid.length)).map((r,i)=>
+      '<option value="'+i+'"'+(i===sh.r0?' selected':'')+'>row '+(i+1)+' — '+
+      esc((r||[]).map(cellTxt).filter(Boolean).slice(0,6).join(' | ')).slice(0,80)+'</option>').join('');
+  const colOpts=(sel)=>'<option value="">— not present —</option>'+sh.labels.map((l,i)=>{
+      const pr=sh.profs&&sh.profs[i];
+      const hint=pr?(pr.serial?'serial':pr.filled===0?'empty':pr.num>=0.6?'numbers':'text'):'';
+      return '<option value="'+i+'"'+(sel===i?' selected':'')+'>'+X.col(i)+'  ·  '+
+             esc(l||'(no heading)')+(hint?'   ['+hint+']':'')+'</option>';}).join('');
 
   return '<div class="fcard'+(sh.use?' open':'')+'" data-card="'+id+'">'+
    '<div class="fhead" data-toggle="'+id+'">'+
      '<input type="checkbox" data-use="'+id+'" '+(sh.use?'checked':'')+'>'+
      '<span class="nm">'+esc(sh.name)+'</span>'+st+
-     '<span class="muted" style="font-size:12px">'+nRows+' rows · '+mapped.length+' columns mapped · header: '+
-       esc(sh.labels.filter(Boolean).slice(0,4).join(' | ')).slice(0,64)+'…</span>'+
+     '<span class="muted" style="font-size:12px">'+nRows+' data rows · '+mapped.length+
+       ' columns mapped · header on line '+(sh.r0+1)+(sh.r1>sh.r0?'–'+(sh.r1+1):'')+
+       (sh.agency?' · '+esc(sh.agency):'')+'</span>'+
      '<span class="spacer"></span><span class="muted">▾</span></div>'+
    '<div class="fbody">'+
      (missing.length?'<div class="banner warn">No column found for <b>'+
         missing.map(k=>FIELDS.find(x=>x.k===k).h).join('</b> and <b>')+
         '</b>. Pick it below, or untick this sheet.</div>':'')+
      '<div class="row" style="margin-bottom:10px">'+
-       '<div class="f"><label>Header row</label><select data-hdr="'+id+'">'+hdrOpts+'</select></div>'+
+       '<div class="f"><label>Header row <small class="muted">(detected)</small></label>'+
+          '<select data-hdr="'+id+'">'+hdrOpts+'</select></div>'+
        '<div class="f"><label>Goes to sheet</label><select data-disc="'+id+'">'+
           opts(SHEET_NAMES.concat(['Manpower']),sh.disc)+'</select></div>'+
        '<div class="f"><label>Default area <small class="muted">(if the file has none)</small></label>'+
@@ -1441,13 +1981,21 @@ function sheetCard(f,sh,si){
      '</div></div></div>';
 }
 function previewTable(sh){
-  const rows=sh.aoa.slice(sh.hdr,sh.hdr+9);
+  const from=sh.r0, to=Math.min(sh.grid.length-1,sh.dataStart+6);
+  const rows=[]; for(let r=from;r<=to;r++) rows.push({i:r,v:sh.grid[r]||[]});
   if(!rows.length)return '<p class="hint">empty</p>';
-  const w=Math.max(...rows.map(r=>(r||[]).length));
-  return '<div class="prevw"><table><thead><tr>'+
+  const w=Math.min(30,Math.max(...rows.map(r=>r.v.length)));
+  const cell=(r,i)=>esc(cellTxt(r.v[i])).slice(0,26);
+  return '<div class="prevw"><table><thead><tr><th>#</th>'+
     Array.from({length:w},(_,i)=>'<th>'+X.col(i)+'</th>').join('')+'</tr></thead><tbody>'+
-    rows.map((r,ri)=>'<tr>'+Array.from({length:w},(_,i)=>'<td'+(ri===0?' style="font-weight:700;color:#16202f"':'')+'>'+
-      esc(String((r||[])[i]??'')).slice(0,26)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
+    rows.map(r=>{
+      const isHdr=r.i>=sh.r0&&r.i<=sh.r1;
+      const sty=isHdr?' style="font-weight:700;color:#16202f;background:#e7eefb"'
+               :(r.i===sh.dataStart?' style="background:#e6f4ec"':'');
+      return '<tr><td class="muted">'+(r.i+1)+'</td>'+
+        Array.from({length:w},(_,i)=>'<td'+sty+'>'+cell(r,i)+'</td>').join('')+'</tr>';
+    }).join('')+'</tbody></table></div>'+
+    '<p class="hint">blue = header block · green = first data row</p>';
 }
 function findSheet(id){ const [fid,si]=id.split('_'); const f=ST.files.find(x=>x.id===fid);
   return f?{f:f,sh:f.sheets[+si]}:null; }
@@ -1698,7 +2246,7 @@ document.addEventListener('click',e=>{
   if(d.saveprof){ const o=findSheet(d.saveprof); if(!o)return;
     ST.profiles=ST.profiles||{}; const pk=profKey(o.f.name);
     ST.profiles[pk]=ST.profiles[pk]||{};
-    ST.profiles[pk][o.sh.name]={map:o.sh.map,hdr:o.sh.hdr,disc:o.sh.disc,
+    ST.profiles[pk][o.sh.name]={map:o.sh.map,disc:o.sh.disc,
       area:o.sh.area,activity:o.sh.activity,agency:o.sh.agency};
     persist(); toast('Mapping remembered for files named like "'+o.f.name+'".'); return; }
   if(d.applymap){
@@ -1715,9 +2263,24 @@ document.addEventListener('click',e=>{
 document.addEventListener('change',e=>{
   const d=e.target.dataset||{};
   if(d.use!=null){ const o=findSheet(d.use); if(o){o.sh.use=e.target.checked; consolidate(); drawFiles(); nav();} return; }
-  if(d.hdr){ const o=findSheet(d.hdr); if(o){ o.sh.hdr=+e.target.value;
-      const hl=headerLabels(o.sh.aoa,o.sh.hdr); o.sh.labels=hl.labels; o.sh.map=autoMap(hl.labels);
-      consolidate(); drawFiles(); } return; }
+  if(d.hdr){ const o=findSheet(d.hdr); if(!o) return;
+      const sh=o.sh, r0=+e.target.value;
+      let best=null;
+      for(let span=1;span<=3;span++){
+        const r1=r0+span-1; if(r1>=sh.grid.length) break;
+        if(span>1&&!(isHeaderish(sh.grid[r1])||isCodeRow(sh.grid[r1]))) break;
+        const sc=scoreBlock(sh.grid,r0,r1);
+        if(!best||sc.score>best.score) best=Object.assign({r1:r1},sc);
+      }
+      if(!best) return;
+      sh.r0=r0; sh.r1=best.r1; sh.labels=best.labels;
+      let s=sh.r1+1;
+      while(s<sh.grid.length&&(isBlankRow(sh.grid[s])||isCodeRow(sh.grid[s]))) s++;
+      sh.dataStart=s;
+      if(sh.dataEnd<sh.dataStart) sh.dataEnd=sh.grid.length-1;
+      sh.profs=profileCols(sh.grid,sh.dataStart,sh.dataEnd,sh.labels.length);
+      sh.map=autoMapBlock(sh.labels,sh.profs);
+      consolidate(); drawFiles(); return; }
   if(d.disc){ const o=findSheet(d.disc); if(o){o.sh.disc=e.target.value; consolidate(); drawFiles();} return; }
   if(d.def){ const [fld,id]=d.def.split('|'); const o=findSheet(id);
     if(o){ o.sh[fld]=e.target.value; consolidate(); } return; }

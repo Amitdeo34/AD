@@ -34,37 +34,97 @@ Kal phir wahi page kholo — master, mappings aur saare aliases pehle se yaad ho
 
 ---
 
-## What the tool actually does
+## How it reads a vendor file
 
-**Finds the header row.** It scores the first 25 rows against a dictionary of DPR column
-wordings and picks the best one. Two-row headers (`Plan` over `Month` / `Day`) get merged into
-`Plan Month` and `Plan Day` before matching.
+This is the part that had to be right, so here is exactly what happens.
 
-**Maps the columns.** Every vendor heading is scored against a synonym list — `Achieved FTD`,
-`Actual Day`, `Progress Today`, `Done for the day` all land on the same field. Each mapping shows
-its confidence, and anything below 85% is flagged for you to look at. For the columns a DPR
-cannot do without, a second lower-threshold pass runs rather than silently dropping a number.
+**The sheet is read as a grid with merged cells expanded.** Where an Area is merged
+down ten rows, all ten rows can see it. Where a header merges `Plan` across `Month | Day`,
+each sub-column inherits its group heading and becomes `Plan Month` / `Plan Day`.
 
-**Reads the vendor's section headings.** In most DPRs the area is a bold heading row, not a
-column. A row with text and no numbers is treated as the area for everything beneath it.
+**The header block is found by meaning, not position.** Every row is scored by how many of
+its cells classify as real DPR columns; blocks of one, two or three rows are tried, and the
+`a b c d` letter-code row that sits under a JSW header is recognised and skipped rather than
+mistaken for the header.
 
-**Drops the vendor's own totals** so they are never double-counted.
+**More than one table in a sheet is fine.** A "consolidated" sheet with `A. CIVIL WORKS (Cum)`
+over one table and `B. STRUCTURAL ERECTION (MT)` over another is split into two blocks, each
+routed to its own discipline, each with its own mapping.
 
-**Matches each line to your master scope** on structure name (55%), agency (20%), activity (15%)
-and area (10%). Above 72% it matches silently; 48–72% it asks you; below that it is a new line.
-Your answer is stored as an alias, so tomorrow it matches by itself.
+**Columns are classified, not string-matched.** A DPR column is a pair — *what* and *when*:
 
-**Uses one spelling per name.** `Material handling facilities` and `Material Handling Facilities`
-become one area, not two. The master spelling always wins.
+| what | when | field |
+|---|---|---|
+| plan / target / programme | today / daily / FTD | Plan FTD |
+| plan / target / programme | month / monthly / FTM | Plan FTM |
+| achieved / actual / progress / done | today | Achieved FTD |
+| achieved / actual / progress / done | this month, till previous | Achieved FTM till previous date |
+| achieved / actual / progress / done | up to last month | Achieved till last month |
 
-**Merges duplicates.** The same item in two files becomes one line, highest value kept, and the
-Audit sheet says so.
+So `Plan for today`, `Daily Target`, `Today Plan` and `Plan FTD` are one column, and the tool
+does not need to have seen the wording before. **Dates written into a heading are read against
+your reporting date**: with a data date of 11-Sep-26, `Completed till 31.08.26` is last month,
+`Completed in Sep till 10.09` is this month till previous day, and `Plan for Sep'26` is the
+monthly plan. Abbreviations are expanded first (`mnth`, `drg`, `qty`, `avl`, `cum`, `gfc`,
+`mtd`, `ftd`, `ftm`), and a trailing unit in brackets is treated as a unit — `BOQ Quantity (Cum)`
+is scope in cubic metres, not a cumulative figure.
 
-**Checks the arithmetic.** Workdone above scope, front above scope, negative quantities, progress
-against a missing scope. The numbers still go in exactly as the vendor sent them — this is a
-flag, not a correction.
+**The data itself is used to check the mapping.** Each column is profiled — how much of it is
+numeric, how many distinct values, whether it is a 1,2,3… serial column. A quantity field will
+not be mapped onto a serial number, and the structure name will not be mapped onto a column of
+numbers. If no column claims the structure name, the most distinctive text column takes it
+rather than the sheet being dropped.
 
----
+**What it derives when the vendor's layout differs.** A vendor who reports *month to date
+including today* still produces the right DPR: `Achieved FTM till previous date` is
+back-calculated. Same for a vendor who reports only cumulative-till-date, or who gives
+`% Complete` and `Balance` but no scope. Every such derivation is named on the Audit sheet.
+
+**Rows that are not data are dropped**: the vendor's own `Sub Total` / `Grand Total` lines,
+`Prepared by` / `Signature` footers, blank spacer rows, and the letter-code row. A row of text
+with no numbers is read as the section heading it almost always is, and becomes the Area for
+the rows beneath it. Numbers written as text (`1,188`) are read; `NIL`, `N.A.` and `-` are read
+as nothing, not as zero.
+
+**The contractor is read off the letterhead.** The first few rows are searched for a company
+name — `MEHER FOUNDATION PVT LTD`, `ITD CEMENTATION INDIA LIMITED` — the legal suffix is
+trimmed, and the result is snapped to the master's spelling. The file name is only a fallback.
+
+## How it matches a line to your scope
+
+Site engineers abbreviate and mistype, so the matcher expands the abbreviations a construction
+site actually uses, normalises equipment codes, then compares token by token with an edit
+distance:
+
+| written by the vendor | in the master | score |
+|---|---|---|
+| `Fltration Main Bldg (P-1)` | `Filtration Main Building (Part-1)` | **98%** |
+| `Conv. Gallery J1C1-J1C2` | `Conveyor gallery J1C1 & J1C2` | **100%** |
+| `JH-02` | `JH02` | **100%** |
+| `Elect. Sub-stn RMHS` | `Electrical Substation RMHS` | **100%** |
+| `M/s Meher Foundations Pvt. Ltd.` | `Meher Foundation` | **95%** |
+| `Fltration Main Bldg (P-1)` | `Filtration Main Building (Part-**2**)` | 51% |
+| `BS - Filtration Main Building` | `TS - Filtration Main Building` | 68% |
+| `Cooling Tower` | `Cooling Tower-**1**` | 51% |
+
+Two guards keep it honest. **Numbers must agree** — Part-1 is not Part-2 and JH01 is not JH02,
+however similar the words. **A short unmatched code blocks the match** — `BS` and `TS` differ by
+two letters out of twenty-four, and they are different structures; 68% lands in the review list
+rather than being matched silently.
+
+Above 72% it matches on its own, 48–72% it asks you, below that it is a new line. Your answer
+is stored as an alias, so tomorrow it matches by itself.
+
+**The same item reported twice becomes one line** — fuzzily, so one vendor's `JH-02` and
+another's `JH02` merge — but only ever inside one discipline, activity and agency, so Supply
+never absorbs Erection.
+
+**One spelling per name.** `Material handling facilities`, `Material Handling Facilities` and
+`MHS` become one area. The master spelling always wins.
+
+**The arithmetic is checked**: workdone above scope, front above scope, negative quantities,
+progress against a missing scope. The numbers still go in exactly as the vendor sent them —
+this is a flag, not a correction.
 
 ## What comes out
 
@@ -116,6 +176,24 @@ sub-total rows — is as it was.
 
 ---
 
+## Doing it in Excel instead
+
+The workbook can import a vendor file on its own, without the browser:
+
+1. **`1-Paste vendor data`** — open the vendor's file, copy their whole table including the
+   header row, and paste it at cell **B5**. Any column order, any wording, extra columns fine.
+2. **`2-Map and convert`** — row 5 is a drop-down of the headings you just pasted, with a
+   suggestion already filled in wherever the wording was recognisable. Correct anything wrong;
+   a heading picked twice is flagged `used twice` above it. Row 6 supplies anything the vendor
+   left out entirely — their Area, or their own name — applied to every row.
+3. Row 10 downwards is now the vendor's data in the approved column order, with Variance,
+   Achieved FTM, Workdone, % Complete and Balance already computed. Copy that block into the
+   matching discipline sheet.
+
+Numbers that arrived as text (`1,188`) are converted on the way through. The Excel path uses a
+plain keyword suggestion rather than the browser's full classifier, so expect to correct one or
+two drop-downs — it is the manual route, and the drop-downs are the point.
+
 ## Teaching it a new vendor
 
 Nothing to code. Three places to teach it, in order of effort:
@@ -143,9 +221,13 @@ dpr/
 ├── schema.py                       column layout — single source of truth
 ├── build_template.py               generates the .xlsx
 ├── build_offline.py                inlines SheetJS + JSZip into the offline .html
-├── make_samples.py                 three deliberately mismatched vendor DPRs
-├── samples/                        …the files they produce
+├── make_samples.py                 three mismatched vendor DPRs
+├── make_hard_samples.py            five deliberately nasty ones
+├── samples/  samples-hard/         …the files they produce
 ├── test_e2e.mjs                    browser test: load → map → match → export → reload
+├── test_hard.mjs                   33 assertions against the nasty files
+├── bench.mjs                       prints what the reader got out of each file
+├── probe_matcher.mjs               prints the matcher's score for known name pairs
 ├── validate_xlsx.py                OOXML structural validation
 ├── verify_export.py                proves the exported formulas reference the right cells
 ├── verify_formulas.py              same proof for the template
@@ -161,10 +243,22 @@ npm run build        # regenerate the .xlsx and the offline .html
 npm test             # end-to-end + both workbook validators
 ```
 
-The test loads three vendor files in three different layouts (bold area heading rows, a plain
-CSV, a two-row merged header split across Supply and Erection sheets), consolidates them,
-exports the DPR, then **loads that DPR back in as the master scope** and confirms all 26 lines
-re-match automatically.
+`test_e2e.mjs` loads three vendor files in three different layouts, consolidates them, exports
+the DPR, then **loads that DPR back in as the master scope** and confirms all 26 lines re-match
+automatically.
+
+`test_hard.mjs` runs 33 assertions against five files built to break a parser:
+
+| file | what it throws at the reader |
+|---|---|
+| Meher | area merged down its rows, merged two-row group header, letter-code row, `1,188` as text, `NIL` / `N.A.` / `-`, per-area sub totals, signature footer |
+| Vensar | two independent tables stacked in one sheet, each with its own header and its own discipline |
+| Goel | twelve rows of preamble, UOM and % columns, notes and signature block after the data |
+| ITD | csv with a BOM, blank spacer rows mid-table, dates written into the column headings |
+| site engineer | abbreviated headings, misspelt structure names, no letterhead at all |
+
+`npm run match` prints the matcher's score for a list of known name pairs — useful when tuning
+the abbreviation table.
 
 ---
 

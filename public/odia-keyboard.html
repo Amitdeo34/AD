@@ -1,0 +1,854 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Taalapatra Odia Keyboard</title>
+<meta name="description" content="Type Odia script without installing a keyboard: tap the letters, or type the word the way it sounds in Roman and have the script generated." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+Oriya:wght@400;500;700&family=Noto+Sans:wght@400;500;700&display=swap" />
+<style>
+/* ---------------------------------------------------------------- tokens */
+:root {
+  color-scheme: light;
+  --ground: #efe9db;
+  --surface: #f7f3e8;
+  --leaf: #dfcea4;
+  --leaf-line: #d2bd8c;
+  --leaf-edge: #bda877;
+  --ink: #1c1813;
+  --ink-soft: #5a5040;
+  --ink-faint: #8c8065;
+  --rule: #dbd0b7;
+  --vermilion: #be2f1c;
+  --vermilion-ink: #ffffff;
+  --key: #fbf8f0;
+  --key-edge: #cdc1a3;
+  --shadow: 0 1px 2px rgba(28, 24, 19, .07);
+
+  --display: "Bricolage Grotesque", "Noto Sans", system-ui, sans-serif;
+  --body: "Noto Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --odia: "Noto Sans Oriya", "Noto Serif Oriya", "Kalinga", "Lohit Odia", "Utkal",
+    "Nirmala UI", "Samyak Oriya", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #17140e;
+    --surface: #211c14;
+    --leaf: #3a3122;
+    --leaf-line: #463c29;
+    --leaf-edge: #554832;
+    --ink: #efe6d2;
+    --ink-soft: #bcb098;
+    --ink-faint: #8e836c;
+    --rule: #3a3226;
+    --vermilion: #f0705a;
+    --vermilion-ink: #1c1813;
+    --key: #2a2418;
+    --key-edge: #473c28;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .35);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #17140e;
+  --surface: #211c14;
+  --leaf: #3a3122;
+  --leaf-line: #463c29;
+  --leaf-edge: #554832;
+  --ink: #efe6d2;
+  --ink-soft: #bcb098;
+  --ink-faint: #8e836c;
+  --rule: #3a3226;
+  --vermilion: #f0705a;
+  --vermilion-ink: #1c1813;
+  --key: #2a2418;
+  --key-edge: #473c28;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .35);
+}
+
+/* ------------------------------------------------------------------ base */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding-block: 28px 56px;
+  padding-inline: 20px;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page { max-width: 1160px; margin-inline: auto; display: grid; gap: 22px; }
+
+h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; letter-spacing: -.015em; }
+
+button, input, textarea { font: inherit; color: inherit; }
+
+:focus-visible {
+  outline: 2px solid var(--vermilion);
+  outline-offset: 2px;
+}
+
+.odia { font-family: var(--odia); }
+
+.eyebrow {
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* -------------------------------------------------------------- masthead */
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.brand { display: flex; align-items: center; gap: 14px; }
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  flex: none;
+  font-family: var(--odia);
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--vermilion-ink);
+  background: var(--vermilion);
+  border-radius: 4px 14px 4px 14px;
+}
+
+.masthead h1 { font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.1rem); font-weight: 800; }
+.masthead h1 span { color: var(--ink-soft); font-weight: 600; }
+.tagline { margin: 2px 0 0; color: var(--ink-soft); max-width: 58ch; }
+.tagline code { font-family: var(--mono); font-size: .92em; color: var(--vermilion); }
+
+.numerals {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.numerals input { accent-color: var(--vermilion); width: 15px; height: 15px; margin: 0; }
+.numerals .odia { color: var(--vermilion); font-weight: 600; }
+
+/* ------------------------------------------------------------------ desk */
+.desk { display: grid; gap: 22px; align-items: start; }
+@media (min-width: 900px) {
+  .desk { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); }
+  .leaf-pane { position: sticky; top: 20px; }
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.count { font-family: var(--mono); font-size: .78rem; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+
+/* The writing surface: a palm-leaf strip, ruled the way the fibre runs. */
+.leaf {
+  width: 100%;
+  min-height: 264px;
+  resize: vertical;
+  padding: 14px 16px;
+  border: 1px solid var(--leaf-edge);
+  border-left-width: 5px;
+  border-right-width: 5px;
+  border-radius: 3px;
+  background-color: var(--leaf);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 43px,
+    var(--leaf-line) 43px 44px
+  );
+  font-family: var(--odia);
+  font-size: 1.4rem;
+  line-height: 44px;
+  color: var(--ink);
+}
+.leaf::placeholder { color: var(--ink-faint); font-size: .95rem; }
+.leaf:focus-visible { outline-offset: 3px; }
+
+/* --------------------------------------------------------------- compose */
+.compose { display: flex; flex-wrap: wrap; gap: 8px; }
+.compose input {
+  flex: 1 1 160px;
+  min-width: 0;
+  padding: 10px 12px;
+  background: var(--ground);
+  border: 1px solid var(--rule);
+  border-radius: 7px;
+  font-family: var(--mono);
+}
+.preview {
+  flex: 0 1 auto;
+  min-width: 96px;
+  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid var(--vermilion);
+  font-family: var(--odia);
+  font-size: 1.35rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.preview:empty::after {
+  content: "preview";
+  font-family: var(--body);
+  font-size: .8rem;
+  color: var(--ink-faint);
+}
+
+/* ----------------------------------------------------------------- tools */
+.tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+.btn {
+  padding: 9px 14px;
+  background: var(--key);
+  border: 1px solid var(--key-edge);
+  border-radius: 7px;
+  box-shadow: 0 2px 0 var(--key-edge);
+  font-size: .87rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .06s ease, box-shadow .06s ease;
+}
+.btn:hover { border-color: var(--vermilion); }
+.btn:active { transform: translateY(2px); box-shadow: none; }
+.btn[disabled] { opacity: .45; cursor: not-allowed; box-shadow: none; }
+.btn.wide { flex: 1 1 120px; }
+.btn.primary {
+  background: var(--vermilion);
+  border-color: var(--vermilion);
+  color: var(--vermilion-ink);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--vermilion) 68%, #000);
+}
+.btn.primary:active { box-shadow: none; }
+
+.note { margin: 0; font-size: .82rem; color: var(--ink-soft); }
+.note code { font-family: var(--mono); color: var(--vermilion); }
+
+/* ------------------------------------------------------------------ rack */
+.rack { display: grid; gap: 14px; }
+.rack .row-label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.rack .row-label .odia { font-size: .95rem; color: var(--ink-soft); }
+
+.keys { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.key {
+  min-width: 46px;
+  padding: 6px 8px 5px;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  background: var(--key);
+  border: 1px solid var(--key-edge);
+  border-radius: 7px;
+  box-shadow: 0 2px 0 var(--key-edge);
+  cursor: pointer;
+  transition: transform .06s ease, box-shadow .06s ease, border-color .1s ease;
+}
+.key:hover { border-color: var(--vermilion); }
+.key:active { transform: translateY(2px); box-shadow: none; }
+.key .glyph { font-family: var(--odia); font-size: 1.3rem; line-height: 1.45; }
+.key .roman { font-family: var(--mono); font-size: .62rem; color: var(--ink-faint); }
+.key.mark .glyph { color: var(--vermilion); }
+
+/* -------------------------------------------------------------- phrases */
+.phrase-grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+.phrase {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  text-align: left;
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.phrase:hover { border-color: var(--vermilion); background: var(--key); }
+.phrase .odia { font-size: 1.15rem; line-height: 1.7; }
+.phrase .gloss { font-size: .76rem; color: var(--ink-faint); }
+.phrase .gloss b { font-weight: 500; color: var(--ink-soft); }
+
+/* -------------------------------------------------------------- convert */
+.convert-grid { display: grid; gap: 12px; }
+@media (min-width: 760px) { .convert-grid { grid-template-columns: 1fr 1fr; } }
+.convert-grid label { display: grid; gap: 6px; }
+#block {
+  min-height: 150px;
+  resize: vertical;
+  padding: 12px;
+  background: var(--ground);
+  border: 1px solid var(--rule);
+  border-radius: 7px;
+  font-family: var(--mono);
+  font-size: .88rem;
+  line-height: 1.7;
+}
+.out {
+  min-height: 150px;
+  padding: 12px;
+  border: 1px dashed var(--rule);
+  border-radius: 7px;
+  background: var(--ground);
+  font-family: var(--odia);
+  font-size: 1.2rem;
+  line-height: 1.95;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ---------------------------------------------------------------- scheme */
+.scheme summary {
+  cursor: pointer;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 1rem;
+}
+.scheme-grid { display: grid; gap: 18px; margin-top: 14px; }
+@media (min-width: 760px) { .scheme-grid { grid-template-columns: 1fr 1.2fr; } }
+.scheme table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+.scheme th { text-align: left; font-weight: 700; color: var(--ink-faint); font-size: .68rem;
+  letter-spacing: .1em; text-transform: uppercase; padding-bottom: 4px; }
+.scheme td { padding: 3px 8px 3px 0; border-top: 1px solid var(--rule); }
+.scheme td.g { font-family: var(--odia); font-size: 1.1rem; white-space: nowrap; }
+.scheme td.r { font-family: var(--mono); color: var(--ink-soft); }
+.rules { margin: 0; padding-left: 18px; display: grid; gap: 5px; font-size: .86rem; }
+.rules code { font-family: var(--mono); color: var(--vermilion); }
+
+/* ---------------------------------------------------------------- footer */
+.colophon {
+  border-top: 1px solid var(--rule);
+  padding-top: 16px;
+  color: var(--ink-faint);
+  font-size: .82rem;
+  max-width: 70ch;
+}
+.colophon .odia { color: var(--ink-soft); }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translate(-50%, 12px);
+  padding: 9px 18px;
+  background: var(--ink);
+  color: var(--ground);
+  border-radius: 999px;
+  font-size: .85rem;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .001ms !important; animation-duration: .001ms !important; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <div class="brand">
+      <span class="mark odia" aria-hidden="true">ଓ</span>
+      <div>
+        <h1>Taalapatra <span>Odia Keyboard</span></h1>
+        <p class="tagline">
+          Tap the letters, or type the word the way it sounds — <code>ORishaa</code> becomes
+          <span class="odia">ଓଡ଼ିଶା</span>. Nothing to install; copy the script anywhere.
+        </p>
+      </div>
+    </div>
+    <label class="numerals" for="numerals">
+      <input type="checkbox" id="numerals" checked />
+      Odia numerals <span class="odia">୦୧୨</span>
+    </label>
+  </header>
+
+  <div class="desk">
+    <section class="panel leaf-pane" aria-labelledby="leaf-head">
+      <div class="panel-head">
+        <h2 id="leaf-head" class="eyebrow">Your text <span class="odia">ଲେଖା</span></h2>
+        <span class="count" id="count">0 words · 0 letters</span>
+      </div>
+
+      <textarea id="editor" class="leaf" spellcheck="false"
+        placeholder="ଏଠାରେ ଲେଖନ୍ତୁ — tap a letter, or type Roman in the bar below."></textarea>
+
+      <div class="compose">
+        <input id="compose" spellcheck="false" autocomplete="off" placeholder="namaskaara" aria-label="Type a word in Roman" />
+        <output class="preview odia" id="preview" for="compose" aria-live="polite"></output>
+        <button class="btn primary" id="insert" type="button">Insert ↵</button>
+      </div>
+      <p class="note">Space or Enter drops the word into the leaf. <code>Shift</code>+<code>Enter</code> starts a new line.</p>
+
+      <div class="tools">
+        <button class="btn wide" id="space" type="button">Space</button>
+        <button class="btn" id="newline" type="button" aria-label="New line">⏎</button>
+        <button class="btn" id="back" type="button">⌫ Backspace</button>
+        <button class="btn" id="copy" type="button">Copy</button>
+        <button class="btn" id="clear" type="button">Clear</button>
+      </div>
+    </section>
+
+    <section class="panel rack" id="rack" aria-label="Odia letters"></section>
+  </div>
+
+  <section class="panel" aria-labelledby="phrase-head">
+    <h2 id="phrase-head" class="eyebrow">Ready phrases <span class="odia">ବାକ୍ୟ</span></h2>
+    <div class="phrase-grid" id="phrases"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="convert-head">
+    <div class="panel-head">
+      <h2 id="convert-head" class="eyebrow">Convert a whole block <span class="odia">ରୂପାନ୍ତର</span></h2>
+    </div>
+    <div class="convert-grid">
+      <label>
+        <span class="eyebrow">Roman</span>
+        <textarea id="block" spellcheck="false">namaskaara. mo naama amita. ORishaa bhaarataraa eka raajYa — puri, kaTaka, sambalapura.</textarea>
+      </label>
+      <div>
+        <span class="eyebrow">Odia <span class="odia">ଓଡ଼ିଆ</span></span>
+        <div class="out odia" id="out" aria-live="polite"></div>
+      </div>
+    </div>
+    <div class="tools">
+      <button class="btn primary" id="copy-block" type="button">Copy Odia</button>
+      <button class="btn" id="to-leaf" type="button">Send to the leaf</button>
+      <button class="btn" id="clear-block" type="button">Clear</button>
+    </div>
+  </section>
+
+  <details class="panel scheme">
+    <summary>The whole scheme — every letter and the Roman that types it</summary>
+    <div class="scheme-grid">
+      <div>
+        <h3 class="eyebrow" style="margin-bottom:8px">How the spelling works</h3>
+        <ol class="rules">
+          <li><code>ka</code> and <code>k</code> both give <span class="odia">କ</span> — a consonant keeps its inherent <em>a</em>, the way the word is written.</li>
+          <li>A vowel after a consonant becomes its matra: <code>ki</code> <span class="odia">କି</span>, <code>kii</code> <span class="odia">କୀ</span>, <code>ko</code> <span class="odia">କୋ</span>.</li>
+          <li>Two consonants in a row take the halanta between them: <code>swara</code> <span class="odia">ସ୍ୱର</span>.</li>
+          <li>Capitals are the retroflex and long letters: <code>T D N S L R</code> <span class="odia">ଟ ଡ ଣ ଷ ଳ ଡ଼</span>, <code>A I U</code> <span class="odia">ଆ ଈ ଊ</span>.</li>
+          <li>So a doubled letter stays a geminate: <code>uttara</code> <span class="odia">ଉତ୍ତର</span>, never <span class="odia">ଉଟର</span>.</li>
+          <li><code>_</code> forces a bare halanta (<code>rum_</code> <span class="odia">ରୁମ୍</span>); <code>M H ~</code> are anusvara, visarga, candrabindu; <code>|</code> is the danda.</li>
+          <li>Anything unrecognised — spaces, Latin punctuation, text already in Odia — passes through untouched.</li>
+        </ol>
+      </div>
+      <div id="tables"></div>
+    </div>
+  </details>
+
+  <footer class="colophon">
+    Odia letters are round because of the palm leaf. Scribes cut the script into
+    <span class="odia">ତାଳପତ୍ର</span> with an iron stylus, and a straight stroke splits the leaf along
+    its fibre — so the strokes curve, and every letter grew the umbrella head it still carries.
+    The writing surface above is ruled the same way.
+  </footer>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ------------------------------------------------------ the script tables */
+
+  var VIRAMA = '୍', NUKTA = '଼', ANUSVARA = 'ଂ', CANDRABINDU = 'ଁ', VISARGA = 'ଃ';
+  var DANDA = '।', DOUBLE_DANDA = '॥', DOTTED = '◌';
+  var DIGITS = ['୦', '୧', '୨', '୩', '୪', '୫', '୬', '୭', '୮', '୯'];
+
+  var VOWELS = [
+    { keys: ['a'], letter: 'ଅ', matra: '' },
+    { keys: ['aa', 'A'], letter: 'ଆ', matra: 'ା' },
+    { keys: ['i'], letter: 'ଇ', matra: 'ି' },
+    { keys: ['ii', 'I', 'ee'], letter: 'ଈ', matra: 'ୀ' },
+    { keys: ['u'], letter: 'ଉ', matra: 'ୁ' },
+    { keys: ['uu', 'U', 'oo'], letter: 'ଊ', matra: 'ୂ' },
+    { keys: ['RRi', 'R^i'], letter: 'ଋ', matra: 'ୃ' },
+    { keys: ['e', 'E'], letter: 'ଏ', matra: 'େ' },
+    { keys: ['ai'], letter: 'ଐ', matra: 'ୈ' },
+    { keys: ['o', 'O'], letter: 'ଓ', matra: 'ୋ' },
+    { keys: ['au', 'ou'], letter: 'ଔ', matra: 'ୌ' }
+  ];
+
+  var CONSONANTS = [
+    { keys: ['k'], ch: 'କ' }, { keys: ['kh'], ch: 'ଖ' }, { keys: ['g'], ch: 'ଗ' },
+    { keys: ['gh'], ch: 'ଘ' }, { keys: ['~N', 'NG'], ch: 'ଙ' },
+    { keys: ['ch', 'c'], ch: 'ଚ' }, { keys: ['chh', 'Ch'], ch: 'ଛ' }, { keys: ['j'], ch: 'ଜ' },
+    { keys: ['jh'], ch: 'ଝ' }, { keys: ['~n', 'NY'], ch: 'ଞ' },
+    { keys: ['T'], ch: 'ଟ' }, { keys: ['Th'], ch: 'ଠ' }, { keys: ['D'], ch: 'ଡ' },
+    { keys: ['Dh'], ch: 'ଢ' }, { keys: ['N'], ch: 'ଣ' },
+    { keys: ['t'], ch: 'ତ' }, { keys: ['th'], ch: 'ଥ' }, { keys: ['d'], ch: 'ଦ' },
+    { keys: ['dh'], ch: 'ଧ' }, { keys: ['n'], ch: 'ନ' },
+    { keys: ['p'], ch: 'ପ' }, { keys: ['ph', 'f'], ch: 'ଫ' }, { keys: ['b'], ch: 'ବ' },
+    { keys: ['bh'], ch: 'ଭ' }, { keys: ['m'], ch: 'ମ' },
+    { keys: ['y'], ch: 'ଯ' }, { keys: ['Y'], ch: 'ୟ' }, { keys: ['r'], ch: 'ର' },
+    { keys: ['l'], ch: 'ଲ' }, { keys: ['L'], ch: 'ଳ' }, { keys: ['w', 'v'], ch: 'ୱ' },
+    { keys: ['sh'], ch: 'ଶ' }, { keys: ['S', 'Sh'], ch: 'ଷ' }, { keys: ['s'], ch: 'ସ' },
+    { keys: ['h'], ch: 'ହ' },
+    { keys: ['R'], ch: 'ଡ଼' }, { keys: ['Rh'], ch: 'ଢ଼' },
+    { keys: ['z'], ch: 'ଜ' }, { keys: ['q'], ch: 'କ' },
+    { keys: ['x', 'ksh'], ch: 'କ୍ଷ' }, { keys: ['jny', 'GY'], ch: 'ଜ୍ଞ' }
+  ];
+
+  var SIGNS = [
+    { keys: ['M'], ch: ANUSVARA }, { keys: ['H'], ch: VISARGA },
+    { keys: ['~'], ch: CANDRABINDU }, { keys: ['_'], ch: VIRAMA },
+    { keys: ['||'], ch: DOUBLE_DANDA }, { keys: ['|'], ch: DANDA }
+  ];
+
+  var TOKENS = {};
+  var LONGEST = 1;
+  function register(list, type) {
+    list.forEach(function (entry) {
+      entry.keys.forEach(function (key) {
+        TOKENS[key] = { type: type, entry: entry };
+        if (key.length > LONGEST) LONGEST = key.length;
+      });
+    });
+  }
+  register(VOWELS, 'vowel');
+  register(CONSONANTS, 'consonant');
+  register(SIGNS, 'sign');
+
+  /* Longest match at i: exact first, so "Dh" beats "D", then the lower-cased slice. */
+  function matchAt(text, index) {
+    var limit = Math.min(LONGEST, text.length - index);
+    for (var pass = 0; pass < 2; pass += 1) {
+      for (var len = limit; len > 0; len -= 1) {
+        var slice = text.substr(index, len);
+        var hit = TOKENS[pass ? slice.toLowerCase() : slice];
+        if (hit) return { len: len, type: hit.type, entry: hit.entry };
+      }
+    }
+    return null;
+  }
+
+  /* Roman → Odia. A consonant carries state: the next vowel becomes its matra,
+     the next consonant puts a halanta between them. */
+  function transliterate(text, useOdiaDigits) {
+    var out = '';
+    var afterConsonant = false;
+    var i = 0;
+    while (i < text.length) {
+      var ch = text.charAt(i);
+      if (ch >= '0' && ch <= '9') {
+        out += useOdiaDigits ? DIGITS[Number(ch)] : ch;
+        afterConsonant = false;
+        i += 1;
+        continue;
+      }
+      var match = matchAt(text, i);
+      if (!match) {
+        out += ch;
+        afterConsonant = false;
+        i += 1;
+        continue;
+      }
+      if (match.type === 'consonant') {
+        if (afterConsonant) out += VIRAMA;
+        out += match.entry.ch;
+        afterConsonant = true;
+      } else if (match.type === 'vowel') {
+        out += afterConsonant ? match.entry.matra : match.entry.letter;
+        afterConsonant = false;
+      } else {
+        out += match.entry.ch;
+        afterConsonant = false;
+      }
+      i += match.len;
+    }
+    return out;
+  }
+
+  /* ------------------------------------------------------------ the layout */
+
+  function letterKey(key) {
+    var hit = TOKENS[key].entry;
+    return { ch: hit.ch || hit.letter, roman: key };
+  }
+  function matraKey(key) {
+    return { ch: TOKENS[key].entry.matra, roman: key, combining: true };
+  }
+  function cluster(keys) {
+    return { ch: transliterate(keys, false), roman: keys };
+  }
+
+  var ROWS = [
+    { label: 'Vowels', odia: 'ସ୍ୱରବର୍ଣ୍ଣ',
+      keys: ['a', 'aa', 'i', 'ii', 'u', 'uu', 'RRi', 'e', 'ai', 'o', 'au'].map(letterKey) },
+    { label: 'Vowel signs', odia: 'ମାତ୍ରା',
+      keys: ['aa', 'i', 'ii', 'u', 'uu', 'RRi', 'e', 'ai', 'o', 'au'].map(matraKey).concat([
+        { ch: VIRAMA, roman: '_', combining: true, mark: true },
+        { ch: ANUSVARA, roman: 'M', combining: true, mark: true },
+        { ch: CANDRABINDU, roman: '~', combining: true, mark: true },
+        { ch: VISARGA, roman: 'H', combining: true, mark: true },
+        { ch: NUKTA, roman: 'nukta', combining: true, mark: true }
+      ]) },
+    { label: 'Velar', odia: 'କ-ବର୍ଗ', keys: ['k', 'kh', 'g', 'gh', '~N'].map(letterKey) },
+    { label: 'Palatal', odia: 'ଚ-ବର୍ଗ', keys: ['ch', 'chh', 'j', 'jh', '~n'].map(letterKey) },
+    { label: 'Retroflex', odia: 'ଟ-ବର୍ଗ', keys: ['T', 'Th', 'D', 'Dh', 'N'].map(letterKey) },
+    { label: 'Dental', odia: 'ତ-ବର୍ଗ', keys: ['t', 'th', 'd', 'dh', 'n'].map(letterKey) },
+    { label: 'Labial', odia: 'ପ-ବର୍ଗ', keys: ['p', 'ph', 'b', 'bh', 'm'].map(letterKey) },
+    { label: 'Semivowels', odia: 'ଅନ୍ତଃସ୍ଥ', keys: ['y', 'Y', 'r', 'l', 'L', 'w'].map(letterKey) },
+    { label: 'Sibilants and h', odia: 'ଊଷ୍ମ', keys: ['sh', 'S', 's', 'h'].map(letterKey) },
+    { label: 'With nukta', odia: 'ନୁକ୍ତା', keys: ['R', 'Rh'].map(letterKey) },
+    { label: 'Conjuncts', odia: 'ଯୁକ୍ତାକ୍ଷର',
+      keys: ['ksh', 'jny', 'tr', 'shr', 'pr', 'kt', 'dw', 'sw', 'nt', 'nd', 'mp', '~Ng', '~nch', 'ND', 'ST'].map(cluster) },
+    { label: 'Numerals', odia: 'ଅଙ୍କ',
+      keys: DIGITS.map(function (ch, value) { return { ch: ch, roman: String(value) }; }) },
+    { label: 'Marks', odia: 'ଚିହ୍ନ', keys: [
+      { ch: DANDA, roman: '|', mark: true }, { ch: DOUBLE_DANDA, roman: '||', mark: true },
+      { ch: 'ଽ', roman: 'avagraha', mark: true }, { ch: '୰', roman: 'isshar', mark: true },
+      { ch: ',', roman: 'comma', mark: true }, { ch: '.', roman: 'stop', mark: true },
+      { ch: '?', roman: 'question', mark: true }, { ch: '!', roman: 'exclaim', mark: true },
+      { ch: '-', roman: 'hyphen', mark: true }
+    ] }
+  ];
+
+  var PHRASES = [
+    { roman: 'namaskaara', english: 'Hello' },
+    { roman: 'dhanYabaada', english: 'Thank you' },
+    { roman: 'swaagata', english: 'Welcome' },
+    { roman: 'aapaNa kemiti achhanti?', english: 'How are you?' },
+    { roman: 'mu~ bhala achhi', english: 'I am fine' },
+    { roman: 'mo naama', english: 'My name is…' },
+    { roman: 'kShamaa karibe', english: 'Excuse me' },
+    { roman: 'ehaara daama kete?', english: 'How much is this?' },
+    { roman: 'goTie rum_ darakaara', english: 'I need a room' },
+    { roman: 'paaNi miLiba ki?', english: 'Is water available?' },
+    { roman: 'daYaakari saahaayYa karantu', english: 'Please help' },
+    { roman: 'shubha yaatraa', english: 'Have a good journey' }
+  ];
+
+  /* ------------------------------------------------------------------ wiring */
+
+  var $ = function (id) { return document.getElementById(id); };
+  var editor = $('editor'), compose = $('compose'), preview = $('preview');
+  var block = $('block'), out = $('out'), toast = $('toast');
+  var digitsOn = function () { return $('numerals').checked; };
+
+  function say(message) {
+    toast.textContent = message;
+    toast.classList.add('show');
+    clearTimeout(say.timer);
+    say.timer = setTimeout(function () { toast.classList.remove('show'); }, 1600);
+  }
+
+  function insert(chunk) {
+    var start = editor.selectionStart, end = editor.selectionEnd;
+    var value = editor.value;
+    editor.value = value.slice(0, start) + chunk + value.slice(end);
+    var caret = start + chunk.length;
+    editor.focus();
+    editor.setSelectionRange(caret, caret);
+    countUp();
+  }
+
+  function backspace() {
+    var start = editor.selectionStart, end = editor.selectionEnd;
+    if (start === end && start === 0) return;
+    var from = start;
+    if (start === end) {
+      var before = Array.from(editor.value.slice(0, start));
+      from = start - before[before.length - 1].length;
+    }
+    editor.value = editor.value.slice(0, from) + editor.value.slice(end);
+    editor.focus();
+    editor.setSelectionRange(from, from);
+    countUp();
+  }
+
+  function countUp() {
+    var value = editor.value;
+    var words = value.trim() ? value.trim().split(/\s+/).length : 0;
+    var letters = Array.from(value).filter(function (ch) { return ch.trim(); }).length;
+    $('count').textContent =
+      words + (words === 1 ? ' word · ' : ' words · ') + letters + (letters === 1 ? ' letter' : ' letters');
+  }
+
+  function commit(trailing) {
+    var chunk = transliterate(compose.value, digitsOn()) + trailing;
+    if (!chunk) return;
+    insert(chunk);
+    compose.value = '';
+    preview.textContent = '';
+    compose.focus();
+  }
+
+  function copy(value, what) {
+    if (!value) return;
+    navigator.clipboard.writeText(value).then(
+      function () { say(what + ' copied'); },
+      function () { say('The browser blocked the clipboard — select and copy by hand'); }
+    );
+  }
+
+  /* Draw the rack. */
+  var rack = $('rack');
+  ROWS.forEach(function (row) {
+    var section = document.createElement('div');
+    var head = document.createElement('div');
+    head.className = 'row-label';
+    head.innerHTML = '<span class="eyebrow"></span><span class="odia"></span>';
+    head.children[0].textContent = row.label;
+    head.children[1].textContent = row.odia;
+    section.appendChild(head);
+
+    var keys = document.createElement('div');
+    keys.className = 'keys';
+    row.keys.forEach(function (key) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'key' + (key.mark ? ' mark' : '');
+      button.title = key.roman;
+      var glyph = document.createElement('span');
+      glyph.className = 'glyph';
+      glyph.textContent = (key.combining ? DOTTED : '') + key.ch;
+      var roman = document.createElement('span');
+      roman.className = 'roman';
+      roman.textContent = key.roman;
+      button.appendChild(glyph);
+      button.appendChild(roman);
+      button.addEventListener('click', function () { insert(key.ch); });
+      keys.appendChild(button);
+    });
+    section.appendChild(keys);
+    rack.appendChild(section);
+  });
+
+  /* Draw the phrases. */
+  var phrases = $('phrases');
+  PHRASES.forEach(function (phrase) {
+    var odia = transliterate(phrase.roman, false);
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'phrase';
+    var script = document.createElement('span');
+    script.className = 'odia';
+    script.textContent = odia;
+    var gloss = document.createElement('span');
+    gloss.className = 'gloss';
+    gloss.innerHTML = '<b></b> · ';
+    gloss.children[0].textContent = phrase.english;
+    gloss.appendChild(document.createTextNode(phrase.roman));
+    button.appendChild(script);
+    button.appendChild(gloss);
+    button.addEventListener('click', function () { insert(odia + ' '); });
+    phrases.appendChild(button);
+  });
+
+  /* Draw the cheat-sheet tables. */
+  function table(caption, rows) {
+    var html = '<table><thead><tr><th colspan="2">' + caption + '</th></tr></thead><tbody>';
+    rows.forEach(function (row) {
+      html += '<tr><td class="g">' + row[0] + '</td><td class="r">' + row[1] + '</td></tr>';
+    });
+    return html + '</tbody></table>';
+  }
+  $('tables').innerHTML =
+    '<div class="convert-grid">' +
+    table('Vowels and matras', VOWELS.map(function (v) {
+      return [v.letter + (v.matra ? ' ' + DOTTED + v.matra : ''), v.keys.join(' / ')];
+    })) +
+    table('Consonants', CONSONANTS.filter(function (c) {
+      return c.keys[0] !== 'z' && c.keys[0] !== 'q';
+    }).map(function (c) { return [c.ch, c.keys.join(' / ')]; })) +
+    '</div>';
+
+  /* Events. */
+  editor.addEventListener('input', countUp);
+  compose.addEventListener('input', function () {
+    preview.textContent = transliterate(compose.value, digitsOn());
+  });
+  compose.addEventListener('keydown', function (event) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      commit(event.shiftKey ? '\n' : ' ');
+    } else if (event.key === ' ' && compose.value) {
+      event.preventDefault();
+      commit(' ');
+    } else if (event.key === 'Escape') {
+      compose.value = '';
+      preview.textContent = '';
+    }
+  });
+
+  $('insert').addEventListener('click', function () { commit(' '); });
+  $('space').addEventListener('click', function () { insert(' '); });
+  $('newline').addEventListener('click', function () { insert('\n'); });
+  $('back').addEventListener('click', backspace);
+  $('copy').addEventListener('click', function () { copy(editor.value, 'Text'); });
+  $('clear').addEventListener('click', function () {
+    editor.value = '';
+    countUp();
+    editor.focus();
+    say('Leaf cleared');
+  });
+
+  function convert() { out.textContent = transliterate(block.value, digitsOn()); }
+  block.addEventListener('input', convert);
+  $('numerals').addEventListener('change', function () {
+    convert();
+    preview.textContent = transliterate(compose.value, digitsOn());
+  });
+  $('copy-block').addEventListener('click', function () { copy(out.textContent, 'Odia'); });
+  $('to-leaf').addEventListener('click', function () {
+    if (!out.textContent) return;
+    editor.value = editor.value ? editor.value + '\n' + out.textContent : out.textContent;
+    countUp();
+    editor.focus();
+    say('Sent to the leaf');
+  });
+  $('clear-block').addEventListener('click', function () {
+    block.value = '';
+    convert();
+  });
+
+  /* Open in a working state rather than an empty shell. */
+  editor.value = transliterate('namaskaara! swaagata.', true);
+  countUp();
+  convert();
+}());
+</script>
+</body>
+</html>

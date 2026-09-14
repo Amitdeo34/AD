@@ -115,6 +115,11 @@ paragraph back in is safe.
 Most desktops ship no Odia face, so the page asks for Noto Sans Oriya and falls
 back through the Indic families that Windows, macOS and Linux install locally.
 
+**Standalone.** `public/odia-keyboard.html` is the same keyboard as one file —
+no build, no framework, no imports beyond the web font. It is served at
+`/odia-keyboard.html` and also opens straight from disk, so it can be mailed to
+someone or kept on a phone for use without a network.
+
 ---
 
 ## Layout

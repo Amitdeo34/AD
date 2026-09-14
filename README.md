@@ -48,6 +48,11 @@ straight to the property's UPI ID. See "How payment works" below.
 bookings made with the same email are claimed automatically at registration.
 Sessions are HS256 JWTs; passwords are scrypt-hashed.
 
+**Odia keyboard.** A writing pad at `/odia` for typing Odia script without
+installing a keyboard: tap the letters, or type the word the way it sounds in
+Roman and have the script generated — `ORishaa` becomes ଓଡ଼ିଶା. See "Writing
+Odia" below.
+
 **Android app.** A signed `.aab`, buildable with one command.
 
 ---
@@ -78,6 +83,40 @@ pay-at-property only, and says so.
 
 ---
 
+## Writing Odia
+
+`/odia` is a full Odia keyboard, and nothing about it is server-side — the
+tables and the phonetic engine live in `lib/odia.js` and run in the browser.
+
+**Tap the letters.** Vowels, the matras that replace them after a consonant,
+the consonants by varga, the conjuncts that need a halanta, Odia numerals and
+the marks — each key drops in at the caret, with backspace, copy and clear.
+
+**Or type in Roman.** The compose bar transliterates as you type and space or
+Enter commits the word; the second tab converts a whole block at once. The
+scheme is deliberately predictable:
+
+| You type | You get | Rule |
+| --- | --- | --- |
+| `ka` `k` | କ | a consonant keeps its inherent "a" |
+| `ki` `kii` `ko` | କି କୀ କୋ | a vowel after a consonant becomes its matra |
+| `swara` | ସ୍ୱର | two consonants in a row take the halanta between them |
+| `uttara` | ଉତ୍ତର | a doubled letter is a geminate, never a retroflex |
+| `Ta Da Na Sa La Ra` | ଟ ଡ ଣ ଷ ଳ ଡ଼ | capitals are the retroflex letters |
+| `aa I U` | ଆ ଈ ଊ | capitals are also the long vowels |
+| `rum_` | ରୁମ୍ | `_` forces a bare halanta |
+| `aM aH mu~` | ଅଂ ଅଃ ମୁଁ | `M` `H` `~` are anusvara, visarga, candrabindu |
+| `2026` | ୨୦୨୬ | numerals follow the Odia-numerals switch |
+
+Anything the scheme does not recognise — spaces, Latin punctuation, text
+already in Odia — passes through untouched, so pasting a half-converted
+paragraph back in is safe.
+
+Most desktops ship no Odia face, so the page asks for Noto Sans Oriya and falls
+back through the Indic families that Windows, macOS and Linux install locally.
+
+---
+
 ## Layout
 
 ```
@@ -92,9 +131,10 @@ lib/            Domain logic, all of it framework-free
   pricing.js    Tariffs and GST
   reviews.js    Review history and ratings
   upi.js        UPI intents, QR codes, UTR handling
+  odia.js       Odia letter tables and the Roman → ଓଡ଼ିଆ phonetic engine
   store.js      Accounts, bookings, payments and reviews
 mobile/         Capacitor Android shell
-test/           50 tests over the domain logic and the real route handlers
+test/           Tests over the domain logic and the real route handlers
 ```
 
 ### Where the data comes from

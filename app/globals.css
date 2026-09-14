@@ -69,3 +69,11 @@ input[type="date"] { min-height: 2.75rem; }
 /* Hide scrollbars on the horizontal chip rails without losing the scroll. */
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Odia script: a browser without an Indic face renders boxes, so name every
+   likely local family before falling back to the web font. */
+.odia {
+  font-family: "Noto Sans Oriya", "Noto Serif Oriya", "Kalinga", "Lohit Odia", "Utkal",
+    "Nirmala UI", "Samyak Oriya", ui-sans-serif, sans-serif;
+  line-height: 1.85;
+}

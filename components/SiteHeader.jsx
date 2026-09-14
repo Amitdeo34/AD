@@ -7,6 +7,7 @@ import { useAuth } from './AuthProvider';
 const LINKS = [
   { href: '/states', label: 'Browse by state' },
   { href: '/trips', label: 'My trips' },
+  { href: '/odia', label: 'Odia keyboard' },
 ];
 
 export default function SiteHeader() {

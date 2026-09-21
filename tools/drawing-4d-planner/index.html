@@ -159,14 +159,15 @@ code{font-family:var(--mono);background:var(--bg3);padding:1px 5px;border-radius
   <div class="step on" data-p="p1"><div class="n">1</div><div><div class="t">Drawings</div><div class="d">PDF / DXF import &amp; read</div></div></div>
   <div class="step" data-p="p2"><div class="n">2</div><div><div class="t">Viewer</div><div class="d">Pan, zoom, layers, 4D</div></div></div>
   <div class="step" data-p="p3"><div class="n">3</div><div><div class="t">Elements &amp; Qty</div><div class="d">Extracted BOQ</div></div></div>
-  <div class="step" data-p="p4"><div class="n">4</div><div><div class="t">Group Schedule</div><div class="d">Import XER / Excel / CSV</div></div></div>
+  <div class="step" data-p="pz"><div class="n">4</div><div><div class="t">Grids &amp; Zones</div><div class="d">Grid lines → work areas</div></div></div>
+  <div class="step" data-p="p4"><div class="n">5</div><div><div class="t">Group Schedule</div><div class="d">Import XER / Excel / CSV</div></div></div>
   <div class="gtitle">Engine</div>
-  <div class="step" data-p="p5"><div class="n">5</div><div><div class="t">Rules &amp; Norms</div><div class="d">Mapping + productivity</div></div></div>
-  <div class="step" data-p="p6"><div class="n">6</div><div><div class="t">Develop Schedule</div><div class="d">WBS explode + CPM</div></div></div>
+  <div class="step" data-p="p5"><div class="n">6</div><div><div class="t">Rules &amp; Norms</div><div class="d">Mapping + productivity</div></div></div>
+  <div class="step" data-p="p6"><div class="n">7</div><div><div class="t">Develop Schedule</div><div class="d">WBS explode + CPM</div></div></div>
   <div class="gtitle">Output</div>
-  <div class="step" data-p="p7"><div class="n">7</div><div><div class="t">Gantt &amp; CPM</div><div class="d">Bars, float, critical path</div></div></div>
-  <div class="step" data-p="p8"><div class="n">8</div><div><div class="t">4D Simulation</div><div class="d">Play the build sequence</div></div></div>
-  <div class="step" data-p="p9"><div class="n">9</div><div><div class="t">Exports</div><div class="d">XER, XLSX, BIM 4D, XML</div></div></div>
+  <div class="step" data-p="p7"><div class="n">8</div><div><div class="t">Gantt &amp; CPM</div><div class="d">Bars, float, critical path</div></div></div>
+  <div class="step" data-p="p8"><div class="n">9</div><div><div class="t">4D Simulation</div><div class="d">Play the build sequence</div></div></div>
+  <div class="step" data-p="p9"><div class="n">10</div><div><div class="t">Exports</div><div class="d">XER, XLSX, BIM 4D, XML</div></div></div>
 </nav>
 
 <!-- ================= 1. DRAWINGS ================= -->
@@ -233,7 +234,7 @@ code{font-family:var(--mono);background:var(--bg3);padding:1px 5px;border-radius
 <!-- ================= 3. ELEMENTS ================= -->
 <section class="page hide" id="p3">
   <h2 class="ph">3 · Elements &amp; quantities</h2>
-  <p class="pd">Everything the reader recognised, classified by the rules in step 5. Edit any cell — the schedule engine uses these numbers. <span class="hi">Quantity galat lage to seedha cell me theek kar do.</span></p>
+  <p class="pd">Everything the reader recognised, classified by the rules in step 6. Edit any cell — the schedule engine uses these numbers. <span class="hi">Quantity galat lage to seedha cell me theek kar do.</span></p>
   <div class="row" style="margin-bottom:10px">
     <div class="f"><label>Category</label><select id="eCat"><option value="">All</option></select></div>
     <div class="f"><label>Level</label><select id="eLvl"><option value="">All</option></select></div>
@@ -247,13 +248,55 @@ code{font-family:var(--mono);background:var(--bg3);padding:1px 5px;border-radius
   </div>
   <div class="card" style="padding:9px 12px"><div class="row" id="eSummary" style="gap:18px;font-size:12px"></div></div>
   <div class="tw"><table id="tEl"><thead><tr>
-    <th>#</th><th>Category</th><th>Mark</th><th>Level</th><th>Zone</th><th class="num">Qty</th><th>Unit</th><th>Layer</th><th>Source</th><th>BIM GUID / search set</th><th></th>
+    <th>#</th><th>Category</th><th>Mark</th><th>Level</th><th>Zone</th><th>Grid bay</th><th class="num">Qty</th><th>Unit</th><th>Layer</th><th>Sheet</th><th>Source</th><th>BIM GUID / search set</th><th></th>
   </tr></thead><tbody></tbody></table></div>
 </section>
 
-<!-- ================= 4. GROUP SCHEDULE ================= -->
+<!-- ================= 4. GRIDS & ZONES ================= -->
+<section class="page hide" id="pz">
+  <h2 class="ph">4 · Grids &amp; zones — area-wise planning</h2>
+  <p class="pd">The reader finds the <b>column grid</b> (A, B, C… / 1, 2, 3…) on every sheet and places each element in its bay. Split that grid into work areas and the schedule is built area by area, with real quantities per area. <span class="hi">Grid ke hisaab se zone banao — har zone ki apni quantity aur apni activity banegi.</span></p>
+  <div class="kpis">
+    <div class="kpi"><div class="v" id="kSheets">0</div><div class="l">Sheets read</div></div>
+    <div class="kpi"><div class="v" id="kGrids">0</div><div class="l">Sheets with grid</div></div>
+    <div class="kpi"><div class="v" id="kGx">0</div><div class="l">Grid lines X</div></div>
+    <div class="kpi"><div class="v" id="kGy">0</div><div class="l">Grid lines Y</div></div>
+    <div class="kpi"><div class="v" id="kZones">0</div><div class="l">Work areas</div></div>
+    <div class="kpi"><div class="v" id="kZoned">0%</div><div class="l">Elements placed by grid</div></div>
+  </div>
+  <div class="card"><h3>Split the grid into work areas</h3>
+    <div class="row">
+      <div class="f"><label>Areas along Y (rows)</label><input type="number" id="zRows" value="1" min="1" max="8"></div>
+      <div class="f"><label>Areas along X (columns)</label><input type="number" id="zCols" value="1" min="1" max="8"></div>
+      <button class="btn pri" id="zApply">⚙ Auto-split grid</button>
+      <button class="btn" id="zAdd">＋ Add area</button>
+      <button class="btn" id="zRe">↻ Re-assign elements</button>
+      <div class="spacer" style="flex:1"></div>
+      <span class="badge" id="zStat">—</span>
+    </div>
+    <p class="pd" style="margin:9px 0 0">Every area is a grid range — e.g. <code>A-D / 1-4</code>. An element belongs to the area its centre falls in, so quantities, durations, the Gantt and the 4D colours all follow the real plan. <span class="hi">Bina grid wali sheet ho to quantity barabar bant jati hai.</span></p>
+  </div>
+  <div class="grid g2">
+    <div class="card"><h3>Work areas <span class="badge" id="bZones">0</span></h3>
+      <div class="tw" style="max-height:44vh"><table id="tZone"><thead><tr>
+        <th>Area</th><th>X from</th><th>X to</th><th>Y from</th><th>Y to</th><th>Levels</th><th class="num">Plan area</th><th class="num">Elements</th><th></th>
+      </tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="card"><h3>Zone map</h3>
+      <div class="row" style="margin-bottom:8px"><div class="f" style="min-width:200px"><label>Sheet</label><select id="zSheet"></select></div></div>
+      <div class="canvwrap" style="min-height:330px;height:330px"><canvas id="cvZ"></canvas><div class="vinfo" id="zInfo">—</div></div>
+    </div>
+  </div>
+  <div class="card"><h3>Sheets, levels and grids read</h3>
+    <div class="tw" style="max-height:40vh"><table id="tSheet"><thead><tr>
+      <th>File</th><th>Sheet</th><th>Level(s)</th><th>Discipline</th><th>Sheet no</th><th>Scale</th><th>Grid X</th><th>Grid Y</th><th>Grid from</th><th>Title</th>
+    </tr></thead><tbody></tbody></table></div>
+  </div>
+</section>
+
+<!-- ================= 5. GROUP SCHEDULE ================= -->
 <section class="page hide" id="p4">
-  <h2 class="ph">4 · Group-level schedule</h2>
+  <h2 class="ph">5 · Group-level schedule</h2>
   <p class="pd">Import your existing summary programme — <b>.xer</b> (Primavera P6), <b>.xlsx/.csv</b>, or <b>.xml</b> (MS Project). Each group activity becomes a WBS parent that the engine explodes into detailed, location-wise activities. <span class="hi">Aapka group level schedule yahan import karo.</span></p>
   <div class="drop" id="dropSch">
     <b>Drop your group schedule here, or click to browse</b>
@@ -273,7 +316,7 @@ code{font-family:var(--mono);background:var(--bg3);padding:1px 5px;border-radius
 
 <!-- ================= 5. RULES & NORMS ================= -->
 <section class="page hide" id="p5">
-  <h2 class="ph">5 · Rules &amp; productivity norms</h2>
+  <h2 class="ph">6 · Rules &amp; productivity norms</h2>
   <p class="pd">Two tables drive everything: <b>read rules</b> turn CAD layers/text into element categories, and <b>work-package norms</b> turn quantities into durations and sequence.</p>
   <div class="tabs"><button class="on" data-t="tab1">Read rules (layer → category)</button><button data-t="tab2">Work packages &amp; norms</button><button data-t="tab3">Calendar &amp; sequencing</button></div>
 
@@ -309,7 +352,7 @@ code{font-family:var(--mono);background:var(--bg3);padding:1px 5px;border-radius
     </div>
     <div class="card"><h3>Sequencing &amp; splitting</h3>
       <div class="grid g3">
-        <div class="f"><label>Zones per level</label><input type="number" id="nZones" value="1" min="1" max="12"><small style="color:var(--tx3);font-size:10.5px">Quantities split equally if drawings have no zone info</small></div>
+        <div class="f"><label>Fallback zones per level</label><input type="number" id="nZones" value="1" min="1" max="12"><small style="color:var(--tx3);font-size:10.5px">Only for sheets with no grid — real areas come from step 4</small></div>
         <div class="f"><label>Zone overlap %</label><input type="number" id="zOver" value="50" min="0" max="100"><small style="color:var(--tx3);font-size:10.5px">Zone 2 starts after this % of zone 1</small></div>
         <div class="f"><label>Level-to-level lag (d)</label><input type="number" id="lvlLag" value="0"></div>
         <div class="f"><label>Number of levels (if not detected)</label><input type="number" id="nLevels" value="0" min="0" max="80"></div>
@@ -323,7 +366,7 @@ code{font-family:var(--mono);background:var(--bg3);padding:1px 5px;border-radius
 
 <!-- ================= 6. DEVELOP ================= -->
 <section class="page hide" id="p6">
-  <h2 class="ph">6 · Develop the detailed schedule</h2>
+  <h2 class="ph">7 · Develop the detailed schedule</h2>
   <p class="pd">Explodes every group activity into <b>work package × level × zone</b> activities, sizes each one from the drawing quantities, links them, and runs a full CPM pass.</p>
   <div class="card"><h3>Run engine</h3>
     <div class="row">
@@ -352,7 +395,7 @@ code{font-family:var(--mono);background:var(--bg3);padding:1px 5px;border-radius
 
 <!-- ================= 7. GANTT ================= -->
 <section class="page hide" id="p7">
-  <h2 class="ph">7 · Gantt &amp; critical path</h2>
+  <h2 class="ph">8 · Gantt &amp; critical path</h2>
   <div class="row" style="margin-bottom:9px">
     <div class="f"><label>Scale</label><select id="gScale"><option value="d">Day</option><option value="w" selected>Week</option><option value="m">Month</option></select></div>
     <div class="f"><label>Group by</label><select id="gGroup"><option value="wbs">WBS / group activity</option><option value="level">Level</option><option value="zone">Zone</option><option value="none">Flat</option></select></div>
@@ -360,12 +403,12 @@ code{font-family:var(--mono);background:var(--bg3);padding:1px 5px;border-radius
     <button class="btn" id="gSvg">⬇ SVG</button>
   </div>
   <div class="legend"><span><i style="background:#4f9cf9"></i>Normal</span><span><i style="background:#f85149"></i>Critical path</span><span><i style="background:#a371f7"></i>Group / summary</span><span><i style="background:#d29922"></i>Milestone</span><span><i style="background:#2a3441"></i>Total float</span></div>
-  <div class="gantt" id="gantt"><div class="empty">Develop the schedule first (step 6)</div></div>
+  <div class="gantt" id="gantt"><div class="empty">Develop the schedule first (step 7)</div></div>
 </section>
 
 <!-- ================= 8. 4D ================= -->
 <section class="page hide" id="p8">
-  <h2 class="ph">8 · 4D simulation</h2>
+  <h2 class="ph">9 · 4D simulation</h2>
   <p class="pd">Plays the programme against the drawing geometry: every element is coloured by the state of the activity that builds it. <span class="hi">Ye wahi 4D hai jo Navisworks TimeLiner me chalta hai — yahan preview karo, phir step 9 se export.</span></p>
   <div class="simbar">
     <button class="btn pri" id="simPlay">▶ Play</button>
@@ -392,7 +435,7 @@ code{font-family:var(--mono);background:var(--bg3);padding:1px 5px;border-radius
 
 <!-- ================= 9. EXPORTS ================= -->
 <section class="page hide" id="p9">
-  <h2 class="ph">9 · Exports</h2>
+  <h2 class="ph">10 · Exports</h2>
   <p class="pd">All exports are generated in your browser from the developed schedule.</p>
   <div class="grid g2">
     <div class="card"><h3>Primavera P6 <span class="badge ac">.xer</span></h3>
@@ -461,8 +504,8 @@ const S={
   start:d2s(new Date()),
   units:'mm',
   cal:{days:[1,1,1,1,1,1,0],hpd:8,hols:[]},   // index 0 = Sunday
-  opts:{zones:1,zoneOverlap:50,lvlLag:0,levels:0,tradeOverlap:0,idPfx:'A',typical:true},
-  drawings:[], elements:[], groups:[], tasks:[], rels:[], wbs:[],
+  opts:{zones:1,zoneRows:1,zoneCols:1,zoneOverlap:50,lvlLag:0,levels:0,tradeOverlap:0,idPfx:'A',typical:true},
+  drawings:[], elements:[], groups:[], tasks:[], rels:[], wbs:[], zones:[],
   rules:[], norms:[],
   meta:{levels:[],zones:[]}
 };
@@ -490,9 +533,9 @@ const DEF_RULES=()=>[
  ['Plumbing','PIPE|PLUMB|DRAIN|SAN|WATER|P-','',                 'm','length',  1],
  ['Fire fighting','FIRE|SPRINK|FF-|HYDRANT','',                  'm','length',  1],
  ['Electrical','ELEC|CABLE|TRAY|CONDUIT|E-|LT-','',              'm','length',  1],
- ['Grid','GRID|AXIS|CL-|CENTRE ?LINE','^[A-Z]$|^\\d{1,2}$',      'nos','count', 1],
+ ['Grid','GRID|AXIS|CL-|CENTRE ?LINE','',                        'nos','count', 1,false],
  ['Furniture','FURN|FF&E|EQUIP','',                              'nos','count', 1]
-].map(r=>({id:uid('r'),on:true,cat:r[0],layer:r[1],text:r[2],unit:r[3],measure:r[4],factor:r[5]}));
+].map(r=>({id:uid('r'),on:r[6]!==false,cat:r[0],layer:r[1],text:r[2],unit:r[3],measure:r[4],factor:r[5]}));
 
 /* ---------- default work packages / productivity norms ---------- */
 const DEF_NORMS=()=>[
@@ -550,6 +593,7 @@ $$('#nav .step').forEach(st=>st.addEventListener('click',()=>{
   $$('section.page').forEach(p=>p.classList.add('hide'));
   const p=$('#'+st.dataset.p); p.classList.remove('hide');
   if(st.dataset.p==='p2') viewer.refresh();
+  if(st.dataset.p==='pz'){ renderSheets(); renderZones(); }
   if(st.dataset.p==='p7') drawGantt();
   if(st.dataset.p==='p8') sim.init();
 }));
@@ -561,7 +605,7 @@ $$('.tabs button').forEach(b=>b.addEventListener('click',()=>{
 /* ---------- persistence ---------- */
 function saveLocal(){ try{ localStorage.setItem('d4dp', JSON.stringify(serialize())); }catch(e){} }
 function serialize(){
-  return {v:1,name:S.name,start:S.start,units:S.units,cal:S.cal,opts:S.opts,rules:S.rules,norms:S.norms,
+  return {v:2,name:S.name,start:S.start,units:S.units,cal:S.cal,opts:S.opts,rules:S.rules,norms:S.norms,zones:S.zones,
     groups:S.groups,elements:S.elements,tasks:S.tasks,rels:S.rels,wbs:S.wbs,meta:S.meta,
     drawings:S.drawings.map(d=>({...d,raw:null,pdf:null,pageCanvas:null}))};
 }
@@ -570,28 +614,45 @@ function restore(o){
   S.cal=o.cal||S.cal; S.opts=Object.assign(S.opts,o.opts||{});
   S.rules=o.rules?.length?o.rules:DEF_RULES(); S.norms=o.norms?.length?o.norms:DEF_NORMS();
   S.groups=(o.groups||[]).map(g=>({...g,pkgs:g.pkgs||(g.pkg?[g.pkg]:[])})); S.elements=o.elements||[]; S.tasks=o.tasks||[]; S.rels=o.rels||[];
-  S.wbs=o.wbs||[]; S.meta=o.meta||{levels:[],zones:[]}; S.drawings=o.drawings||[];
+  S.wbs=o.wbs||[]; S.meta=o.meta||{levels:[],zones:[]}; S.drawings=o.drawings||[]; S.zones=o.zones||[];
   $('#projName').value=S.name; $('#projStart').value=S.start;
   renderAll();
 }
 
 /* ============================================================
-   DXF READER — group-code parser (no external library)
+   DXF READER v2 — chunked group-code parser (no external library)
+   Handles LINE / LWPOLYLINE / POLYLINE / ARC / CIRCLE / ELLIPSE /
+   SPLINE / POINT / SOLID / 3DFACE / HATCH / TEXT / MTEXT / ATTRIB /
+   ATTDEF / INSERT (with block geometry) / DIMENSION / LEADER.
    ============================================================ */
-const UNIT_SCALE={0:0.001,1:0.0254,2:0.3048,4:0.001,5:0.01,6:1,8:2.54e-5,9:0.001,10:0.9144};
-function parseDXF(text){
-  const L=text.split(/\r\n|\r|\n/);
-  const out={layers:{},ents:[],header:{},blocks:{}};
-  let sec='',cur=null,curBlock=null,poly=null,pendingHdr='';
-  const push=e=>{ if(!e)return; finishEnt(e); if(sec==='BLOCKS'&&curBlock){ (out.blocks[curBlock]??=[]).push(e); } else out.ents.push(e); };
-  for(let i=0;i<L.length-1;i+=2){
-    const code=parseInt(L[i]); if(isNaN(code))continue;
-    const val=L[i+1]===undefined?'':L[i+1].trim();
+const UNIT_SCALE={0:0.001,1:0.0254,2:0.3048,3:1609.344,4:0.001,5:0.01,6:1,7:1000,
+  8:2.54e-5,9:2.54e-8,10:0.9144,11:1e-10,12:1e-9,13:1e-6,14:0.1,15:10,16:100};
+const TEXTY=new Set(['TEXT','MTEXT','ATTRIB','ATTDEF']);
+const CORNER_TYPES=new Set(['SOLID','3DFACE','TRACE']);
+
+async function parseDXF(text,onProg){
+  const out={layers:{},ents:[],header:{},blocks:{},counts:{}};
+  let sec='',cur=null,curBlock=null,poly=null,pendingHdr='',lastIns=null;
+  const push=e=>{
+    if(!e)return; finishEnt(e);
+    out.counts[e.type]=(out.counts[e.type]||0)+1;
+    if(sec==='BLOCKS'&&curBlock){ (out.blocks[curBlock] ??= []).push(e); }
+    else out.ents.push(e);
+  };
+  const N=text.length; let i=0,pairs=0,codeLine=null;
+  while(i<N){
+    let j=text.indexOf('\n',i); if(j<0)j=N;
+    let line=text.slice(i,j); i=j+1;
+    if(line.charCodeAt(line.length-1)===13) line=line.slice(0,-1);
+    if(codeLine===null){ codeLine=line; continue; }
+    const code=+codeLine.trim(); const val=line.trim(); codeLine=null;
+    if(!(++pairs&0x3FFFF)&&onProg){ onProg(i/N); await new Promise(r=>setTimeout(r)); }
+    if(isNaN(code))continue;
     if(code===0){
       if(val==='SECTION'){ push(cur);cur=null;poly=null;sec='?';continue; }
       if(val==='ENDSEC'){ push(cur);cur=null;poly=null;sec='';continue; }
       if(val==='EOF')break;
-      if(sec==='TABLES'){ push(cur); cur = (val==='LAYER')?{type:'LAYER'}:null; continue; }
+      if(sec==='TABLES'){ push(cur); cur=(val==='LAYER')?{type:'LAYER'}:null; continue; }
       if(sec==='BLOCKS'||sec==='ENTITIES'){
         if(val==='VERTEX'&&poly){ cur={type:'VERTEX',_p:poly}; continue; }
         if(val==='SEQEND'){ push(cur); cur=null; poly=null; continue; }
@@ -599,6 +660,8 @@ function parseDXF(text){
         if(val==='BLOCK'){ cur={type:'BLOCK'}; poly=null; continue; }
         if(val==='ENDBLK'){ cur=null; curBlock=null; poly=null; continue; }
         cur={type:val,layer:'0',xs:[],ys:[]};
+        if(val==='INSERT') lastIns=cur;
+        if(val==='ATTRIB'&&lastIns) cur._ins=lastIns;
         poly=(val==='POLYLINE')?cur:null;
         continue;
       }
@@ -607,36 +670,56 @@ function parseDXF(text){
     if(sec==='?'&&code===2){ sec=val; continue; }
     if(sec==='HEADER'){ if(code===9)pendingHdr=val; else if(pendingHdr){ out.header[pendingHdr]=val; pendingHdr=''; } continue; }
     if(!cur)continue;
+    const f=parseFloat(val);
     switch(code){
-      case 1: cur.text=(cur.text||'')+val; break;
+      case 1: cur.text=(cur.text||'')+val; if(cur._ins){ (cur._ins.attribs ??= []).push(val); } break;
       case 3: case 4: if(cur.type==='MTEXT')cur.text=(cur.text||'')+val; break;
-      case 2: if(cur.type==='LAYER')cur.name=val; else if(cur.type==='BLOCK'){cur.name=val;curBlock=val;} else cur.blk=val; break;
+      case 2: if(cur.type==='LAYER')cur.name=val;
+              else if(cur.type==='BLOCK'){cur.name=val;curBlock=val;}
+              else cur.blk=val; break;
       case 6: cur.ltype=val; break;
       case 7: cur.style=val; break;
       case 8: cur.layer=val; break;
-      case 10: (cur._p||cur).xs?.push(parseFloat(val)); cur.x=parseFloat(val); break;
-      case 20: (cur._p||cur).ys?.push(parseFloat(val)); cur.y=parseFloat(val); break;
-      case 11: cur.x2=parseFloat(val); break;
-      case 21: cur.y2=parseFloat(val); break;
-      case 40: cur.r=parseFloat(val); cur.h=parseFloat(val); break;
-      case 41: cur.sx=parseFloat(val); break;
-      case 42: cur.sy=parseFloat(val); break;
-      case 50: cur.rot=parseFloat(val); break;
+      case 10: (cur._p||cur).xs?.push(f); if(cur.x===undefined)cur.x=f; break;
+      case 20: (cur._p||cur).ys?.push(f); if(cur.y===undefined)cur.y=f; break;
+      case 11: if(CORNER_TYPES.has(cur.type)){cur.xs.push(f);} else cur.x2=f; break;
+      case 21: if(CORNER_TYPES.has(cur.type)){cur.ys.push(f);} else cur.y2=f; break;
+      case 12: if(CORNER_TYPES.has(cur.type))cur.xs.push(f); break;
+      case 22: if(CORNER_TYPES.has(cur.type))cur.ys.push(f); break;
+      case 13: if(CORNER_TYPES.has(cur.type))cur.xs.push(f); break;
+      case 23: if(CORNER_TYPES.has(cur.type))cur.ys.push(f); break;
+      case 40: cur.r=f; cur.h=f; break;
+      case 41: if(cur.type==='INSERT')cur.sx=f; else if(cur.type==='ELLIPSE')cur.rat=f; break;
+      case 42: if(cur.type==='INSERT')cur.sy=f; else if(cur.type==='DIMENSION')cur.meas=f; break;
+      case 43: if(cur.type==='INSERT')cur.sz=f; break;
+      case 50: cur.rot=f; break;
       case 62: cur.color=parseInt(val); break;
       case 70: cur.flags=parseInt(val); break;
       case 90: cur.nv=parseInt(val); break;
+      case 91: cur.paths=parseInt(val); break;
     }
   }
   push(cur);
+
+  /* block totals so an INSERT can carry real length / area */
+  const blkTot={};
+  for(const [nm,list] of Object.entries(out.blocks)){
+    let L=0,A=0; for(const e of list){ L+=e.len||0; A+=e.area||0; }
+    blkTot[nm]={len:L,area:A,n:list.length};
+  }
   const scale=UNIT_SCALE[parseInt(out.header.$INSUNITS??'4')] ?? 0.001;
   const ents=[],layers={};
   for(const e of out.ents){
-    if(e.type==='LAYER'&&e.name){ layers[e.name]={name:e.name,color:e.color??7,count:0}; continue; }
+    if(e.type==='LAYER'&&e.name){ layers[e.name]={name:e.name,color:e.color??7,count:0,off:(e.color??7)<0}; continue; }
     if(e.type==='VERTEX'||e.type==='BLOCK')continue;
+    if(e.type==='INSERT'){
+      const t=blkTot[e.blk]; const sx=Math.abs(num(e.sx,1))||1, sy=Math.abs(num(e.sy,1))||1;
+      if(t){ e.blkLen=t.len*sx; e.blkArea=t.area*sx*sy; e.blkN=t.n; }
+    }
     ents.push(e);
-    const ly=e.layer||'0'; (layers[ly]??={name:ly,color:7,count:0}).count++;
+    const ly=e.layer||'0'; (layers[ly] ??= {name:ly,color:7,count:0}).count++;
   }
-  return {ents,layers,scale,header:out.header,blocks:out.blocks};
+  return {ents,layers,scale,header:out.header,blocks:out.blocks,counts:out.counts};
 }
 function finishEnt(e){
   if(!e||!e.xs)return e;
@@ -644,28 +727,32 @@ function finishEnt(e){
   const xs=e.xs||[],ys=e.ys||[];
   let len=0;
   for(let i=1;i<xs.length;i++) len+=Math.hypot(xs[i]-xs[i-1],ys[i]-ys[i-1]);
-  const closed=(e.flags&1)===1&&xs.length>2;
+  const closed=((e.flags&1)===1&&xs.length>2)||CORNER_TYPES.has(e.type)||e.type==='HATCH';
   if(closed&&xs.length>2) len+=Math.hypot(xs[0]-xs[xs.length-1],ys[0]-ys[ys.length-1]);
   let area=0;
-  if((closed||e.type==='SOLID'||e.type==='HATCH')&&xs.length>2){
+  if(closed&&xs.length>2){
     for(let i=0,j=xs.length-1;i<xs.length;j=i++) area+=(xs[j]+xs[i])*(ys[j]-ys[i]);
     area=Math.abs(area/2);
   }
   if(e.type==='CIRCLE'&&isFinite(e.r)){ area=Math.PI*e.r*e.r; len=2*Math.PI*e.r; }
-  if(e.type==='ARC'&&isFinite(e.r)) len=2*Math.PI*e.r*0.5;
+  if(e.type==='ARC'&&isFinite(e.r)) len=Math.PI*e.r;
+  if(e.type==='ELLIPSE'&&isFinite(e.r)){ const b=e.r*num(e.rat,1); area=Math.PI*Math.abs(e.r*b); len=Math.PI*(Math.abs(e.r)+Math.abs(b)); }
   e.len=len; e.area=area; e.closed=closed;
-  if(xs.length){ e.bb=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]; }
-  delete e._p;
+  if(xs.length){
+    e.bb=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)];
+    e.cx=(e.bb[0]+e.bb[2])/2; e.cy=(e.bb[1]+e.bb[3])/2;
+  } else if(isFinite(e.x)){ e.cx=e.x; e.cy=e.y; e.bb=[e.x,e.y,e.x,e.y]; }
+  delete e._p; delete e._ins;
   return e;
 }
 
 /* ============================================================
-   PDF READER — pdf.js text + geometry-free metadata
+   PDF READER — per-sheet text, positions and page sizes
    ============================================================ */
 if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 const RT={pdf:{}};   // runtime-only handles (never serialised)
 
-async function readPDFFile(file){
+async function readPDFFile(file,onProg){
   if(typeof pdfjsLib==='undefined') throw new Error('PDF engine not loaded — open this page once while online so pdf.js can be cached');
   const buf=new Uint8Array(await file.arrayBuffer());
   const doc=await pdfjsLib.getDocument({data:buf,useWorkerFetch:false,isEvalSupported:false}).promise;
@@ -678,6 +765,7 @@ async function readPDFFile(file){
       const s=(it.str||'').trim(); if(!s)continue;
       texts.push({p,str:s,x:it.transform[4],y:it.transform[5],h:Math.abs(it.transform[3])||8});
     }
+    if(onProg&&!(p&7)){ onProg(p/doc.numPages); await new Promise(r=>setTimeout(r)); }
   }
   const d={id:uid('d'),name:file.name,type:'pdf',pages:doc.numPages,texts,sizes,ents:[],layers:{},scale:1,meta:{}};
   RT.pdf[d.id]=doc;
@@ -685,7 +773,7 @@ async function readPDFFile(file){
 }
 
 /* ============================================================
-   SHEET METADATA — discipline, level, zone, plot scale
+   SHEET METADATA — one record per sheet, not per file
    ============================================================ */
 const LEVEL_PATTERNS=[
   [/\b(TERRACE|ROOF ?(PLAN|LEVEL)?)\b/i,'Terrace'],
@@ -702,9 +790,26 @@ const LEVEL_PATTERNS=[
   [/\b(PLINTH)\b/i,'Plinth'],
   [/\bFLOOR ?(\d{1,2})\b/i,m=>'L'+num(m[1])]
 ];
-function detectLevel(str){
+const NAME_PATTERNS=[
+  [/(^|[^A-Z0-9])L[-_ .]?(\d{1,2})([^0-9]|$)/i,m=>'L'+num(m[2])],
+  [/(^|[^A-Z0-9])(\d{1,2})F([^A-Z0-9]|$)/i,m=>'L'+num(m[2])],
+  [/(^|[^A-Z0-9])B[-_ .]?(\d)([^0-9]|$)/i,m=>'B'+num(m[2])],
+  [/(^|[^A-Z0-9])(GF|GRD)([^A-Z0-9]|$)/i,'GF'],
+  [/(^|[^A-Z0-9])(TER|TERR|ROOF)([^A-Z0-9]|$)/i,'Terrace'],
+  [/(^|[^A-Z0-9])(FDN|FND|FOUND|FTG)([^A-Z0-9]|$)/i,'Foundation'],
+  [/(^|[^A-Z0-9])(PLINTH|PLN)([^A-Z0-9]|$)/i,'Plinth']
+];
+function detectLevel(str,loose){
   for(const [re,out] of LEVEL_PATTERNS){ const m=String(str).match(re); if(m) return typeof out==='function'?out(m):out; }
+  if(loose) for(const [re,out] of NAME_PATTERNS){ const m=String(str).match(re); if(m) return typeof out==='function'?out(m):out; }
   return null;
+}
+/** "TYPICAL FLOOR PLAN (L3 TO L12)" → ['L3','L4',…,'L12'] */
+function detectLevelRange(str){
+  const m=String(str).match(/\b(?:L|LEVEL|FLOOR)\s*-?\s*(\d{1,2})\s*(?:TO|-|–|THRU|THROUGH)\s*(?:L|LEVEL|FLOOR)?\s*-?\s*(\d{1,2})\b/i);
+  if(!m)return null;
+  const a=num(m[1]),b=num(m[2]); if(b<=a||b-a>60)return null;
+  return Array.from({length:b-a+1},(_,i)=>'L'+(a+i));
 }
 function detectZone(str){
   const m=String(str).match(/\b(ZONE|BLOCK|TOWER|WING|SECTOR|POUR)\s*-?\s*([A-Z0-9]{1,3})\b/i);
@@ -715,82 +820,320 @@ const DISCIPLINES=[[/STRUC|RCC|^S-|\bS\d{3}|REINF|FOUND|COLUMN|BEAM|SLAB/i,'Stru
   [/ELEC|^E-|LIGHT|POWER|CABLE/i,'Electrical'],[/PLUMB|^P-|SANITARY|WATER|DRAIN/i,'Plumbing'],
   [/HVAC|^M-|MECH|DUCT|AHU/i,'HVAC'],[/FIRE|SPRINK|HYDRANT/i,'Fire fighting'],
   [/SITE|CIVIL|ROAD|EXTERNAL|LANDSCAPE/i,'Civil / external']];
-function sheetMeta(d){
-  const hay=[d.name,...(d.texts||[]).slice(0,400).map(t=>t.str),...Object.keys(d.layers||{})].join(' | ');
+
+/** metadata for one sheet from its own text (falls back to the file name) */
+function sheetMeta(fileName,texts,layerNames){
+  const strs=texts.map(t=>t.str);
+  const hay=[fileName,...strs.slice(0,600),...(layerNames||[])].join(' | ');
   const m={};
-  m.level=detectLevel(d.name)||detectLevel(hay)||'';
-  m.zone=detectZone(d.name)||detectZone(hay)||'';
+  m.level=detectLevel(fileName,true)||detectLevel(hay)||'';
+  m.levels=detectLevelRange(fileName)||detectLevelRange(hay)||null;
+  if(m.levels&&!m.level) m.level=m.levels[0];
+  m.zone=detectZone(fileName)||detectZone(hay)||'';
   m.discipline=(DISCIPLINES.find(([re])=>re.test(hay))||[0,'General'])[1];
   const sc=hay.match(/\b1 ?[:\/] ?(\d{1,4})\b/); m.scale=sc?'1:'+sc[1]:'';
-  const dn=(d.texts||[]).map(t=>t.str).find(s=>/^[A-Z]{1,4}[-\/]?\d{2,4}([-\/]?[A-Z0-9]{1,3})?$/.test(s));
-  m.sheetNo=dn||'';
-  const ti=(d.texts||[]).filter(t=>t.str.length>8&&/PLAN|SECTION|ELEVATION|DETAIL|LAYOUT|SCHEDULE/i.test(t.str))
-                        .sort((a,b)=>b.h-a.h)[0];
+  m.sheetNo=strs.find(x=>/^[A-Z]{1,4}[-\/]?\d{2,4}([-\/]?[A-Z0-9]{1,3})?$/.test(x))||'';
+  const ti=texts.filter(t=>t.str.length>8&&/PLAN|SECTION|ELEVATION|DETAIL|LAYOUT|SCHEDULE|FRAMING/i.test(t.str))
+                .sort((a,b)=>b.h-a.h)[0];
   m.title=ti?ti.str:'';
   return m;
 }
 
 /* ============================================================
-   CLASSIFICATION — rules -> element rows with quantities
+   GRID ENGINE — find the column grid (A,B,C… / 1,2,3…) on a sheet
    ============================================================ */
-const GEOM_TYPES=new Set(['LINE','LWPOLYLINE','POLYLINE','ARC','CIRCLE','SPLINE','SOLID','HATCH','ELLIPSE']);
+const GRID_LAYER=/GRID|AXIS|CENTR|CENTER|CL[-_ ]|COL[-_ ]?GRID|DATUM/i;
+const isGridLabel=s=>/^[A-Z]{1,2}$/.test(s)||/^\d{1,2}$/.test(s)||/^[A-Z]'$/.test(s);
+const labelSort=(a,b)=>{
+  const na=/^\d+$/.test(a), nb=/^\d+$/.test(b);
+  if(na&&nb)return +a-+b; if(na!==nb)return na?1:-1; return a<b?-1:1;
+};
+/** @returns {x:[{label,c}],y:[{label,c}],from} coordinates in drawing units */
+function detectGrid(cands,ents){
+  const g={x:[],y:[],from:'none'};
+  if(cands.length>=4){
+    const by={};
+    cands.forEach(c=>{ (by[c.s] ??= []).push(c); });
+    const X={},Y={};
+    for(const [lab,list] of Object.entries(by)){
+      if(list.length>40)continue;                                  // a note, not a grid bubble
+      const xs=list.map(o=>o.x), ys=list.map(o=>o.y);
+      const sx=Math.max(...xs)-Math.min(...xs), sy=Math.max(...ys)-Math.min(...ys);
+      const mx=xs.reduce((a,b)=>a+b,0)/xs.length, my=ys.reduce((a,b)=>a+b,0)/ys.length;
+      if(list.length>=2&&sx<=sy*0.25) X[lab]=mx;                    // same x, spread in y → vertical grid line
+      else if(list.length>=2&&sy<=sx*0.25) Y[lab]=my;               // same y, spread in x → horizontal grid line
+      else if(/^\d+$/.test(lab)) Y[lab]=my; else X[lab]=mx;         // single bubble: letters→X, numbers→Y
+    }
+    g.x=Object.entries(X).map(([label,c])=>({label,c})).sort((a,b)=>a.c-b.c);
+    g.y=Object.entries(Y).map(([label,c])=>({label,c})).sort((a,b)=>a.c-b.c);
+    dedupeAxis(g.x); dedupeAxis(g.y);
+    if(g.x.length>=2&&g.y.length>=2){ g.from='grid bubbles'; return g; }
+  }
+  const gl=gridFromLines(ents);
+  return (gl.x.length>=2&&gl.y.length>=2)?gl:g;
+}
+function dedupeAxis(arr){
+  if(arr.length<2)return;
+  const span=arr[arr.length-1].c-arr[0].c||1;
+  for(let i=arr.length-1;i>0;i--) if(Math.abs(arr[i].c-arr[i-1].c)<span*0.004) arr.splice(i,1);
+}
+/** grid from long centre lines when no bubbles were found */
+function gridFromLines(ents){
+  const g={x:[],y:[],from:'grid lines'};
+  if(!ents||!ents.length)return {x:[],y:[],from:'none'};
+  let x0=1e18,y0=1e18,x1=-1e18,y1=-1e18;
+  ents.forEach(e=>{ if(!e.bb)return; x0=Math.min(x0,e.bb[0]);y0=Math.min(y0,e.bb[1]);x1=Math.max(x1,e.bb[2]);y1=Math.max(y1,e.bb[3]); });
+  const W=x1-x0, H=y1-y0; if(!(W>0&&H>0))return {x:[],y:[],from:'none'};
+  const minLen=Math.min(W,H)*0.5, tol=Math.min(W,H)*0.002;
+  const vx=[],hy=[];
+  for(const e of ents){
+    if(e.type!=='LINE'&&e.type!=='LWPOLYLINE')continue;
+    const onGrid=GRID_LAYER.test(e.layer||'')||/CENTER|DASHDOT|GRID/i.test(e.ltype||'');
+    if(!onGrid)continue;
+    const xs=e.xs||[],ys=e.ys||[]; if(xs.length<2)continue;
+    const dx=Math.abs(xs[xs.length-1]-xs[0]), dy=Math.abs(ys[ys.length-1]-ys[0]);
+    if(dx<=tol&&dy>minLen) vx.push(xs[0]);
+    else if(dy<=tol&&dx>minLen) hy.push(ys[0]);
+  }
+  const cluster=arr=>{ arr.sort((a,b)=>a-b); const out=[];
+    arr.forEach(v=>{ if(!out.length||Math.abs(v-out[out.length-1])>tol*4) out.push(v); });
+    return out; };
+  const XS=cluster(vx), YS=cluster(hy);
+  g.x=XS.map((c,i)=>({label:colLabel(i),c}));
+  g.y=YS.map((c,i)=>({label:String(i+1),c}));
+  return (g.x.length>=2&&g.y.length>=2)?g:{x:[],y:[],from:'none'};
+}
+const colLabel=i=>i<26?String.fromCharCode(65+i):String.fromCharCode(64+Math.floor(i/26))+String.fromCharCode(65+i%26);
+/** index of the bay (interval) a coordinate falls in */
+function axisIndex(arr,v){
+  if(!arr||arr.length<2)return 0;
+  if(v<=arr[0].c)return 0;
+  for(let i=0;i<arr.length-1;i++) if(v<arr[i+1].c) return i;
+  return arr.length-2;
+}
+function bayOf(g,x,y){
+  if(!g||g.x.length<2||g.y.length<2)return '';
+  const i=axisIndex(g.x,x), j=axisIndex(g.y,y);
+  return g.x[i].label+'-'+g.x[i+1].label+'/'+g.y[j].label+'-'+g.y[j+1].label;
+}
+
+/* ============================================================
+   ZONE ENGINE — grid ranges define the areas the schedule uses
+   ============================================================ */
+function masterGrid(){
+  // the sheet grid with the most lines becomes the project grid; others merge into it
+  let bx=[],by=[];
+  allSheets().forEach(sh=>{
+    if(!sh.grid)return;
+    if(sh.grid.x.length>bx.length) bx=sh.grid.x.map(o=>o.label);
+    if(sh.grid.y.length>by.length) by=sh.grid.y.map(o=>o.label);
+  });
+  allSheets().forEach(sh=>{
+    sh.grid?.x.forEach(o=>{ if(!bx.includes(o.label))bx.push(o.label); });
+    sh.grid?.y.forEach(o=>{ if(!by.includes(o.label))by.push(o.label); });
+  });
+  return {x:bx,y:by};
+}
+function allSheets(){ return S.drawings.flatMap(d=>(d.sheets||[]).map(sh=>({...sh,d}))); }
+
+/** split the project grid into rows x cols zones */
+function autoZones(rows,cols){
+  const mg=masterGrid();
+  if(mg.x.length<2||mg.y.length<2){
+    S.zones=Array.from({length:Math.max(1,rows*cols)},(_,i)=>({id:uid('z'),name:'Z'+(i+1),x0:'',x1:'',y0:'',y1:'',levels:'*'}));
+    return S.zones;
+  }
+  const cut=(arr,n)=>{ // n contiguous chunks of grid lines, each chunk shares its end line
+    const segs=arr.length-1, per=Math.max(1,Math.round(segs/n)), out=[];
+    let i=0;
+    for(let k=0;k<n;k++){
+      const j=(k===n-1)?arr.length-1:Math.min(arr.length-1,i+per);
+      if(i>=arr.length-1){ out.push([arr[arr.length-2],arr[arr.length-1]]); continue; }
+      out.push([arr[i],arr[j]]); i=j;
+    }
+    return out;
+  };
+  const cx=cut(mg.x,cols), cy=cut(mg.y,rows);
+  const zs=[]; let n=0;
+  cy.forEach(([y0,y1])=>cx.forEach(([x0,x1])=>{
+    zs.push({id:uid('z'),name:'Z'+(++n),x0,x1,y0,y1,levels:'*'});
+  }));
+  S.zones=zs; return zs;
+}
+const zoneLabel=z=>z.x0?`${z.name} (${z.x0}-${z.x1}/${z.y0}-${z.y1})`:z.name;
+function zonesFor(level){
+  const zs=(S.zones||[]).filter(z=>!z.levels||z.levels==='*'||String(z.levels).split(/[,;]/).map(x=>x.trim()).includes(level));
+  return zs.length?zs:(S.zones||[]);
+}
+/** zone rectangles of this sheet in drawing units */
+function zoneRects(gr,level){
+  if(!gr||gr.x.length<2||gr.y.length<2)return [];
+  return zonesFor(level).map(z=>{
+    if(!z.x0)return null;
+    const cx0=gr.x.find(o=>o.label===z.x0)?.c, cx1=gr.x.find(o=>o.label===z.x1)?.c;
+    const cy0=gr.y.find(o=>o.label===z.y0)?.c, cy1=gr.y.find(o=>o.label===z.y1)?.c;
+    if(![cx0,cx1,cy0,cy1].every(v=>isFinite(v)))return null;
+    return {name:z.name,x0:Math.min(cx0,cx1),x1:Math.max(cx0,cx1),y0:Math.min(cy0,cy1),y1:Math.max(cy0,cy1)};
+  }).filter(Boolean);
+}
+/** how an element is shared between work areas: counts go to one area, slabs/walls split by overlap */
+function zoneSplit(gr,level,e,measure){
+  const one=[[zoneOf(gr,e.cx,e.cy,level),1]];
+  if(measure==='count'||!e.bb)return one;
+  const rects=zoneRects(gr,level); if(rects.length<2)return one;
+  const bw=Math.max(e.bb[2]-e.bb[0],1e-9), bh=Math.max(e.bb[3]-e.bb[1],1e-9);
+  const thin=Math.min(bw,bh)/Math.max(bw,bh)<0.25;      // a line-like element
+  const parts=[]; let tot=0;
+  for(const r of rects){
+    const eps=Math.max(r.x1-r.x0,r.y1-r.y0)*1e-6;
+    const ox=Math.min(e.bb[2],r.x1)-Math.max(e.bb[0],r.x0);
+    const oy=Math.min(e.bb[3],r.y1)-Math.max(e.bb[1],r.y0);
+    if(ox<-eps||oy<-eps)continue;                       // no overlap (a flat line still counts)
+    const oxp=Math.max(ox,0), oyp=Math.max(oy,0);
+    const w=thin?(bw>=bh?oxp/bw:oyp/bh):(oxp*oyp)/(bw*bh);
+    if(w>0.002){ parts.push([r.name,w]); tot+=w; }
+  }
+  if(!parts.length||tot<=0)return one;
+  return parts.map(([n,w])=>[n,w/tot]);
+}
+/** which zone a point on this sheet belongs to (label based, so it works across sheets) */
+function zoneOf(grid,x,y,level){
+  const zs=zonesFor(level); if(!zs.length)return 'Z1';
+  if(!grid||grid.x.length<2||grid.y.length<2||!zs[0].x0) return zs[0].name;
+  const mg=masterGrid();
+  const xi=mg.x.indexOf(grid.x[axisIndex(grid.x,x)].label);
+  const yi=mg.y.indexOf(grid.y[axisIndex(grid.y,y)].label);
+  for(const z of zs){
+    const a=mg.x.indexOf(z.x0), b=mg.x.indexOf(z.x1), c=mg.y.indexOf(z.y0), e=mg.y.indexOf(z.y1);
+    if(a<0||b<0||c<0||e<0)continue;
+    if(xi>=Math.min(a,b)&&xi<Math.max(a,b)+1&&yi>=Math.min(c,e)&&yi<Math.max(c,e)+1) return z.name;
+  }
+  return zs[0].name;
+}
+
+/* ============================================================
+   CLASSIFICATION — rules → element rows, per sheet / level / zone
+   ============================================================ */
+const GEOM_TYPES=new Set(['LINE','LWPOLYLINE','POLYLINE','ARC','CIRCLE','SPLINE','SOLID','3DFACE','HATCH','ELLIPSE']);
 function rxOf(s){ if(!s)return null; try{ return new RegExp(s,'i'); }catch(e){ return null; } }
-
+function cleanTxt(t){ return String(t||'').replace(/\\[A-Za-z][^;]*;/g,'').replace(/[{}]/g,'').trim().toUpperCase(); }
+function bboxOf(ents){
+  let x0=1e18,y0=1e18,x1=-1e18,y1=-1e18,got=false;
+  (ents||[]).forEach(e=>{ if(!e.bb)return; got=true;
+    x0=Math.min(x0,e.bb[0]);y0=Math.min(y0,e.bb[1]);x1=Math.max(x1,e.bb[2]);y1=Math.max(y1,e.bb[3]); });
+  return got?[x0,y0,x1,y1]:null;
+}
+/** one record per sheet: its own level, zone, grid and title block */
+function buildSheets(d){
+  const sheets=[];
+  if(d.type==='dxf'){
+    const meta=sheetMeta(d.name,d.texts,Object.keys(d.layers||{}));
+    const cands=[];
+    for(const e of d.ents){
+      if(!TEXTY.has(e.type))continue;
+      const t=cleanTxt(e.text);
+      if(t&&isGridLabel(t)&&isFinite(e.x)) cands.push({s:t,x:e.x,y:e.y});
+    }
+    sheets.push({p:1,meta,grid:detectGrid(cands,d.ents),bbox:bboxOf(d.ents)});
+  } else {
+    for(let p=1;p<=d.pages;p++){
+      const tx=d.texts.filter(t=>t.p===p);
+      const meta=sheetMeta(d.name,tx,[]);
+      const cands=tx.map(t=>({s:cleanTxt(t.str),x:t.x,y:t.y})).filter(o=>isGridLabel(o.s));
+      const sz=d.sizes?.[p-1]||{w:842,h:595};
+      sheets.push({p,meta,grid:detectGrid(cands,null),bbox:[0,0,sz.w,sz.h]});
+    }
+  }
+  return sheets;
+}
+function sheetLevels(sh){
+  const r=sh.meta.levels;
+  if(r&&r.length) return r.slice(0,60);
+  return [sh.meta.level||'GF'];
+}
 function extractElements(d){
-  const els=[]; const lvl=d.meta.level||'GF'; const zn=d.meta.zone||'Z1';
-  const sc=d.scale||1;
-  for(const R of S.rules){
-    if(!R.on)continue;
-    const lre=rxOf(R.layer), tre=rxOf(R.text);
-    const f=num(R.factor,1);
-
-    /* --- DXF: per-mark rows from CAD text (e.g. every C1 / C2 tag) --- */
-    let markRows=[];
-    if(d.type==='dxf'&&tre&&R.measure==='count'){
-      const marks={},mlyr={};
-      for(const e of d.ents){
-        if(e.type!=='TEXT'&&e.type!=='MTEXT'&&e.type!=='ATTRIB')continue;
-        const t=cleanTxt(e.text); if(!t||!tre.test(t))continue;
-        marks[t]=(marks[t]||0)+1; mlyr[t]=mlyr[t]||e.layer;
-      }
-      for(const [mk,c] of Object.entries(marks)) if(c>0&&mk.length<=8) markRows.push(mkEl(R,d,lvl,zn,c*f,c,'text',mk,mlyr[mk]));
-      els.push(...markRows);
-    }
-
-    /* --- DXF geometry --- */
-    if(d.type==='dxf'&&lre){
-      const hit=d.ents.filter(e=>lre.test(e.layer||''));
-      if(hit.length&&!(R.measure==='count'&&markRows.length)){
-        let q=0,n=0;
-        for(const e of hit){
-          if(R.measure==='count'){ if(e.type==='INSERT'||e.type==='CIRCLE'||e.closed){ n++; q+=f; } }
-          else if(R.measure==='length'&&GEOM_TYPES.has(e.type)){ const l=(e.len||0)*sc; if(l>0.05){q+=l*f;n++;} }
-          else if(R.measure==='area'||R.measure==='volume'){ const a=(e.area||0)*sc*sc; if(a>0.05){q+=a*f;n++;} }
+  const els=[], sc=d.scale||1;
+  for(const sh of (d.sheets||[])){
+    const lvls=sheetLevels(sh), primary=lvls[0], g=sh.grid;
+    const ents=(d.type==='dxf')?d.ents:[];
+    const texts=d.texts.filter(t=>t.p===sh.p);
+    const sheetZone=sh.meta.zone||'';
+    const emit=(R,buck,src,mark)=>{
+      for(const [zn,B] of Object.entries(buck)){
+        if(!(B.q>0))continue;
+        const bay=Object.entries(B.bays).sort((x,y)=>y[1]-x[1]).slice(0,3).map(x=>x[0]).join(', ');
+        for(const lv of lvls){
+          els.push(mkEl({cat:R.cat,mark,level:lv,zone:zn,bay,qty:B.q,unit:R.unit,n:B.n,
+            layer:B.lyr||R.layer,d,sheet:sh.p,src:src+(lvls.length>1?' · typical':'')}));
         }
-        if(q>0) els.push(mkEl(R,d,lvl,zn,q,n,'CAD layer','',mainLayer(hit)));
       }
-    }
+    };
+    const zAt=(x,y)=>sheetZone||zoneOf(g,x,y,primary);
 
-    /* --- PDF text-based counting --- */
-    if(d.type==='pdf'&&tre&&R.measure==='count'){
-      const byPage={};
-      for(const t of d.texts){
-        const s=cleanTxt(t.str); if(!s||!tre.test(s))continue;
-        const key=(t.p+'|'+s); byPage[key]=(byPage[key]||0)+1;
+    for(const R of S.rules){
+      if(!R.on)continue;
+      const lre=rxOf(R.layer), tre=rxOf(R.text), f=num(R.factor,1);
+
+      /* --- CAD text marks (C1, D1, W1 …) located in space --- */
+      let markCount=0;
+      if(d.type==='dxf'&&tre&&R.measure==='count'){
+        const per={};   // mark -> zone -> bucket
+        for(const e of ents){
+          if(!TEXTY.has(e.type))continue;
+          const t=cleanTxt(e.text); if(!t||t.length>8||!tre.test(t))continue;
+          if(!isFinite(e.cx))continue;
+          const zn=zAt(e.cx,e.cy);
+          const B=((per[t] ??= {})[zn] ??= {q:0,n:0,bays:{},lyr:e.layer});
+          B.q+=f; B.n++; const by=bayOf(g,e.cx,e.cy); if(by)B.bays[by]=(B.bays[by]||0)+1;
+          markCount++;
+        }
+        for(const [mk,buck] of Object.entries(per)) emit(R,buck,'CAD mark',mk);
       }
-      const marks={};
-      for(const [k,c] of Object.entries(byPage)){ const mk=k.split('|')[1]; marks[mk]=(marks[mk]||0)+c; }
-      for(const [mk,c] of Object.entries(marks)){
-        if(mk.length<=8&&c>0) els.push(mkEl(R,d,lvl,zn,c*f,c,'pdf text',mk,'—'));
+
+      /* --- DXF geometry, bucketed by zone --- */
+      if(d.type==='dxf'&&lre&&!(R.measure==='count'&&markCount)){
+        const buck={};
+        for(const e of ents){
+          if(!lre.test(e.layer||''))continue;
+          let add=0;
+          if(R.measure==='count'){
+            if(e.type==='INSERT'||e.type==='CIRCLE'||e.type==='POINT'||e.closed) add=f; else continue;
+          } else if(R.measure==='length'){
+            if(!GEOM_TYPES.has(e.type)&&e.type!=='INSERT')continue;
+            const l=((e.type==='INSERT'?e.blkLen:e.len)||0)*sc; if(l<=0.05)continue; add=l*f;
+          } else {
+            const ar=((e.type==='INSERT'?e.blkArea:e.area)||0)*sc*sc; if(ar<=0.05)continue; add=ar*f;
+          }
+          if(!isFinite(e.cx))continue;
+          const by=bayOf(g,e.cx,e.cy);
+          const parts=sheetZone?[[sheetZone,1]]:zoneSplit(g,primary,e,R.measure);
+          for(const [zn,fr] of parts){
+            const B=(buck[zn] ??= {q:0,n:0,bays:{},lyr:e.layer});
+            B.q+=add*fr; B.n+=(fr>0.5?1:0); if(by)B.bays[by]=(B.bays[by]||0)+1;
+          }
+        }
+        emit(R,buck,'CAD layer','');
+      }
+
+      /* --- PDF text marks, located by their position on the sheet --- */
+      if(d.type==='pdf'&&tre&&R.measure==='count'){
+        const per={};
+        for(const t of texts){
+          const v=cleanTxt(t.str); if(!v||v.length>8||!tre.test(v))continue;
+          const zn=zAt(t.x,t.y);
+          const B=((per[v] ??= {})[zn] ??= {q:0,n:0,bays:{},lyr:'—'});
+          B.q+=f; B.n++; const by=bayOf(g,t.x,t.y); if(by)B.bays[by]=(B.bays[by]||0)+1;
+        }
+        for(const [mk,buck] of Object.entries(per)) emit(R,buck,'PDF mark',mk);
       }
     }
   }
   return els;
 }
-function cleanTxt(t){ return String(t||'').replace(/\\[A-Za-z][^;]*;/g,'').replace(/[{}]/g,'').trim().toUpperCase(); }
-function mkEl(R,d,lvl,zn,qty,cnt,src,mark,lyr){
-  return {id:uid('e'),cat:R.cat,mark:mark||R.cat,level:lvl,zone:zn,qty:r2(qty),unit:R.unit,
-    count:cnt,layer:lyr||R.layer,drawing:d.name,drawingId:d.id,src,guid:''};
+function mkEl(o){
+  return {id:uid('e'),cat:o.cat,mark:o.mark||o.cat,level:o.level,zone:o.zone,bay:o.bay||'',
+    qty:r2(o.qty),unit:o.unit,count:o.n,layer:o.layer,drawing:o.d.name,drawingId:o.d.id,
+    sheet:o.sheet||1,src:o.src,guid:''};
 }
 /** the layer that most of these entities sit on */
 function mainLayer(ents){
@@ -801,43 +1144,92 @@ function mainLayer(ents){
 /* ---------- file ingestion ---------- */
 async function ingest(files){
   busy(true,'Reading drawings…');
+  let nSheet=0;
   for(const f of files){
     const ext=f.name.split('.').pop().toLowerCase();
+    const mb=(f.size/1048576).toFixed(1);
     try{
       let d=null;
-      if(ext==='pdf'){ d=await readPDFFile(f); log('PDF '+f.name+' — '+d.pages+' sheet(s), '+d.texts.length+' text items','s'); }
+      busy(true,'Reading '+f.name+' ('+mb+' MB)…');
+      if(ext==='pdf'){
+        d=await readPDFFile(f,pr=>busy(true,'Reading '+f.name+' — '+Math.round(pr*100)+'%'));
+        log('PDF '+f.name+' ('+mb+' MB) — '+d.pages+' sheet(s), '+d.texts.length+' text items','s');
+      }
       else if(ext==='dxf'||ext==='txt'){
         const txt=await f.text();
         if(!/\bSECTION\b/.test(txt.slice(0,4000))) throw new Error('not a DXF file');
-        const p=parseDXF(txt);
-        d={id:uid('d'),name:f.name,type:'dxf',pages:1,ents:p.ents,layers:p.layers,scale:p.scale,header:p.header,
-           texts:p.ents.filter(e=>e.type==='TEXT'||e.type==='MTEXT').map(e=>({p:1,str:cleanTxt(e.text),x:e.x,y:e.y,h:e.h||1}))};
-        log('DXF '+f.name+' — '+p.ents.length+' entities, '+Object.keys(p.layers).length+' layers','s');
+        const pr=await parseDXF(txt,v=>busy(true,'Parsing '+f.name+' — '+Math.round(v*100)+'%'));
+        d={id:uid('d'),name:f.name,type:'dxf',pages:1,ents:pr.ents,layers:pr.layers,scale:pr.scale,
+           header:pr.header,blocks:pr.blocks,counts:pr.counts,
+           texts:pr.ents.filter(e=>TEXTY.has(e.type)).map(e=>({p:1,str:cleanTxt(e.text),x:e.x,y:e.y,h:e.h||1}))};
+        const top=Object.entries(pr.counts).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>k+' '+v).join(', ');
+        log('DXF '+f.name+' ('+mb+' MB) — '+pr.ents.length.toLocaleString()+' entities, '
+            +Object.keys(pr.layers).length+' layers, '+Object.keys(pr.blocks).length+' blocks','s');
+        log('   entity mix: '+top);
       }
       else if(ext==='dwg'){ log('DWG '+f.name+' skipped — export DXF or PDF from AutoCAD (SAVEAS → DXF)','w'); toast('DWG cannot be read in a browser — export DXF/PDF','warn'); continue; }
       else { log('Unsupported file '+f.name,'e'); continue; }
-      d.meta=sheetMeta(d);
-      const els=extractElements(d);
-      d.elCount=els.length;
-      S.drawings.push(d); S.elements.push(...els);
-      log('  → level '+(d.meta.level||'?')+', '+(d.meta.discipline||'')+', '+els.length+' element groups, qty read');
+
+      d.sheets=buildSheets(d);
+      d.meta=d.sheets[0].meta;
+      nSheet+=d.sheets.length;
+      S.drawings.push(d);
+      const gsum={};
+      d.sheets.forEach(sh=>{ gsum[sh.grid.from]=(gsum[sh.grid.from]||0)+1; });
+      const g0=d.sheets.find(sh=>sh.grid.from!=='none')?.grid;
+      if(g0) log('   grid found ('+Object.entries(gsum).map(([k,v])=>k+'×'+v).join(', ')+'): '
+                 +g0.x.map(o=>o.label).join(' ')+'  /  '+g0.y.map(o=>o.label).join(' '));
+      else log('   no grid bubbles or centre lines found — zones will fall back to equal split','w');
+      const lv=[...new Set(d.sheets.flatMap(sheetLevels))];
+      log('   levels on this file: '+lv.join(', ')+'  ·  '+d.sheets.length+' sheet(s)');
+      await new Promise(r=>setTimeout(r));
     }catch(err){ log('Failed '+f.name+': '+err.message,'e'); toast('Could not read '+f.name,'bad'); }
   }
+  if(!S.zones.length) autoZones(num(S.opts.zoneRows,1),num(S.opts.zoneCols,1));
+  reExtract();
   refreshMeta(); renderAll(); saveLocal(); busy(false);
-  toast(S.drawings.length+' drawing(s) loaded, '+S.elements.length+' element groups','ok');
+  toast(S.drawings.length+' file(s), '+nSheet+' sheet(s), '+S.elements.length+' element rows','ok');
+}
+/** re-run classification over every loaded drawing (after rules or zones change) */
+function reExtract(){
+  const manual=S.elements.filter(e=>e.src==='manual');
+  S.elements=[...manual];
+  S.drawings.forEach(d=>{
+    if(!d.sheets) d.sheets=buildSheets(d);
+    const els=extractElements(d); d.elCount=els.length; S.elements.push(...els);
+  });
+  registerDeclaredZones(); refreshMeta(); checkOverlaps();
+}
+/** a sheet titled "ZONE A PLAN" defines its own work area — keep it alongside the grid areas */
+function registerDeclaredZones(){
+  const known=new Set((S.zones||[]).map(z=>z.name));
+  [...new Set(S.elements.map(e=>e.zone))].filter(Boolean).forEach(nm=>{
+    if(known.has(nm))return;
+    const lvls=[...new Set(S.elements.filter(e=>e.zone===nm).map(e=>e.level))];
+    S.zones.push({id:uid('z'),name:nm,x0:'',x1:'',y0:'',y1:'',levels:lvls.join(', ')||'*',declared:true});
+    log('Work area "'+nm+'" taken from the sheet title (levels '+(lvls.join(', ')||'all')+')');
+  });
+}
+/** two files covering the same level + category get added together — say so */
+function checkOverlaps(){
+  const map={};
+  S.elements.forEach(e=>{ const k=e.level+'|'+e.cat; (map[k] ??= new Set()).add(e.drawing); });
+  Object.entries(map).filter(([,v])=>v.size>1).slice(0,6).forEach(([k,v])=>{
+    const [lv,cat]=k.split('|');
+    log('⚠ '+cat+' at '+lv+' comes from '+v.size+' files ('+[...v].join(', ')+') — those quantities are added together; remove one source in step 3 if that double counts.','w');
+  });
 }
 function refreshMeta(){
   const lv=new Set(), zn=new Set();
   S.elements.forEach(e=>{lv.add(e.level);zn.add(e.zone);});
   S.meta.levels=sortLevels([...lv]); S.meta.zones=[...zn].sort();
   if(!S.meta.levels.length) S.meta.levels=['GF'];
+  if(!S.meta.zones.length) S.meta.zones=(S.zones||[]).map(z=>z.name).filter(Boolean);
+  if(!S.meta.zones.length) S.meta.zones=['Z1'];
 }
 function rerunRules(){
   busy(true,'Re-reading with updated rules…');
-  const manual=S.elements.filter(e=>e.src==='manual');
-  S.elements=[...manual];
-  S.drawings.forEach(d=>{ const els=extractElements(d); d.elCount=els.length; S.elements.push(...els); });
-  refreshMeta(); renderAll(); saveLocal(); busy(false); toast('Drawings re-read with current rules','ok');
+  setTimeout(()=>{ reExtract(); renderAll(); saveLocal(); busy(false); toast('Drawings re-read with current rules','ok'); },30);
 }
 
 /* ============================================================
@@ -969,30 +1361,53 @@ const STD_TEMPLATE=()=>[
    SCHEDULE DEVELOPMENT ENGINE
    group activity x work package x level x zone -> activity
    ============================================================ */
-function zonesList(){ const n=clamp(num(S.opts.zones,1),1,12); return Array.from({length:n},(_,i)=>'Z'+(i+1)); }
+function zonesList(level){
+  const zs=zonesFor(level||'');
+  if(zs.length) return zs.map(z=>z.name);
+  const n=clamp(num(S.opts.zones,1),1,24);
+  return Array.from({length:n},(_,i)=>'Z'+(i+1));
+}
+const zoneGrid=name=>{ const z=(S.zones||[]).find(x=>x.name===name); return z&&z.x0?z.x0+'-'+z.x1+'/'+z.y0+'-'+z.y1:''; };
 function levelsList(){
   const forced=num(S.opts.levels,0);
   if(forced>0){ const out=['Foundation','GF']; for(let i=1;i<forced;i++)out.push('L'+i); out.push('Terrace'); return out; }
-  const l=S.meta.levels?.length?sortLevels(S.meta.levels):['GF'];
-  return l;
+  const all=[...new Set([...(S.meta.levels||[]),...allSheets().flatMap(sheetLevels)])].filter(Boolean);
+  return all.length?sortLevels(all):['GF'];
 }
-/** quantity of a work package at a level, split across zones */
-function pkgQty(pkg,level,zones){
+/** quantity of a work package in one level + zone (grid-based when the drawings carry a grid) */
+function pkgQty(pkg,level,zone,nz){
   const cats=new Set(pkg.cats);
-  let q=0;
-  for(const e of S.elements){ if(e.level===level&&cats.has(e.cat)) q+=num(e.qty); }
-  // typical floor: one drawing covers every similar level above ground
-  if(q<=0&&S.opts.typical&&levelRank(level)>-200&&level!=='Project'){
-    const per={};
-    for(const e of S.elements){ if(cats.has(e.cat)&&levelRank(e.level)>-200) per[e.level]=(per[e.level]||0)+num(e.qty); }
-    const vals=Object.values(per);
-    if(vals.length) q=Math.max(...vals);
+  const known=new Set((S.zones||[]).map(z=>z.name));
+  let exact=0,lvlTotal=0,zonedTotal=0;
+  for(const e of S.elements){
+    if(!cats.has(e.cat)||e.level!==level)continue;
+    lvlTotal+=num(e.qty);
+    if(known.has(e.zone)) zonedTotal+=num(e.qty);
+    if(e.zone===zone) exact+=num(e.qty);
   }
-  return q/Math.max(1,zones);
+  if(exact>0) return exact;                                 // real area-wise quantity
+  if(zonedTotal>0) return 0;                                // this area has nothing on this level
+  if(lvlTotal>0) return lvlTotal/Math.max(1,nz);            // level read but not zoned → equal split
+  // typical floor: one drawing covers every similar level above ground
+  if(S.opts.typical&&levelRank(level)>-200&&level!=='Project'){
+    const per={},byLvl={};
+    for(const e of S.elements){
+      if(!cats.has(e.cat)||levelRank(e.level)<=-200)continue;
+      per[e.level+'|'+e.zone]=(per[e.level+'|'+e.zone]||0)+num(e.qty);
+      byLvl[e.level]=(byLvl[e.level]||0)+num(e.qty);
+    }
+    const zv=Object.entries(per).filter(([k])=>k.endsWith('|'+zone)).map(([,v])=>v);
+    if(zv.length) return Math.max(...zv);
+    const lv=Object.values(byLvl);
+    if(lv.length) return Math.max(...lv)/Math.max(1,nz);
+  }
+  return 0;
 }
-function pkgElements(pkg,level){
+function pkgElements(pkg,level,zone){
   const cats=new Set(pkg.cats);
-  return S.elements.filter(e=>e.level===level&&cats.has(e.cat));
+  const inLvl=S.elements.filter(e=>e.level===level&&cats.has(e.cat));
+  const inZone=zone?inLvl.filter(e=>e.zone===zone):[];
+  return inZone.length?inZone:inLvl;
 }
 function durationOf(pkg,qty,grp,nTasks){
   if(qty>0){
@@ -1007,9 +1422,11 @@ function durationOf(pkg,qty,grp,nTasks){
 function developSchedule(){
   $('#devLog').innerHTML='';
   if(!S.groups.length){ S.groups=STD_TEMPLATE(); renderGroups(); dlog('No group schedule imported — standard building template used.','w'); }
-  const levels=levelsList(), zones=zonesList();
-  dlog('Levels: '+levels.join(', '));
-  dlog('Zones per level: '+zones.length+'  |  zone overlap '+S.opts.zoneOverlap+'%'+(S.opts.typical?'  |  typical-floor repeat ON':''));
+  const levels=levelsList(), zones=zonesList('');
+  dlog('Levels ('+levels.length+'): '+levels.join(', '));
+  dlog('Areas / zones ('+zones.length+'): '+zones.map(z=>{const g=zoneGrid(z);return z+(g?' ['+g+']':'');}).join(', '));
+  dlog('Zone overlap '+S.opts.zoneOverlap+'%'+(S.opts.typical?'  |  typical-floor repeat ON':'')
+       +'  |  grid read from '+(allSheets().filter(sh=>sh.grid&&sh.grid.from!=='none').length)+' sheet(s)');
   const tasks=[],rels=[],wbs=[];
   const pfx=S.opts.idPfx||'A';
   let seqNo=0;
@@ -1041,16 +1458,16 @@ function developSchedule(){
     pkgs.forEach(pkg=>{
       const noQty=!pkg.cats.length;
       const applyLevels=noQty?['Project']:levelsFor(pkg,levels,g.split);
-      const applyZones=(noQty||g.split==='level'||g.split==='project')?['Z1']:zones;
       applyLevels.forEach(lv=>{
+        const applyZones=(noQty||g.split==='level'||g.split==='project')?[zonesList(lv)[0]||'Z1']:zonesList(lv);
         applyZones.forEach(zn=>{
           if(byPkgLevel[pkg.id+'|'+lv+'|'+zn]){ skipped++; return; }   // already built by an earlier group
-          const qty=(lv==='Project')?0:pkgQty(pkg,lv,applyZones.length);
+          const qty=(lv==='Project')?0:pkgQty(pkg,lv,zn,applyZones.length);
           if(lv!=='Project'&&qty<=0&&pkg.cats.length&&S.elements.length&&!/snag|mobil|hand/i.test(pkg.name)) return;
           const dur=durationOf(pkg,qty,g,applyLevels.length*applyZones.length);
           const t=mkTask(++seqNo,pfx,g,gWbs,pkg.name,pkg,lv,zn,qty,pkg.unit,dur);
           t.pkgId=pkg.id; t.seq=pkg.seq;
-          t.elements=(lv==='Project')?[]:pkgElements(pkg,lv).map(e=>e.id);
+          t.elements=(lv==='Project')?[]:pkgElements(pkg,lv,zn).map(e=>e.id);
           tasks.push(t); block.tasks.push(t); made++;
           (byCell[lv+'|'+zn] ??= []).push(t);
           byPkgLevel[pkg.id+'|'+lv+'|'+zn]=t;
@@ -1081,11 +1498,11 @@ function developSchedule(){
   });
   // 2. zone-to-zone for the same package + level
   const zOver=clamp(num(S.opts.zoneOverlap,50),0,100)/100;
-  const zs=zonesList();
   tasks.forEach(t=>{
     if(!t.pkgId||!t.zone)return;
-    const zi=zs.indexOf(t.zone); if(zi<=0)return;
-    const prev=byPkgLevel[t.pkgId+'|'+t.level+'|'+zs[zi-1]];
+    const zl=zonesList(t.level);
+    const zi=zl.indexOf(t.zone); if(zi<=0)return;
+    const prev=byPkgLevel[t.pkgId+'|'+t.level+'|'+zl[zi-1]];
     if(prev) rels.push({p:prev.id,s:t.id,type:'SS',lag:Math.max(1,Math.round(prev.dur*(1-zOver)))});
   });
   // 3. level-to-level for vertical packages
@@ -1100,7 +1517,7 @@ function developSchedule(){
     }
   });
   // 3b. foundation / basement level feeds the level above (different packages, so rule 3 cannot see it)
-  zs.forEach(zn=>{
+  [...new Set(lv.flatMap(l=>zonesList(l)))].forEach(zn=>{
     for(let i=0;i<lv.length-1;i++){
       if(levelRank(lv[i])>-1)continue;
       const below=(byCell[lv[i]+'|'+zn]||[]).slice().sort((a,b)=>a.seq-b.seq);
@@ -1142,9 +1559,10 @@ function developSchedule(){
 }
 function mkTask(n,pfx,g,gWbs,pkgName,pkg,level,zone,qty,unit,dur){
   const idc=pfx+String(n*10).padStart(4,'0');
-  const loc=[level&&level!=='Project'?level:'',zone&&level!=='Project'?zone:''].filter(Boolean).join(' / ');
+  const gr=(zone&&level!=='Project')?zoneGrid(zone):'';
+  const loc=[level&&level!=='Project'?level:'',zone&&level!=='Project'?(zone+(gr?' ['+gr+']':'')):''].filter(Boolean).join(' / ');
   return {id:uid('t'),code:idc,name:(pkgName||g.name)+(loc?' — '+loc:''),group:g.name,groupId:g.id,
-    wbsId:gWbs.id,wbs:gWbs.code+' '+gWbs.name,level:level||'',zone:zone||'',qty:r2(qty),unit:unit||'',
+    wbsId:gWbs.id,wbs:gWbs.code+' '+gWbs.name,level:level||'',zone:zone||'',grid:gr,qty:r2(qty),unit:unit||'',
     dur:Math.max(1,Math.round(dur)),pkgId:pkg?pkg.id:'',seq:pkg?pkg.seq:999,elements:[],
     es:0,ef:0,ls:0,lf:0,tf:0,crit:false};
 }
@@ -1196,7 +1614,7 @@ function runCPM(){
 /* ============================================================
    RENDERING
    ============================================================ */
-function renderAll(){ renderDrawings(); renderElements(); renderGroups(); renderRules(); renderNorms(); renderTasks(); renderKpis(); renderCal(); fillSelects(); }
+function renderAll(){ renderDrawings(); renderElements(); renderGroups(); renderRules(); renderNorms(); renderTasks(); renderKpis(); renderCal(); fillSelects(); renderSheets(); renderZones(); }
 
 function renderKpis(){
   $('#kDwg').textContent=S.drawings.length;
@@ -1218,24 +1636,26 @@ function renderDrawings(){
   tb.innerHTML=S.drawings.map((d,i)=>`<tr>
     <td title="${esc(d.name)}">${esc(d.name.length>34?d.name.slice(0,32)+'…':d.name)}</td>
     <td><span class="badge ${d.type==='dxf'?'ok':'ac'}">${d.type.toUpperCase()}</span></td>
-    <td class="num">${d.pages||1}</td><td>${esc(d.meta?.discipline||'')}</td>
-    <td><input data-dw="${d.id}" data-k="level" value="${esc(d.meta?.level||'')}" style="width:80px"></td>
+    <td class="num">${(d.sheets?.length)||d.pages||1}</td><td>${esc(d.meta?.discipline||'')}</td>
+    <td><input data-dw="${d.id}" data-k="level" value="${esc(fileLevels(d))}" style="width:104px" title="Level(s) read from the sheets — type to override every sheet in this file"></td>
     <td>${esc(d.meta?.scale||'—')}</td>
     <td class="num">${(d.ents?.length||0).toLocaleString()}</td>
     <td class="num">${(d.texts?.length||0).toLocaleString()}</td>
     <td class="num">${d.elCount||0}</td>
     <td>${d.type==='dxf'?'<span class="badge ok">geometry + text</span>':(d.texts?.length?'<span class="badge ac">text read</span>':'<span class="badge warn">scanned — no text</span>')}</td>
     <td><button class="btn sm" data-view="${d.id}">view</button> <button class="btn sm" data-delDw="${d.id}">✕</button></td></tr>`).join('');
-  tb.oninput=e=>{ const id=e.target.dataset.dw; if(!id)return;
-    const d=S.drawings.find(x=>x.id===id); d.meta[e.target.dataset.k]=e.target.value;
-    S.elements.filter(x=>x.drawingId===id).forEach(x=>x.level=e.target.value||'GF');
-    refreshMeta(); renderElements(); saveLocal(); };
+  tb.onchange=e=>{ const id=e.target.dataset.dw; if(!id)return;
+    const d=S.drawings.find(x=>x.id===id); const v=e.target.value.trim();
+    (d.sheets||[]).forEach(sh=>{ sh.meta.level=v||sh.meta.level; sh.meta.levels=null; });
+    d.meta=d.sheets?.[0]?.meta||d.meta;
+    reExtract(); renderAll(); saveLocal(); };
   tb.onclick=e=>{
     const v=e.target.dataset.view, dl2=e.target.dataset.deldw;
     if(v){ $('#vSel').value=v; $$('#nav .step').find(s=>s.dataset.p==='p2').click(); viewer.load(v); }
     if(dl2){ S.drawings=S.drawings.filter(x=>x.id!==dl2); S.elements=S.elements.filter(x=>x.drawingId!==dl2); refreshMeta(); renderAll(); saveLocal(); }
   };
 }
+const fileLevels=d=>[...new Set((d.sheets||[]).flatMap(sheetLevels))].join(', ');
 function elFilter(){
   const c=$('#eCat').value,l=$('#eLvl').value,z=$('#eZone').value,q=$('#eFind').value.toLowerCase();
   return S.elements.filter(e=>(!c||e.cat===c)&&(!l||e.level===l)&&(!z||e.zone===z)&&
@@ -1249,18 +1669,20 @@ function renderElements(){
   $('#eSummary').innerHTML=Object.entries(sum).sort((a,b)=>b[1]-a[1]).slice(0,14)
     .map(([k,v])=>{const [c,u]=k.split('|');return `<span><b>${esc(c)}</b> <span class="tag">${r2(v).toLocaleString()} ${esc(u)}</span></span>`;}).join('')
     ||'<span style="color:var(--tx3)">No quantities yet — load drawings in step 1.</span>';
-  if(!rows.length){ tb.innerHTML='<tr><td colspan="11" class="empty">No elements</td></tr>'; return; }
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="13" class="empty">No elements</td></tr>'; return; }
   tb.innerHTML=rows.slice(0,1200).map((e,i)=>`<tr>
     <td class="num">${i+1}</td>
     <td><input data-e="${e.id}" data-k="cat" value="${esc(e.cat)}"></td>
     <td><input data-e="${e.id}" data-k="mark" value="${esc(e.mark)}" style="width:80px"></td>
     <td><input data-e="${e.id}" data-k="level" value="${esc(e.level)}" style="width:92px"></td>
     <td><input data-e="${e.id}" data-k="zone" value="${esc(e.zone)}" style="width:56px"></td>
+    <td style="color:var(--tx2);font-family:var(--mono);font-size:11px" title="${esc(e.bay||'')}">${esc(String(e.bay||'—').slice(0,20))}</td>
     <td class="num"><input data-e="${e.id}" data-k="qty" value="${e.qty}" style="text-align:right"></td>
     <td><input data-e="${e.id}" data-k="unit" value="${esc(e.unit)}" style="width:50px"></td>
-    <td style="color:var(--tx3)">${esc(String(e.layer).slice(0,22))}</td>
-    <td style="color:var(--tx3)" title="${esc(e.drawing)}">${esc(String(e.drawing).slice(0,20))}</td>
-    <td><input data-e="${e.id}" data-k="guid" value="${esc(e.guid||'')}" placeholder="IFC GUID / set"></td>
+    <td style="color:var(--tx3)">${esc(String(e.layer).slice(0,20))}</td>
+    <td style="color:var(--tx3)" title="${esc(e.drawing)}">${esc(String(e.drawing).slice(0,16))}${e.sheet>1?(' · p'+e.sheet):''}</td>
+    <td style="color:var(--tx3);font-size:11px">${esc(e.src||'')}</td>
+    <td><input data-e="${e.id}" data-k="guid" value="${esc(e.guid||'')}" placeholder="IFC GUID / set" style="min-width:110px"></td>
     <td><button class="btn sm" data-delEl="${e.id}">✕</button></td></tr>`).join('');
   tb.oninput=e=>{ const id=e.target.dataset.e; if(!id)return;
     const el=S.elements.find(x=>x.id===id); const k=e.target.dataset.k;
@@ -1360,7 +1782,7 @@ function taskFilter(){
 }
 function renderTasks(){
   const tb=$('#tTask tbody'), rows=taskFilter().sort((a,b)=>a.es-b.es||a.seq-b.seq);
-  if(!rows.length){ tb.innerHTML='<tr><td colspan="12" class="empty">Run the engine in step 6</td></tr>'; return; }
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="12" class="empty">Run the engine in step 7</td></tr>'; return; }
   tb.innerHTML=rows.map(t=>`<tr>
     <td class="${t.crit?'crit':''}" style="font-family:var(--mono)">${esc(t.code)}</td>
     <td style="color:var(--tx3)">${esc(String(t.wbs).slice(0,26))}</td>
@@ -1376,6 +1798,131 @@ function renderTasks(){
     runCPM(); renderTasks(); renderKpis(); saveLocal(); };
 }
 
+
+/* ============================================================
+   GRIDS & ZONES PAGE
+   ============================================================ */
+const ZCOL=['#4f9cf9','#3fb950','#d29922','#a371f7','#f85149','#2dd4bf','#f472b6','#94a3b8'];
+function refSheetGrid(){
+  let best=null;
+  allSheets().forEach(sh=>{
+    if(!sh.grid||sh.grid.from==='none')return;
+    const score=sh.grid.x.length*sh.grid.y.length*(sh.d.type==='dxf'?2:1);
+    if(!best||score>best._s){ best={...sh,_s:score}; }
+  });
+  return best;
+}
+function zoneArea(z){
+  const sh=refSheetGrid(); if(!sh||!z.x0||sh.d.type!=='dxf')return 0;
+  const cx0=sh.grid.x.find(o=>o.label===z.x0)?.c, cx1=sh.grid.x.find(o=>o.label===z.x1)?.c;
+  const cy0=sh.grid.y.find(o=>o.label===z.y0)?.c, cy1=sh.grid.y.find(o=>o.label===z.y1)?.c;
+  if(![cx0,cx1,cy0,cy1].every(v=>isFinite(v)))return 0;
+  const sc=sh.d.scale||1;
+  return Math.abs((cx1-cx0)*sc)*Math.abs((cy1-cy0)*sc);
+}
+function renderZones(){
+  const mg=masterGrid(), tb=$('#tZone tbody');
+  $('#bZones').textContent=S.zones.length;
+  $('#kSheets').textContent=allSheets().length;
+  $('#kGrids').textContent=allSheets().filter(sh=>sh.grid&&sh.grid.from!=='none').length;
+  $('#kGx').textContent=mg.x.length; $('#kGy').textContent=mg.y.length;
+  $('#kZones').textContent=S.zones.length;
+  const zoned=S.elements.filter(e=>e.bay).length;
+  $('#kZoned').textContent=S.elements.length?Math.round(zoned/S.elements.length*100)+'%':'0%';
+  const st=$('#zStat');
+  if(mg.x.length<2||mg.y.length<2){ st.textContent='no grid detected — equal split'; st.className='badge warn'; }
+  else { st.textContent=mg.x.length+'×'+mg.y.length+' grid · '+S.zones.length+' area(s)'; st.className='badge ok'; }
+  if(!S.zones.length){ tb.innerHTML='<tr><td colspan="9" class="empty">No work areas — press “Auto-split grid”</td></tr>'; drawZoneMap(); return; }
+  const opt=(list,v)=>'<option value=""></option>'+list.map(l=>`<option${l===v?' selected':''}>${esc(l)}</option>`).join('');
+  const cnt={}; S.elements.forEach(e=>cnt[e.zone]=(cnt[e.zone]||0)+1);
+  tb.innerHTML=S.zones.map(z=>{
+    const a=zoneArea(z);
+    return `<tr>
+    <td><input data-z="${z.id}" data-k="name" value="${esc(z.name)}" style="width:66px"></td>
+    <td><select data-z="${z.id}" data-k="x0">${opt(mg.x,z.x0)}</select></td>
+    <td><select data-z="${z.id}" data-k="x1">${opt(mg.x,z.x1)}</select></td>
+    <td><select data-z="${z.id}" data-k="y0">${opt(mg.y,z.y0)}</select></td>
+    <td><select data-z="${z.id}" data-k="y1">${opt(mg.y,z.y1)}</select></td>
+    <td><input data-z="${z.id}" data-k="levels" value="${esc(z.levels||'*')}" style="width:96px" title="* = all levels, or a list like GF, L1, L2"></td>
+    <td class="num">${a?Math.round(a).toLocaleString()+' m²':'—'}</td>
+    <td class="num">${cnt[z.name]||0}</td>
+    <td><button class="btn sm" data-delZ="${z.id}">✕</button></td></tr>`;}).join('');
+  const upd=e=>{ const id=e.target.dataset.z; if(!id)return;
+    const z=S.zones.find(x=>x.id===id); z[e.target.dataset.k]=e.target.value;
+    reExtract(); renderZones(); renderElements(); renderKpis(); saveLocal(); };
+  tb.onchange=upd;
+  tb.onclick=e=>{ const id=e.target.dataset.delz; if(id){ S.zones=S.zones.filter(x=>x.id!==id); reExtract(); renderZones(); renderElements(); saveLocal(); } };
+  drawZoneMap();
+}
+function renderSheets(){
+  const tb=$('#tSheet tbody'), sh=allSheets();
+  $('#zSheet').innerHTML=sh.map(x=>`<option value="${x.d.id}|${x.p}">${esc(x.d.name)}${x.d.pages>1?(' · sheet '+x.p):''} — ${esc(sheetLevels(x).join(','))}</option>`).join('');
+  if(!sh.length){ tb.innerHTML='<tr><td colspan="10" class="empty">No sheets read yet</td></tr>'; return; }
+  tb.innerHTML=sh.slice(0,600).map(x=>`<tr>
+    <td title="${esc(x.d.name)}">${esc(x.d.name.slice(0,26))}</td><td class="num">${x.p}</td>
+    <td>${esc(sheetLevels(x).join(', ').slice(0,26))}</td><td>${esc(x.meta.discipline||'')}</td>
+    <td>${esc(x.meta.sheetNo||'—')}</td><td>${esc(x.meta.scale||'—')}</td>
+    <td style="font-family:var(--mono);font-size:11px">${esc(x.grid.x.map(o=>o.label).join(' ').slice(0,34))||'—'}</td>
+    <td style="font-family:var(--mono);font-size:11px">${esc(x.grid.y.map(o=>o.label).join(' ').slice(0,34))||'—'}</td>
+    <td><span class="badge ${x.grid.from==='none'?'warn':'ok'}">${esc(x.grid.from)}</span></td>
+    <td style="color:var(--tx3)" title="${esc(x.meta.title||'')}">${esc(String(x.meta.title||'').slice(0,30))}</td></tr>`).join('');
+}
+function drawZoneMap(){
+  const c=$('#cvZ'); if(!c)return;
+  const r=devicePixelRatio||1, w=c.parentElement.clientWidth, h=c.parentElement.clientHeight;
+  c.width=w*r; c.height=h*r; c.style.width=w+'px'; c.style.height=h+'px';
+  const g=c.getContext('2d'); g.setTransform(r,0,0,r,0,0);
+  g.fillStyle='#0a0e14'; g.fillRect(0,0,w,h);
+  const key=$('#zSheet').value||''; const [did,pg]=key.split('|');
+  const sh=allSheets().find(x=>x.d.id===did&&String(x.p)===pg)||refSheetGrid()||allSheets()[0];
+  if(!sh){ g.fillStyle='#6b7c91'; g.font='12px system-ui'; g.fillText('Load drawings first',14,26); $('#zInfo').textContent='—'; return; }
+  const bb=sh.bbox||bboxOf(sh.d.ents)||[0,0,100,100];
+  const pad=34, z=Math.min((w-pad*2)/Math.max(1e-6,bb[2]-bb[0]),(h-pad*2)/Math.max(1e-6,bb[3]-bb[1]));
+  const ox=w/2-((bb[0]+bb[2])/2)*z, oy=h/2+((bb[1]+bb[3])/2)*z;
+  const T=(x,y)=>[x*z+ox,-y*z+oy];
+  // faint drawing
+  if(sh.d.type==='dxf'){
+    g.strokeStyle='#1b232e'; g.lineWidth=1;
+    const step=Math.max(1,Math.ceil(sh.d.ents.length/12000));
+    for(let i=0;i<sh.d.ents.length;i+=step){
+      const e=sh.d.ents[i], xs=e.xs||[], ys=e.ys||[]; if(xs.length<2)continue;
+      g.beginPath(); const p0=T(xs[0],ys[0]); g.moveTo(p0[0],p0[1]);
+      for(let k=1;k<xs.length;k++){ const p=T(xs[k],ys[k]); g.lineTo(p[0],p[1]); }
+      g.stroke();
+    }
+  }
+  const gr=sh.grid;
+  if(gr&&gr.x.length>1&&gr.y.length>1){
+    // zone fills
+    const mg=masterGrid();
+    (S.zones||[]).forEach((zn,i)=>{
+      const cx0=gr.x.find(o=>o.label===zn.x0)?.c, cx1=gr.x.find(o=>o.label===zn.x1)?.c;
+      const cy0=gr.y.find(o=>o.label===zn.y0)?.c, cy1=gr.y.find(o=>o.label===zn.y1)?.c;
+      if(![cx0,cx1,cy0,cy1].every(v=>isFinite(v)))return;
+      const a=T(cx0,cy0), b=T(cx1,cy1);
+      g.fillStyle=ZCOL[i%ZCOL.length]+'33'; g.strokeStyle=ZCOL[i%ZCOL.length]; g.lineWidth=1.5;
+      g.fillRect(Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1]));
+      g.strokeRect(Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1]));
+      g.fillStyle=ZCOL[i%ZCOL.length]; g.font='bold 12px system-ui';
+      g.fillText(zn.name,Math.min(a[0],b[0])+7,Math.min(a[1],b[1])+16);
+    });
+    // grid lines + labels
+    g.strokeStyle='#3a4654'; g.setLineDash([6,4]); g.lineWidth=1; g.font='10px ui-monospace'; g.fillStyle='#9fb0c3';
+    gr.x.forEach(o=>{ const a=T(o.c,bb[1]), b=T(o.c,bb[3]);
+      g.beginPath(); g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]); g.stroke();
+      g.fillText(o.label,a[0]-3,Math.min(a[1],b[1])-6); });
+    gr.y.forEach(o=>{ const a=T(bb[0],o.c), b=T(bb[2],o.c);
+      g.beginPath(); g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]); g.stroke();
+      g.fillText(o.label,Math.min(a[0],b[0])-14,a[1]+3); });
+    g.setLineDash([]);
+    $('#zInfo').textContent=`${sh.d.name} · sheet ${sh.p} · grid ${gr.x.length}×${gr.y.length} (${gr.from})`;
+  } else {
+    g.fillStyle='#d29922'; g.font='12px system-ui';
+    g.fillText('No grid on this sheet — quantities split equally across the fallback zones',14,h-14);
+    $('#zInfo').textContent=`${sh.d.name} · sheet ${sh.p} · no grid`;
+  }
+}
+
 /* ============================================================
    DRAWING VIEWER — DXF vector canvas + PDF page render
    ============================================================ */
@@ -1384,8 +1931,11 @@ const layerColor=c=>ACAD[(c==null||c<0?7:c)%10]||'#d8dee9';
 
 const viewer={
   id:null,page:1,z:1,ox:0,oy:0,labels:true,grid:false,off:new Set(),pick:null,measure:null,mpts:[],
-  pdfCanvas:null,pdfScale:0,
+  pdfCanvas:null,pdfScale:0,fast:false,_idleT:null,
+  touch(){ this.fast=true; clearTimeout(this._idleT);
+    this._idleT=setTimeout(()=>{ this.fast=false; this.draw(); },200); },
   get cv(){return $('#cv');},
+  sheet(){ const d=S.drawings.find(x=>x.id===this.id); return d?.sheets?.find(sh=>sh.p===this.page)||d?.sheets?.[0]||null; },
   refresh(){ if(!S.drawings.length)return; if(!this.id||!S.drawings.find(d=>d.id===this.id)) this.id=S.drawings[0].id;
     $('#vSel').value=this.id; this.load(this.id); },
   async load(id){
@@ -1396,7 +1946,8 @@ const viewer={
       ? Object.values(d.layers).sort((a,b)=>b.count-a.count).map(l=>`<div class="lyr"><input type="checkbox" checked data-ly="${esc(l.name)}"><span class="sw" style="background:${layerColor(l.color)}"></span><span class="nm" title="${esc(l.name)}">${esc(l.name)}</span><span class="ct">${l.count}</span></div>`).join('')
       : '<div style="color:var(--tx3);font-size:11.5px">PDF sheets have no CAD layers. Text items are searchable.</div>';
     $('#vLayers').onchange=e=>{ const n=e.target.dataset.ly; if(!n)return; e.target.checked?this.off.delete(n):this.off.add(n); this.draw(); };
-    $('#vMeta').innerHTML=Object.entries(d.meta||{}).filter(([,v])=>v).map(([k,v])=>`<div><span style="color:var(--tx3)">${esc(k)}:</span> ${esc(v)}</div>`).join('')
+    const shm=(d.sheets?.[0]?.meta)||d.meta||{};
+    $('#vMeta').innerHTML=Object.entries(shm).filter(([,v])=>v&&typeof v!=='object').map(([k,v])=>`<div><span style="color:var(--tx3)">${esc(k)}:</span> ${esc(v)}</div>`).join('')
       +`<div style="color:var(--tx3);margin-top:5px">${d.type==='dxf'?(d.ents.length+' entities · unit scale '+d.scale):(d.texts.length+' text items')}</div>`;
     this.pdfScale=0;
     await this.fit();
@@ -1424,13 +1975,28 @@ const viewer={
     if(d.type==='pdf'){ await this.drawPDF(d,g,w,h); return; }
     const q=$('#vFind').value.trim().toUpperCase();
     g.lineWidth=1;
-    for(const e of d.ents){
+    const [wx0,wy1]=this.Tinv(-40,-40), [wx1,wy0]=this.Tinv(w+40,h+40);
+    const N=d.ents.length;
+    const step=(this.fast&&N>35000)?Math.ceil(N/35000):1;     // thin out while panning / zooming
+    const minPx=this.fast?1.2:0.35;                            // skip what cannot be seen anyway
+    let drawn=0;
+    for(let i=0;i<N;i+=step){
+      const e=d.ents[i];
       if(this.off.has(e.layer))continue;
+      if(e.bb){
+        if(e.bb[2]<wx0||e.bb[0]>wx1||e.bb[3]<wy0||e.bb[1]>wy1)continue;         // off screen
+        if(!TEXTY.has(e.type)&&e.type!=='INSERT'
+           &&Math.max(e.bb[2]-e.bb[0],e.bb[3]-e.bb[1])*this.z<minPx)continue;   // sub-pixel
+      }
+      drawn++;
       const col=layerColor(d.layers[e.layer]?.color);
       g.strokeStyle=col; g.fillStyle=col; g.globalAlpha=.92;
       this.drawEnt(g,e,q);
     }
+    this._drawn=drawn;
+    if(step>1){ g.fillStyle='#d29922'; g.font='11px system-ui'; g.fillText('fast view — release to draw every entity',12,h-12); }
     g.globalAlpha=1;
+    if(this.grid) this.drawGridOverlay(g);
     if(this.mpts.length===2){
       const [a,b]=this.mpts; g.strokeStyle='#4f9cf9'; g.lineWidth=1.5; g.setLineDash([5,4]);
       g.beginPath(); g.moveTo(...this.T(a[0],a[1])); g.lineTo(...this.T(b[0],b[1])); g.stroke(); g.setLineDash([]);
@@ -1438,9 +2004,34 @@ const viewer={
       const m=this.T((a[0]+b[0])/2,(a[1]+b[1])/2);
       g.fillStyle='#4f9cf9'; g.font='12px ui-monospace'; g.fillText(r2(dist)+' m',m[0]+6,m[1]-6);
     }
-    $('#vInfo').textContent=`${d.ents.length} ent · zoom ${r2(this.z*1000)/1000} · ${d.meta.level||'level ?'}`;
+    const sh=this.sheet();
+    $('#vInfo').textContent=`${(this._drawn||0).toLocaleString()} / ${d.ents.length.toLocaleString()} ent · zoom ${r2(this.z*1000)/1000} · ${sh?sheetLevels(sh).join(','):'?'}`
+      +(sh&&sh.grid.from!=='none'?` · grid ${sh.grid.x.length}×${sh.grid.y.length}`:'');
   },
   T(x,y){ return [x*this.z+this.ox, -y*this.z+this.oy]; },
+  drawGridOverlay(g){
+    const sh=this.sheet(); if(!sh||!sh.grid||sh.grid.from==='none')return;
+    const bb=sh.bbox||[0,0,1,1], gr=sh.grid;
+    g.save(); g.setLineDash([7,5]); g.lineWidth=1; g.strokeStyle='#5a6b80'; g.font='11px ui-monospace';
+    gr.x.forEach(o=>{ const a=this.T(o.c,bb[1]), b=this.T(o.c,bb[3]);
+      g.beginPath(); g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]); g.stroke();
+      g.fillStyle='#79b8ff'; g.fillText(o.label,a[0]-3,Math.min(a[1],b[1])-7); });
+    gr.y.forEach(o=>{ const a=this.T(bb[0],o.c), b=this.T(bb[2],o.c);
+      g.beginPath(); g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]); g.stroke();
+      g.fillStyle='#79b8ff'; g.fillText(o.label,Math.min(a[0],b[0])-16,a[1]+3); });
+    g.setLineDash([]);
+    (S.zones||[]).forEach((z,i)=>{
+      const cx0=gr.x.find(o=>o.label===z.x0)?.c, cx1=gr.x.find(o=>o.label===z.x1)?.c;
+      const cy0=gr.y.find(o=>o.label===z.y0)?.c, cy1=gr.y.find(o=>o.label===z.y1)?.c;
+      if(![cx0,cx1,cy0,cy1].every(v=>isFinite(v)))return;
+      const a=this.T(cx0,cy0), b=this.T(cx1,cy1);
+      g.strokeStyle=ZCOL[i%ZCOL.length]; g.lineWidth=2;
+      g.strokeRect(Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.abs(b[0]-a[0]),Math.abs(b[1]-a[1]));
+      g.fillStyle=ZCOL[i%ZCOL.length]; g.font='bold 12px system-ui';
+      g.fillText(z.name,Math.min(a[0],b[0])+6,Math.min(a[1],b[1])+16);
+    });
+    g.restore();
+  },
   Tinv(px,py){ return [(px-this.ox)/this.z, -(py-this.oy)/this.z]; },
   drawEnt(g,e,q){
     const xs=e.xs||[],ys=e.ys||[];
@@ -1527,12 +2118,12 @@ function catOfLayer(ly){ for(const r of S.rules){ if(!r.on||!r.layer)continue; c
   const cw=$('#cw'); let drag=false,lx=0,ly=0,moved=false;
   cw.addEventListener('mousedown',e=>{drag=true;moved=false;lx=e.offsetX;ly=e.offsetY;});
   addEventListener('mouseup',()=>drag=false);
-  cw.addEventListener('mousemove',e=>{ if(!drag)return; moved=true;
+  cw.addEventListener('mousemove',e=>{ if(!drag)return; moved=true; viewer.touch();
     viewer.ox+=e.offsetX-lx; viewer.oy+=e.offsetY-ly; lx=e.offsetX; ly=e.offsetY; viewer.draw(); });
   cw.addEventListener('click',e=>{ if(moved)return;
     if(viewer.measure){ const p=viewer.Tinv(e.offsetX,e.offsetY); viewer.mpts.push(p); if(viewer.mpts.length>2)viewer.mpts=[p]; viewer.draw(); }
     else viewer.pickAt(e.offsetX,e.offsetY); });
-  cw.addEventListener('wheel',e=>{ e.preventDefault();
+  cw.addEventListener('wheel',e=>{ e.preventDefault(); viewer.touch();
     const f=e.deltaY<0?1.15:1/1.15; const mx=e.offsetX,my=e.offsetY;
     viewer.ox=mx-(mx-viewer.ox)*f; viewer.oy=my-(my-viewer.oy)*f; viewer.z*=f; viewer.draw(); },{passive:false});
   $('#vSel').onchange=e=>viewer.load(e.target.value);
@@ -1541,7 +2132,7 @@ function catOfLayer(ly){ for(const r of S.rules){ if(!r.on||!r.layer)continue; c
   $('#vIn').onclick=()=>{viewer.z*=1.25;viewer.draw();};
   $('#vOut').onclick=()=>{viewer.z/=1.25;viewer.draw();};
   $('#vLbl').onclick=()=>{viewer.labels=!viewer.labels;viewer.draw();};
-  $('#vGrid').onclick=()=>{viewer.grid=!viewer.grid;viewer.draw();};
+  $('#vGrid').onclick=e=>{viewer.grid=!viewer.grid;e.target.classList.toggle('pri',viewer.grid);viewer.draw();};
   $('#vMeas').onclick=e=>{viewer.measure=!viewer.measure;viewer.mpts=[];e.target.classList.toggle('pri',viewer.measure);viewer.draw();};
   $('#vFind').oninput=()=>viewer.draw();
   addEventListener('resize',()=>{ if(!$('#p2').classList.contains('hide'))viewer.draw(); if(!$('#p8').classList.contains('hide'))sim.draw(); });
@@ -1552,7 +2143,7 @@ function catOfLayer(ly){ for(const r of S.rules){ if(!r.on||!r.layer)continue; c
    ============================================================ */
 function drawGantt(){
   const host=$('#gantt');
-  if(!S.tasks.length){ host.innerHTML='<div class="empty">Develop the schedule first (step 6)</div>'; return; }
+  if(!S.tasks.length){ host.innerHTML='<div class="empty">Develop the schedule first (step 7)</div>'; return; }
   const scale=$('#gScale').value, grp=$('#gGroup').value;
   const ppd={d:22,w:6,m:2}[scale];
   const LW=320, RH=22, top=64;
@@ -1622,12 +2213,15 @@ const sim={
     this.draw();
   },
   stateOf(t){ return this.day<t.es?0:(this.day<t.ef?1:2); },   // 0 future 1 active 2 done
-  tasksFor(level,cat){
-    return S.tasks.filter(t=>{
+  tasksFor(level,cat,zone){
+    const hit=S.tasks.filter(t=>{
       if(t.level&&level&&t.level!==level)return false;
       const p=S.norms.find(n=>n.id===t.pkgId);
       return p?p.cats.includes(cat):false;
     });
+    if(!zone)return hit;
+    const z=hit.filter(t=>t.zone===zone);
+    return z.length?z:hit;
   },
   draw(){
     const c=$('#cv4'),r=devicePixelRatio||1,w=c.parentElement.clientWidth,h=c.parentElement.clientHeight;
@@ -1645,12 +2239,20 @@ const sim={
     const z=Math.min((w-40)/Math.max(1e-6,bb[2]-bb[0]),(h-40)/Math.max(1e-6,bb[3]-bb[1]));
     const ox=w/2-((bb[0]+bb[2])/2)*z, oy=h/2+((bb[1]+bb[3])/2)*z;
     const T=(x,y)=>[x*z+ox,-y*z+oy];
-    const lvl=d.meta.level||'GF';
+    const sh=d.sheets?.[0];
+    const lvl=sh?sheetLevels(sh)[0]:(d.meta.level||'GF');
+    const gr=sh?sh.grid:null;
     const COL=['#2a3441','#d29922','#3fb950'];
-    for(const e of d.ents){
+    const step=Math.max(1,Math.ceil(d.ents.length/60000));
+    for(let ei=0;ei<d.ents.length;ei+=step){
+      const e=d.ents[ei];
       const cat=catOfLayer(e.layer);
       let st=0,linked=false;
-      if(cat){ const ts=this.tasksFor(lvl,cat); if(ts.length){ linked=true; st=Math.min(...ts.map(t=>this.stateOf(t))); } }
+      if(cat){
+        const zn=isFinite(e.cx)?zoneOf(gr,e.cx,e.cy,lvl):'';
+        const ts=this.tasksFor(lvl,cat,zn);
+        if(ts.length){ linked=true; st=Math.min(...ts.map(t=>this.stateOf(t))); }
+      }
       g.strokeStyle=linked?COL[st]:'#1b222c'; g.fillStyle=g.strokeStyle;
       g.lineWidth=linked&&st===1?1.8:1; g.globalAlpha=linked?1:.45;
       const xs=e.xs||[],ys=e.ys||[];
@@ -1664,7 +2266,7 @@ const sim={
       g.stroke();
     }
     g.globalAlpha=1;
-    $('#sim4Info').textContent=d.name+' · level '+lvl;
+    $('#sim4Info').textContent=d.name+' · level '+lvl+(gr&&gr.from!=='none'?(' · grid '+gr.x.length+'×'+gr.y.length+' · '+(S.zones||[]).length+' area(s)'):'');
   },
   drawMatrix(g,w,h){
     const lv=[...levelsList()].reverse(), zs=zonesList();
@@ -1714,7 +2316,7 @@ const sim={
 /* ============================================================
    EXPORTS
    ============================================================ */
-function needTasks(){ if(!S.tasks.length){ toast('Develop the schedule first (step 6)','warn'); return false; } return true; }
+function needTasks(){ if(!S.tasks.length){ toast('Develop the schedule first (step 7)','warn'); return false; } return true; }
 
 /* ---------- Primavera P6 XER ---------- */
 function buildXER(){
@@ -1776,7 +2378,7 @@ function guid(){ const h=()=>Math.floor(Math.random()*65536).toString(16).padSta
 /* ---------- Excel ---------- */
 function sheetRows(){
   return S.tasks.map(t=>({'Activity ID':t.code,'WBS':t.wbs,'Group activity':t.group,'Activity name':t.name,
-    'Level':t.level,'Zone':t.zone,'Quantity':t.qty,'Unit':t.unit,'Original duration (d)':t.dur,
+    'Level':t.level,'Zone / area':t.zone,'Grid range':t.grid||'','Quantity':t.qty,'Unit':t.unit,'Original duration (d)':t.dur,
     'Start':t.start,'Finish':t.finish,'Late start':t.lsD,'Late finish':t.lfD,'Total float (d)':t.tf,
     'Critical':t.crit?'Yes':'No','Predecessors':t.preds||''}));
 }
@@ -1788,7 +2390,7 @@ function bimRows(){
     const guids=els.map(e=>e.guid).filter(Boolean);
     return {'Task Name':t.name,'Display ID':t.code,'Task Type':'Construct','Planned Start':t.start,'Planned End':t.finish,
       'Actual Start':'','Actual End':'','Search Set':setName([t.level,t.zone,(S.norms.find(n=>n.id===t.pkgId)||{}).name||t.group]),
-      'Level':t.level,'Zone':t.zone,'Work package':(S.norms.find(n=>n.id===t.pkgId)||{}).name||t.group,
+      'Level':t.level,'Zone / area':t.zone,'Grid range':t.grid||'','Work package':(S.norms.find(n=>n.id===t.pkgId)||{}).name||t.group,
       'Category':[...new Set(els.map(e=>e.cat))].join('; '),'Element marks':[...new Set(els.map(e=>e.mark))].slice(0,40).join('; '),
       'Element GUIDs':guids.join('; '),'Element count':els.length,'Quantity':t.qty,'Unit':t.unit,
       'Duration (d)':t.dur,'Total float (d)':t.tf,'Critical':t.crit?'Yes':'No','WBS':t.wbs,'Appearance':'Construct (Green)'};
@@ -1814,8 +2416,8 @@ function exportXLSX(kind){
   const add=(name,rows)=>{ if(rows.length) XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),name.slice(0,31)); };
   if(kind==='bim'){
     add('TimeLiner',bimRows());
-    add('Element mapping',S.elements.map(e=>({Category:e.cat,Mark:e.mark,Level:e.level,Zone:e.zone,Quantity:e.qty,Unit:e.unit,
-      'Search Set':setName([e.level,e.zone,e.cat]),'IFC GUID':e.guid||'','Source drawing':e.drawing})));
+    add('Element mapping',S.elements.map(e=>({Category:e.cat,Mark:e.mark,Level:e.level,'Zone / area':e.zone,'Grid bay':e.bay||'',
+      Quantity:e.qty,Unit:e.unit,'Search Set':setName([e.level,e.zone,e.cat]),'IFC GUID':e.guid||'','Source drawing':e.drawing,Sheet:e.sheet||1})));
     add('How to use',[
       {Step:1,Action:'Navisworks → TimeLiner → Data Sources → Add → CSV/Excel, select this file (TimeLiner sheet).'},
       {Step:2,Action:'Field selector: Task Type = "Task Type", Planned Start = "Planned Start", Planned End = "Planned End".'},
@@ -1829,7 +2431,16 @@ function exportXLSX(kind){
   add('Schedule',sheetRows());
   add('WBS',S.wbs.map(w=>({Code:w.code,Name:w.name,Parent:S.wbs.find(x=>x.id===w.parent)?.name||''})));
   add('Relationships',S.rels.map(r=>({Predecessor:S.tasks.find(t=>t.id===r.p)?.code,Successor:S.tasks.find(t=>t.id===r.s)?.code,Type:r.type,'Lag (d)':r.lag})));
-  add('Quantities',S.elements.map(e=>({Category:e.cat,Mark:e.mark,Level:e.level,Zone:e.zone,Quantity:e.qty,Unit:e.unit,Layer:e.layer,Drawing:e.drawing,Source:e.src,'IFC GUID':e.guid||''})));
+  add('Quantities',S.elements.map(e=>({Category:e.cat,Mark:e.mark,Level:e.level,'Zone / area':e.zone,'Grid bay':e.bay||'',
+    Quantity:e.qty,Unit:e.unit,Layer:e.layer,Drawing:e.drawing,Sheet:e.sheet||1,Source:e.src,'IFC GUID':e.guid||''})));
+  add('Work areas',(S.zones||[]).map(z=>({Area:z.name,'X from':z.x0,'X to':z.x1,'Y from':z.y0,'Y to':z.y1,
+    Levels:z.levels||'*','Plan area (m²)':Math.round(zoneArea(z))||'',
+    Elements:S.elements.filter(e=>e.zone===z.name).length,
+    Activities:S.tasks.filter(t=>t.zone===z.name).length})));
+  add('Sheets read',allSheets().map(sh=>({File:sh.d.name,Sheet:sh.p,'Level(s)':sheetLevels(sh).join(', '),
+    Discipline:sh.meta.discipline||'','Sheet no':sh.meta.sheetNo||'',Scale:sh.meta.scale||'',
+    'Grid X':sh.grid.x.map(o=>o.label).join(' '),'Grid Y':sh.grid.y.map(o=>o.label).join(' '),
+    'Grid source':sh.grid.from,Title:sh.meta.title||''})));
   add('Work packages',S.norms.map(n=>({Seq:n.seq,'Work package':n.name,Categories:n.cats.join(', '),Unit:n.unit,'Output/crew-day':n.out,Crews:n.crews,'Min d':n.min,'Max d':n.max,'Floor by floor':n.vert?'Yes':'No'})));
   add('Read rules',S.rules.map(r=>({Category:r.cat,'Layer regex':r.layer,'Text regex':r.text,Unit:r.unit,Measure:r.measure,Factor:r.factor,Enabled:r.on?'Yes':'No'})));
   add('S-curve',scurve());
@@ -1839,6 +2450,9 @@ function exportXLSX(kind){
     {Item:'Hours per day',Value:S.cal.hpd},{Item:'Holidays',Value:S.cal.hols.join(', ')},
     {Item:'Zones per level',Value:S.opts.zones},{Item:'Zone overlap %',Value:S.opts.zoneOverlap},
     {Item:'Typical floor repeat',Value:S.opts.typical?'On — levels without a drawing use the typical floor quantity':'Off'},
+    {Item:'Work areas',Value:(S.zones||[]).map(z=>z.name+(z.x0?' ['+z.x0+'-'+z.x1+'/'+z.y0+'-'+z.y1+']':'')).join('; ')},
+    {Item:'Grid',Value:(()=>{const g=masterGrid();return g.x.length?('X: '+g.x.join(' ')+'   Y: '+g.y.join(' ')):'not detected';})()},
+    {Item:'Sheets read',Value:allSheets().length},
     {Item:'Drawings read',Value:S.drawings.map(d=>d.name).join('; ')},
     {Item:'Durations',Value:'quantity ÷ (output × crews), clamped to min/max; quantities from CAD geometry and text marks'}]);
   dl(new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/octet-stream'}),safeName()+'_Schedule.xlsx');
@@ -1901,6 +2515,21 @@ $('#hols').onchange=e=>{S.cal.hols=e.target.value.split(',').map(s=>s.trim()).fi
   const [k,id]=p.split('|'); const e=$('#'+id); if(!e)return;
   e.onchange=()=>{ S.opts[k]=(k==='idPfx')?e.value:num(e.value,0); saveLocal(); };
 });
+$('#zApply').onclick=()=>{ busy(true,'Splitting grid…'); setTimeout(()=>{
+    autoZones(clamp(num($('#zRows').value,1),1,8),clamp(num($('#zCols').value,1),1,8));
+    reExtract(); renderAll(); saveLocal(); busy(false);
+    toast(S.zones.length+' work area(s) created from the grid','ok'); },30); };
+$('#zAdd').onclick=()=>{ const mg=masterGrid();
+  S.zones.push({id:uid('z'),name:'Z'+(S.zones.length+1),x0:mg.x[0]||'',x1:mg.x[mg.x.length-1]||'',
+    y0:mg.y[0]||'',y1:mg.y[mg.y.length-1]||'',levels:'*'});
+  renderZones(); saveLocal(); };
+$('#zRe').onclick=()=>{ busy(true,'Re-assigning elements to areas…'); setTimeout(()=>{
+    reExtract(); renderAll(); saveLocal(); busy(false); toast('Elements re-assigned to areas','ok'); },30); };
+$('#zSheet').onchange=drawZoneMap;
+$('#nZones').onchange=()=>{ const n=clamp(num($('#nZones').value,1),1,12); S.opts.zones=n;
+  const mg=masterGrid();
+  if(mg.x.length<2||mg.y.length<2){ autoZones(1,n); reExtract(); renderAll(); }
+  saveLocal(); };
 $('#typRep').onchange=e=>{S.opts.typical=e.target.checked;saveLocal();};
 $('#eCat').onchange=$('#eLvl').onchange=$('#eZone').onchange=renderElements;
 $('#eFind').oninput=renderElements;
@@ -1977,6 +2606,17 @@ $('#btnReset').onclick=()=>{ if(!confirm('Clear everything and start a new proje
 function demoDrawing(level,i){
   const ents=[],L=30000,B=18000;
   const add=e=>{ ents.push(finishEnt(Object.assign({layer:'0',xs:[],ys:[]},e))); };
+  // column grid bubbles: letters along X, numbers along Y (top+bottom, left+right)
+  for(let k=0,x=0;x<=L;x+=6000,k++){
+    add({type:'TEXT',layer:'GRID',x,y:B+2500,h:400,text:String.fromCharCode(65+k)});
+    add({type:'TEXT',layer:'GRID',x,y:-2500,h:400,text:String.fromCharCode(65+k)});
+    add({type:'LINE',layer:'GRID',ltype:'CENTER',x,y:-2000,x2:x,y2:B+2000,xs:[],ys:[]});
+  }
+  for(let k=0,y=0;y<=B;y+=6000,k++){
+    add({type:'TEXT',layer:'GRID',x:-2500,y,h:400,text:String(k+1)});
+    add({type:'TEXT',layer:'GRID',x:L+2500,y,h:400,text:String(k+1)});
+    add({type:'LINE',layer:'GRID',ltype:'CENTER',x:-2000,y,x2:L+2000,y2:y,xs:[],ys:[]});
+  }
   // slab outline
   add({type:'LWPOLYLINE',layer:'S-SLAB',xs:[0,L,L,0],ys:[0,0,B,B],flags:1});
   // column grid
@@ -2005,7 +2645,7 @@ function demoDrawing(level,i){
       add({type:'INSERT',layer:'S-FOOT',x,y,xs:[x],ys:[y]});
       add({type:'LWPOLYLINE',layer:'C-EXCAV',xs:[x-1800,x+1800,x+1800,x-1800],ys:[y-1800,y-1800,y+1800,y+1800],flags:1}); } }
   const layers={}; ents.forEach(e=>{ (layers[e.layer]??={name:e.layer,color:[1,2,3,4,5,6,7][e.layer.length%7],count:0}).count++; });
-  return {id:uid('d'),name:'DEMO-'+String(i+1).padStart(2,'0')+'-'+level+'-PLAN.dxf',type:'dxf',pages:1,ents,layers,scale:0.001,
+  return {id:uid('d'),name:'DEMO-'+String(i+1).padStart(2,'0')+'-'+level+'-PLAN.dxf',type:'dxf',pages:1,ents,layers,scale:0.001,demoLevel:level,
     texts:ents.filter(e=>e.type==='TEXT').map(e=>({p:1,str:e.text,x:e.x,y:e.y,h:e.h})),
     meta:{level,zone:'',discipline:'Structural',scale:'1:100',sheetNo:'S-'+(101+i),title:level+' FRAMING PLAN'}};
 }
@@ -2014,10 +2654,18 @@ function loadDemo(){
   setTimeout(()=>{
     S.drawings=[]; S.elements=[];
     ['Foundation','GF','L1','L2','L3','L4','Terrace'].forEach((lv,i)=>{
-      const d=demoDrawing(lv,i); const els=extractElements(d); d.elCount=els.length;
-      S.drawings.push(d); S.elements.push(...els);
-      log('Demo drawing '+d.name+' — '+d.ents.length+' entities, '+els.length+' element groups','s');
+      const d=demoDrawing(lv,i);
+      S.drawings.push(d);
+      log('Demo drawing '+d.name+' — '+d.ents.length+' entities','s');
     });
+    S.drawings.forEach(d=>{ d.sheets=buildSheets(d);
+      if(d.demoLevel) d.sheets.forEach(sh=>{ sh.meta.level=d.demoLevel; sh.meta.levels=null; });
+      d.meta=d.sheets[0].meta; });
+    autoZones(1,2); $('#zRows').value=1; $('#zCols').value=2;
+    reExtract();
+    const g0=S.drawings[0].sheets[0].grid;
+    log('Grid detected: '+g0.x.map(o=>o.label).join(' ')+' / '+g0.y.map(o=>o.label).join(' ')+'  ('+g0.from+')','s');
+    log('Work areas: '+S.zones.map(z=>z.name+' ['+z.x0+'-'+z.x1+'/'+z.y0+'-'+z.y1+']').join(', '),'s');
     S.name='Demo Tower — G+4'; $('#projName').value=S.name;
     S.start=d2s(new Date()); $('#projStart').value=S.start;
     S.opts.zones=2; S.opts.levels=0;

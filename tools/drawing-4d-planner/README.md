@@ -16,15 +16,36 @@ aur XER / Excel / BIM file ready.
 
 | Step | Screen | What happens |
 |---|---|---|
-| 1 | Drawings | Drop PDF and DXF files. DXF gives layers, blocks, lengths and areas; PDF gives every text item with its position (sheet no, title, scale, level, marks like `C1`, `D1`, `W1`). |
-| 2 | Viewer | Pan/zoom vector viewer, layer toggles, text search, click-to-inspect, distance measure. |
-| 3 | Elements & Qty | The extracted BOQ — category, mark, level, zone, quantity, unit, source. Every cell is editable; you can also import a BIM element list (CSV/XLSX) to attach IFC GUIDs. |
-| 4 | Group schedule | Import your summary programme: `.xer`, `.xlsx`, `.csv` or MS Project `.xml`. Or load the standard building template. |
-| 5 | Rules & Norms | Read rules (CAD layer / text → element category) and work packages (categories, output per crew-day, crews, min/max duration, floor-by-floor flag) plus calendar, zones and overlaps. |
-| 6 | Develop | Explodes every group activity into *work package × level × zone* activities, sizes each from the drawing quantity, links them (trade sequence, zone overlap, floor-to-floor, foundation-to-ground) and runs a full forward/backward CPM pass. |
-| 7 | Gantt | Bars, total float, critical path, WBS/level/zone grouping; PNG and SVG export. |
-| 8 | 4D | Plays the programme against the DXF geometry — elements turn grey → amber → green as the schedule runs. |
-| 9 | Exports | XER, Excel workbook, BIM 4D workbook, TimeLiner CSV, MS Project XML, P6 import CSV, project JSON. |
+| 1 | Drawings | Drop PDF and DXF files. **Every sheet is read on its own** — its level, discipline, sheet number, plot scale, title and grid. DXF gives layers, blocks, lengths and areas; PDF gives every text item with its position. |
+| 2 | Viewer | Pan/zoom vector viewer, layer toggles, text search, click-to-inspect, distance measure, and a **grid + zone overlay**. Large drawings switch to a fast view while you pan. |
+| 3 | Elements & Qty | The extracted BOQ — category, mark, **level, work area and grid bay**, quantity, unit, sheet, source. Every cell is editable; you can also import a BIM element list (CSV/XLSX) to attach IFC GUIDs. |
+| 4 | Grids & Zones | The column grid found on each sheet (A, B, C… / 1, 2, 3…), split into work areas by grid range with their plan area in m², a zone map, and the per-sheet grid/level table. |
+| 5 | Group schedule | Import your summary programme: `.xer`, `.xlsx`, `.csv` or MS Project `.xml`. Or load the standard building template. |
+| 6 | Rules & Norms | Read rules (CAD layer / text → element category) and work packages (categories, output per crew-day, crews, min/max duration, floor-by-floor flag) plus calendar, fallback zones and overlaps. |
+| 7 | Develop | Explodes every group activity into *work package × level × work area* activities, sizes each from that area's own quantity, links them (trade sequence, area-to-area overlap, floor-to-floor, foundation-to-ground) and runs a full forward/backward CPM pass. |
+| 8 | Gantt | Bars, total float, critical path, WBS/level/zone grouping; PNG and SVG export. |
+| 9 | 4D | Plays the programme against the DXF geometry — each element turns grey → amber → green with the activity of **its own level and area**. |
+| 10 | Exports | XER, Excel workbook (with Work areas and Sheets read tabs), BIM 4D workbook, TimeLiner CSV, MS Project XML, P6 import CSV, project JSON. |
+
+## Grid-wise, level-wise, area-wise
+
+* **Grid** — grid bubbles (single letters / 1–2 digit numbers repeated at both ends of a grid line) are clustered into an X axis and a Y axis; if a sheet has no bubbles, long centre lines on grid-ish layers are used instead. Works on DXF geometry and on vector PDF text.
+* **Level** — read per sheet from its title block and file name (`GF`, `L3`, `2F`, `B1`, `Foundation`, `Terrace`…). A sheet that says *TYPICAL FLOOR PLAN (L3 TO L12)* is applied to all ten levels automatically. You can override the level for a whole file in step 1.
+* **Area** — split the grid into rows × columns of work areas (`A-D / 1-4`), or edit each area's grid range by hand. A sheet whose title says *ZONE A* becomes its own work area.
+* **Placing quantities** — counted items (columns, doors, windows, fixtures) go to the area their centre falls in; areas and lengths that span several zones (slabs, floor finishes, walls, ducts) are **split in proportion to the overlap**, so a 30 m slab across an 18 m + 12 m split gives 60 % / 40 %.
+* **Fallback** — a sheet with no grid still works: its level quantity is divided equally between the fallback zones set in step 6.
+
+## Reading capacity
+
+Tested in a headless browser on this repo's fixtures:
+
+| Input | Result |
+|---|---|
+| 20.4 MB DXF, 400,615 entities, 21 × 13 grid | parsed in ~4 s, grid found, 6 work areas split with real m² |
+| Multi-sheet PDF set | each sheet read separately — own level, grid, marks; `L3 TO L8` expanded to 6 levels |
+| Viewer on the 400k-entity drawing | ~20 ms per frame while panning (fast view), full-quality redraw when you stop |
+
+Parsing is chunked so the page keeps responding and shows progress, and the viewer culls whatever is off-screen or smaller than a pixel. Entity types read: LINE, LWPOLYLINE, POLYLINE/VERTEX, ARC, CIRCLE, ELLIPSE, SPLINE, POINT, SOLID, 3DFACE, HATCH, TEXT, MTEXT, ATTRIB, ATTDEF, INSERT (with block length/area totals) and DIMENSION.
 
 ## How durations are produced
 
@@ -43,7 +64,7 @@ Excel export, so the numbers can be checked and defended.
 * **PDF** — vector plots give text; scanned/raster sheets show the image only, so enter those quantities manually in step 3.
 * **DWG** — cannot be parsed by any browser. Export DXF or plot a PDF.
 * **XER** — written for Primavera P6 (19.12 header): PROJECT, CALENDAR, PROJWBS, TASK, TASKPRED. Review the project calendar after import.
-* **BIM 4D** — `TimeLiner` sheet: Task Name, Display ID, Task Type, Planned Start/End, Search Set (`Level_Zone_Package`), level, zone, categories, element marks and GUIDs. Attach in Navisworks with *Auto-Attach Using Rules* on selection-set name.
+* **BIM 4D** — `TimeLiner` sheet: Task Name, Display ID, Task Type, Planned Start/End, Search Set (`Level_Zone_Package`), level, work area, grid range, categories, element marks and GUIDs. Attach in Navisworks with *Auto-Attach Using Rules* on selection-set name.
 
 ## Notes
 

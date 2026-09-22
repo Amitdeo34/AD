@@ -28,6 +28,22 @@
   --color-ink-500: #5b5750;
   --color-ink-400: #8b857c;
 
+  /* The PMO reporting engine is a separate product inside this app and wears
+     a separate, deliberately corporate palette. */
+  --color-pmo-50: #f4f6f9;
+  --color-pmo-100: #e4e9f0;
+  --color-pmo-200: #c6d0de;
+  --color-pmo-400: #5b7ba8;
+  --color-pmo-500: #2a78d6;
+  --color-pmo-600: #1c4e8f;
+  --color-pmo-700: #10284b;
+  --color-pmo-800: #0b1c35;
+
+  --color-signal-good: #0ca30c;
+  --color-signal-warn: #fab219;
+  --color-signal-serious: #ec835a;
+  --color-signal-bad: #d03b3b;
+
   --font-sans: "Inter", ui-sans-serif, system-ui, "Segoe UI", "Noto Sans", sans-serif;
 }
 

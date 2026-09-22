@@ -13,6 +13,9 @@ export default function SiteHeader() {
   const pathname = usePathname();
   const { user } = useAuth();
 
+  // The PMO engine is a separate product with its own chrome.
+  if (pathname.startsWith('/pmo')) return null;
+
   return (
     <header className="safe-top sticky top-0 z-40 bg-forest-700 text-white shadow-sm">
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">

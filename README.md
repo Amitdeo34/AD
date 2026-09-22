@@ -13,6 +13,25 @@ npm run dev      # http://localhost:3000
 
 ---
 
+## Two products, one deployment
+
+This repository also carries a **[PMO Reporting Engine](docs/PMO-ENGINE.md)** at
+`/pmo` — a consulting tool that takes a client's Daily Progress Report and
+produces the weekly exception report, area tracking, interim, monthly and
+quarterly reports, the digital DPR and the schedule update from one reconciled
+set of numbers, as HTML, Excel and Word.
+
+```bash
+npm run pmo:seed   # a worked example project
+npm run dev        # http://localhost:3000/pmo
+```
+
+It shares this deployment and the framework-free `lib/` convention, and adds no
+dependencies. It is otherwise independent of the booking site: separate data
+store, separate routes, separate chrome.
+
+---
+
 ## What is in it
 
 **Pan-India location hierarchy.** 36 states and union territories → 776
@@ -94,7 +113,8 @@ lib/            Domain logic, all of it framework-free
   upi.js        UPI intents, QR codes, UTR handling
   store.js      Accounts, bookings, payments and reviews
 mobile/         Capacitor Android shell
-test/           50 tests over the domain logic and the real route handlers
+test/           93 tests over the domain logic and the real route handlers
+lib/pmo/        The PMO reporting engine — see docs/PMO-ENGINE.md
 ```
 
 ### Where the data comes from
@@ -132,8 +152,9 @@ database, before taking real bookings.
 | --- | --- |
 | `npm run dev` | Development server on :3000 |
 | `npm run build` / `npm start` | Production build and server |
-| `npm test` | The full suite — 50 tests |
+| `npm test` | The full suite — 93 tests |
 | `npm run seed` | Demo accounts, bookings and a review |
+| `npm run pmo:seed` | A worked example project for the PMO engine |
 | `npm run build:android` | Signed release `.aab` |
 | `npm run mobile:icons` | Regenerate every icon from `mobile/assets/icon.svg` |
 

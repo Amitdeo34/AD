@@ -23,6 +23,8 @@ export default function TabBar() {
   const pathname = usePathname();
   const { user } = useAuth();
 
+  if (pathname.startsWith('/pmo')) return null;
+
   const tabs = [
     { href: '/', label: 'Search', icon: 'search', exact: true },
     { href: '/states', label: 'States', icon: 'map' },

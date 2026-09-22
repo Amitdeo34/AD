@@ -15,9 +15,14 @@ Steps on the page:
 1. **Meeting details** — title, date, time, venue, chair, attendees, agenda, next review date.
 2. **Capture the review** — three ways, mixable in one meeting:
    * **Live microphone** — tick every language the meeting will use, tap one to point the mic at it,
-     and tap another whenever the speaker switches (the recogniser restarts by itself). Each line's
-     language is also detected from its script, so a Hindi sentence is treated as Hindi even if the
-     mic was left on Odia.
+     and tap another whenever the speaker switches. The session keeps itself alive: Chrome ends a
+     recognition session on silence, a network blip or simply after a while, and each of those is
+     picked back up automatically (a watchdog rebuilds the recogniser if it dies quietly). The status
+     line shows the language, the time something was last heard, and how often it resumed.
+     Each line's language is detected from its script, and if the mic is left on English while the
+     room speaks Hindi — which makes Chrome write Hindi in English letters — that is detected too:
+     the mic moves to the right language and the affected lines are flagged. The audio is kept while
+     listening (a tick box), so **Re-transcribe in English** can redo the whole meeting properly.
    * **Record & auto-transcribe** — record the meeting audio in the page, then press
      **Transcribe to English**. No language switching at all: Whisper detects each language itself
      and writes English.
@@ -25,7 +30,11 @@ Steps on the page:
      MP4, MOV). It is transcribed to English and the minutes are generated automatically.
 
    Transcription model: **tiny** (~38 MB, fastest), **base** (~73 MB, default) or **small**
-   (~237 MB, best for Indian languages). Downloaded once from the browser, then it works offline.
+   (~237 MB). Downloaded once from the browser, then it works offline. For Hindi, Bengali, Odia,
+   Telugu or Tamil, **small** is noticeably better than base — the page says so when one of those
+   languages is ticked. Whisper is asked to translate, and if a passage still comes back in another
+   language it is retried with the source language named, then through the browser translator; only
+   after that does the line get flagged for correction.
 
 3. **Captured points** — edit, re-tag the speaker, or delete any line.
 4. **Generate minutes** — the page translates to English, removes fillers, shortens each line

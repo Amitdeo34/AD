@@ -224,6 +224,14 @@ footer{max-width:1180px;margin:0 auto;padding:0 16px 40px;font-size:11.5px;color
         </div>
       </div>
       <div class="interim" id="interim">Interim speech appears here while you speak&hellip;</div>
+      <div class="row" style="margin-top:12px">
+        <label class="row" style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--muted);margin:0">
+          <input type="checkbox" id="optLiveAudio" checked style="width:auto" /> Also keep the audio while listening
+        </label>
+        <button id="btnRedo" class="btn-ghost btn-sm" disabled>Re-transcribe in English</button>
+        <button id="btnLiveSave" class="btn-ghost btn-sm" disabled>Save audio</button>
+      </div>
+      <div class="note" id="romanNote" style="display:none"></div>
       <div class="note" id="capnote"></div>
     </div>
 
@@ -271,6 +279,7 @@ footer{max-width:1180px;margin:0 auto;padding:0 16px 40px;font-size:11.5px;color
           <option value="onnx-community/whisper-tiny" data-mb="38">Fastest &mdash; Whisper tiny (~38 MB)</option>
           <option value="onnx-community/whisper-small" data-mb="237">Most accurate for Indian languages &mdash; Whisper small (~237 MB)</option>
         </select>
+        <div class="prog" id="modelHint" style="display:none"></div>
       </div>
       <div style="grid-column:span 2">
         <label>Transcription progress</label>
@@ -410,6 +419,34 @@ function detectScript(text){
   });
   return bestN >= 2 ? best : null;           /* Latin script stays with the selected language */
 }
+/* Speech typed out in English letters is the usual trap: the microphone is left on
+   English while the discussion is in Hindi, so Chrome writes "agli baithak mein
+   budget par charcha karenge" and nothing downstream can tell that is not English. */
+var ROMAN_INDIC = ("hai hain ho hoga hogi hota hoti honge karna karne karenge karo kiya kar raha rahi rahe " +
+  "nahi nahin naa kya kyun kyon aur lekin magar ke ki ka ko se mein tha thi gaya gayi gaye " +
+  "karein kijiye batao milega chalo sahi galat zaroori kripya dhyan wapas jaega jayega " +
+  "chahiye sakta sakte sakti bhi abhi phir bahut thoda accha acha theek thik matlab liye wala wale " +
+  "jo yeh ye woh wo hum tum aap mera tera uska apna apni baat kaam samay din saal mahina bola kaha " +
+  "dekho suno bhai haan ji kitna kaise kahan kab jaldi zyada kam pura poora " +
+  "ami tumi apni hobe korbo korte nei jonno kore diye theke khub " +
+  "mun mu aame ame tume achi achhi karuchi karichi kariba karibaku hela heba thila thiba " +
+  "bhala kichi sabu kemiti kahinki jaha taha suddha parabarti saptaha "  +
+  "nenu meeru unnadi cheyali kani kosam ledu ela enti chala " +
+  "naan neenga irukku pannunga illa aana enna epdi romba").split(" ");
+var ROMAN_SET = {}; ROMAN_INDIC.forEach(function(w){ ROMAN_SET[w] = 1; });
+function romanIndicScore(text){
+  var w = String(text).toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/).filter(Boolean);
+  if(w.length < 3) return 0;
+  var hits = 0;
+  w.forEach(function(x){ if(ROMAN_SET[x]) hits++; });
+  return hits >= 2 ? hits / w.length : 0;
+}
+function isRomanIndic(text){ return romanIndicScore(text) >= 0.18; }
+function looksEnglish(text){
+  if(detectScript(text)) return false;           /* another script altogether */
+  return !isRomanIndic(text);
+}
+
 function buildLangPicks(){
   var box = $("langpicks"); box.innerHTML = "";
   LANGS.forEach(function(L){
@@ -423,11 +460,26 @@ function buildLangPicks(){
         enabledLangs.splice(i, 1);
         if(activeLang === L.code) activeLang = enabledLangs[0];
       } else enabledLangs.push(L.code);
-      buildLangPicks(); buildLangChips(); save();
+      buildLangPicks(); buildLangChips(); updateModelHint(); save();
       if(rec.on) restartRecognition();
     };
     box.appendChild(c);
   });
+}
+function updateModelHint(){
+  var box = $("modelHint"); if(!box) return;
+  var indic = enabledLangs.filter(function(c){ return c !== "en-IN"; }).length > 0;
+  var small = $("asrModel").value.indexOf("small") >= 0;
+  if(indic && !small){
+    box.style.display = "block";
+    box.innerHTML = 'An Indian language is ticked &mdash; <b>Small</b> transcribes those far better than base. ' +
+                    '<a href="#" id="useSmall" style="color:var(--kpmg-medium)">Switch to Small</a> (slower, bigger download).';
+    $("useSmall").onclick = function(ev){
+      ev.preventDefault();
+      $("asrModel").value = "onnx-community/whisper-small";
+      updateModelHint(); toast("Small model selected — it downloads on the first transcription.");
+    };
+  } else box.style.display = "none";
 }
 function buildLangChips(){
   var box = $("langchips"); box.innerHTML = "";
@@ -455,10 +507,39 @@ function addLine(raw, langCode, speaker){
   raw = (raw || "").trim(); if(!raw) return;
   var lang = langCode || activeLang;
   var byScript = detectScript(raw);          /* a Hindi line spoken while the mic is set to Odia is still Hindi */
+  var roman = !byScript && isRomanIndic(raw);
   if(byScript) lang = byScript;
+  else if(roman) lang = enabledLangs.filter(function(c){ return c !== "en-IN"; })[0] || lang;
+  else lang = "en-IN";                       /* plain English stays English even when the mic is set elsewhere */
   lines.push({ id:++seq, time:nowHHMM(), speaker:(speaker || $("speaker").value || "").trim() || "Participant",
-               raw:raw, lang:lang, en:null });
+               raw:raw, lang:lang, en:null, roman:roman });
+  if(roman) onRomanCaptured();
   renderTranscript(); save();
+}
+var romanWarned = 0;
+function onRomanCaptured(){
+  /* The mic is set to English but the room is not speaking English. Move it, and say so. */
+  if(tcodeOf(activeLang) !== "en") return;
+  var target = enabledLangs.filter(function(c){ return c !== "en-IN"; })[0];
+  if(target){
+    activeLang = target; buildLangChips(); if(rec.on) restartRecognition();
+    var lg = LANGS.filter(function(x){ return x.code === target; })[0];
+    toast("That sounded like " + (lg ? lg.label : "another language") + " written in English letters — microphone switched to " + (lg ? lg.label : target) + ".");
+  } else if(!romanWarned++){
+    toast("The microphone is set to English but the discussion is not. Tick that language above, or use the Record tab.", true);
+  }
+  showRomanBanner();
+}
+function showRomanBanner(){
+  var n = lines.filter(function(L){ return L.roman; }).length;
+  var box = $("romanNote");
+  if(!box) return;
+  if(!n){ box.style.display = "none"; return; }
+  box.style.display = "block";
+  box.innerHTML = "<b>" + n + " line(s) came out as Indian language written in English letters.</b> " +
+    "These cannot be translated as they stand. Either correct them in the list below, or " +
+    (liveAudio.blob ? "press <b>Re-transcribe in English</b> to redo the whole meeting from the recorded audio."
+                    : "record the meeting audio next time (tick the box above) and re-transcribe it.");
 }
 function renderTranscript(){
   var box = $("transcript"); box.innerHTML = "";
@@ -478,6 +559,8 @@ function renderTranscript(){
     tx.appendChild(ed);
     var lg = LANGS.filter(function(x){ return x.code === L.lang; })[0];
     var tag = (L.src === "asr") ? "From recording — English" : (lg ? lg.label : L.lang);
+    if(L.roman) tag += "  ·  ⚠ Indian language in English letters — needs correcting";
+    if(L.needsFix) tag += "  ·  ⚠ not English — please correct";
     tx.appendChild(el("div","orig", tag + (L.en && L.en !== L.raw ? " → " + L.en : "")));
     row.appendChild(tx);
     var d = el("button","del","×"); d.title = "Remove";
@@ -487,52 +570,118 @@ function renderTranscript(){
   });
 }
 
-/* ---------- speech recognition ---------- */
+/* ---------- speech recognition: must survive a whole meeting ----------
+   Chrome ends a recognition session on its own (silence, a network blip, a
+   long meeting). Every one of those has to be picked back up, or the page
+   looks like it is listening while nothing is being captured.            */
 var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-var rec = { engine:null, on:false, stopping:false };
+var rec = { engine:null, on:false, stopping:false, restarts:0, last:0, retryT:null, watchT:null, lastHeard:"" };
 
 function setStatus(txt, live){
   $("status").textContent = txt;
   $("dot").className = "dot" + (live ? " live" : "");
 }
-function startRecognition(){
-  if(!SR){ toast("Speech recognition is not available in this browser. Use Chrome or Edge, or type points manually.", true); return; }
+function liveStatus(){
+  if(!rec.on){ setStatus("Stopped", false); return; }
+  var lg = LANGS.filter(function(x){ return x.code === activeLang; })[0];
+  setStatus("Listening — " + (lg ? lg.label : activeLang) +
+            (rec.lastHeard ? " · last heard " + rec.lastHeard : "") +
+            (rec.restarts ? " · resumed " + rec.restarts + "\u00D7" : ""), true);
+}
+function buildEngine(){
   var e = new SR();
   e.lang = activeLang; e.continuous = true; e.interimResults = true; e.maxAlternatives = 1;
+  e.onstart      = function(){ rec.last = Date.now(); liveStatus(); };
+  e.onaudiostart = function(){ rec.last = Date.now(); };
+  e.onspeechstart= function(){ rec.last = Date.now(); };
   e.onresult = function(ev){
+    rec.last = Date.now();
     var interim = "";
-    for(var i=ev.resultIndex; i<ev.results.length; i++){
+    for(var i = ev.resultIndex; i < ev.results.length; i++){
       var r = ev.results[i];
-      if(r.isFinal){ addLine(r[0].transcript, e.lang); }
+      if(r.isFinal){ rec.lastHeard = nowHHMM(); addLine(r[0].transcript, e.lang); liveStatus(); }
       else interim += r[0].transcript;
     }
     $("interim").textContent = interim || "Listening…";
   };
   e.onerror = function(ev){
+    rec.last = Date.now();
     if(ev.error === "not-allowed" || ev.error === "service-not-allowed"){
-      toast("Microphone permission denied. Allow the mic and try again.", true); stopRecognition();
+      toast("Microphone permission denied. Allow the mic and press Start again.", true); stopRecognition();
     } else if(ev.error === "language-not-supported"){
-      toast("This browser's speech service does not support the selected language. Pick another language or type the point.", true); stopRecognition();
-    } else if(ev.error !== "no-speech" && ev.error !== "aborted"){
-      setStatus("Speech error: "+ev.error, false);
+      toast("The browser's speech service has no voice model for that language. Use the Record or Upload tab for it.", true);
+      stopRecognition();
+    } else if(ev.error === "no-speech" || ev.error === "aborted" || ev.error === "network"){
+      scheduleRestart(600);                       /* ordinary interruptions: pick it straight back up */
+    } else {
+      setStatus("Speech service hiccup (" + ev.error + ") — resuming…", true);
+      scheduleRestart(1200);
     }
   };
-  e.onend = function(){
-    if(rec.on && !rec.stopping){ try{ e.start(); }catch(err){} }   /* auto-resume long meetings */
-  };
-  rec.engine = e; rec.on = true; rec.stopping = false;
-  try{ e.start(); }catch(err){}
+  e.onend = function(){ if(rec.on && !rec.stopping) scheduleRestart(350); };
+  rec.engine = e;
+  return e;
+}
+function scheduleRestart(delay){
+  if(!rec.on || rec.stopping) return;
+  clearTimeout(rec.retryT);
+  rec.retryT = setTimeout(function(){
+    if(!rec.on || rec.stopping) return;
+    try{
+      rec.engine.start();
+      rec.restarts++; rec.last = Date.now(); liveStatus();
+    }catch(err){
+      /* the engine refuses to restart once it is in a bad state: build a new one */
+      try{ rec.engine.abort(); }catch(e2){}
+      try{
+        buildEngine().start();
+        rec.restarts++; rec.last = Date.now(); liveStatus();
+      }catch(e3){ scheduleRestart(1500); }
+    }
+  }, delay || 400);
+}
+function startRecognition(){
+  if(!SR){ toast("This browser cannot listen live. Use the Record or Upload tab instead.", true); return; }
+  rec.on = true; rec.stopping = false; rec.restarts = 0; rec.lastHeard = ""; rec.last = Date.now();
+  buildEngine();
+  try{ rec.engine.start(); }catch(err){ scheduleRestart(500); }
   $("btnRec").textContent = "■ Stop listening"; $("btnRec").className = "btn-primary";
-  var lg = LANGS.filter(function(x){ return x.code === activeLang; })[0];
-  setStatus("Listening — " + (lg ? lg.label : activeLang), true);
+  liveStatus();
+  clearInterval(rec.watchT);
+  rec.watchT = setInterval(function(){                 /* watchdog: nothing at all for 15s means it died quietly */
+    if(!rec.on || rec.stopping) return;
+    if(Date.now() - rec.last > 15000){
+      try{ rec.engine.abort(); }catch(e){}
+      buildEngine();
+      try{ rec.engine.start(); rec.restarts++; }catch(e){ scheduleRestart(1000); }
+      rec.last = Date.now(); liveStatus();
+    }
+  }, 5000);
+  if(liveAudio.wanted) startLiveAudio();              /* keep the audio as a safety net */
 }
 function stopRecognition(){
   rec.stopping = true; rec.on = false;
-  if(rec.engine){ try{ rec.engine.stop(); }catch(e){} }
+  clearTimeout(rec.retryT); clearInterval(rec.watchT);
+  if(rec.engine){ try{ rec.engine.stop(); }catch(e){} try{ rec.engine.abort(); }catch(e){} }
   $("btnRec").textContent = "● Start listening"; $("btnRec").className = "btn-rec";
   setStatus("Stopped", false); $("interim").textContent = "Interim speech appears here while you speak…";
+  stopLiveAudio();
 }
-function restartRecognition(){ if(!rec.on) return; stopRecognition(); setTimeout(startRecognition, 250); }
+function restartRecognition(){
+  if(!rec.on) return;
+  rec.stopping = true;
+  try{ rec.engine.abort(); }catch(e){}
+  setTimeout(function(){
+    rec.stopping = false;
+    buildEngine();
+    try{ rec.engine.start(); }catch(e){ scheduleRestart(600); }
+    liveStatus();
+  }, 250);
+}
+document.addEventListener("visibilitychange", function(){
+  /* coming back to the tab is the usual moment to discover the mic went quiet */
+  if(!document.hidden && rec.on) scheduleRestart(300);
+});
 
 /* ============================================================
    Translation to English (on-device, when the browser offers it)
@@ -778,7 +927,7 @@ async function generate(){
 
   mom = { meta:M, summary:summary, agenda:M.agenda.slice(), discussion:discussion,
           decisions:decisions, actions:actions, risks:risks, next:next };
-  renderMinutes(untranslated);
+  renderMinutes(untranslated + lines.filter(function(L){ return L.roman || L.needsFix; }).length);
   save();
   $("btnGen").disabled = false; $("btnGen").textContent = "Regenerate minutes →";
   $("panel-minutes").scrollIntoView({ behavior:"smooth", block:"start" });
@@ -882,9 +1031,15 @@ function renderMinutes(untranslated){
 
   if(untranslated){
     var n = el("div","note no-print");
-    n.innerHTML = "<b>"+untranslated+" line(s) could not be auto-translated.</b> The browser's translator is unavailable for that language, or its model is not downloaded yet " +
-                  "(press <b>Enable offline translation</b> in step 2 with that language selected, then regenerate). " +
-                  "Until then the original wording is kept &mdash; edit any line above to put it in English before exporting.";
+    n.innerHTML = "<b>"+untranslated+" line(s) are not in English yet.</b> They are either in another script that this browser cannot translate, " +
+                  "or an Indian language written in English letters, which no translator can read. " +
+                  "Correct them in step 3, or transcribe the meeting audio instead &mdash; that always comes out in English.";
+    if(liveAudio.blob || aud.blob){
+      var fix = el("button", "btn-primary btn-sm no-print", "Re-transcribe the audio in English");
+      fix.style.marginTop = "8px";
+      fix.onclick = function(){ liveAudio.blob ? redoFromLiveAudio() : transcribeBlob(aud.blob, "recorded in this page"); };
+      n.appendChild(document.createElement("br")); n.appendChild(fix);
+    }
     box.appendChild(n);
   }
 }
@@ -1475,6 +1630,21 @@ async function ensureASR(){
   ASR.pipe = pipe; ASR.model = want;
   return pipe;
 }
+function whisperHint(){
+  /* Whisper wants the spoken language by name; take it from the meeting's language picks. */
+  var names = { "hi-IN":"hindi", "bn-IN":"bengali", "or-IN":"hindi", "te-IN":"telugu", "ta-IN":"tamil" };
+  var pick = enabledLangs.filter(function(c){ return c !== "en-IN" && names[c]; })[0];
+  return pick ? names[pick] : null;
+}
+async function translateText(text){
+  var code = tcodeOf(detectScript(text) || "hi-IN");
+  var tr = await getTranslator(code);
+  if(!tr) return null;
+  try{
+    var r = await withTimeout(tr.translate(text), 12000);
+    return (r === TIMED_OUT || typeof r !== "string") ? null : r;
+  }catch(e){ return null; }
+}
 async function decodeTo16k(blob){
   var buf = await blob.arrayBuffer();
   var Ctx = window.AudioContext || window.webkitAudioContext;
@@ -1518,7 +1688,7 @@ function splitSentences(text){
 async function transcribeBlob(blob, label){
   if(ASR.busy){ toast("A transcription is already running.", true); return; }
   ASR.busy = true;
-  var t0 = Date.now(), added = 0;
+  var t0 = Date.now(), added = 0, notEnglish = 0;
   try{
     var pipe = await ensureASR();
     setProg(42, "Reading the audio…");
@@ -1530,13 +1700,34 @@ async function transcribeBlob(blob, label){
       var end = Math.min(pos + WIN, total);
       setProg(45 + 54 * (pos / total), "Transcribing " + mmss(pos/RATE) + " of " + mmss(total/RATE) + " — output is English");
       await new Promise(function(r){ setTimeout(r, 0); });          /* let the page repaint */
-      var out = await pipe(audio.subarray(pos, end), { task:"translate", chunk_length_s:30 });
-      var text = dropOverlap(prevText, ((out && out.text) || "").trim());
+      var slice = audio.subarray(pos, end);
+      var out = await pipe(slice, { task:"translate", chunk_length_s:30 });
+      var raw = ((out && out.text) || "").trim();
+      if(raw && !looksEnglish(raw)){
+        /* the model transcribed instead of translating: say the source language and ask again */
+        var hint = whisperHint();
+        if(hint){
+          try{
+            var out2 = await pipe(slice, { task:"translate", language:hint, chunk_length_s:30 });
+            var raw2 = ((out2 && out2.text) || "").trim();
+            if(raw2 && looksEnglish(raw2)) raw = raw2;
+          }catch(e){}
+        }
+      }
+      if(raw && !looksEnglish(raw)){
+        var viaBrowser = await translateText(raw);      /* last resort: the browser translator */
+        if(viaBrowser && looksEnglish(viaBrowser)) raw = viaBrowser;
+        else notEnglish++;
+      }
+      var stillNotEnglish = !looksEnglish(raw);
+      var text = dropOverlap(prevText, raw);
       text = text.replace(/\s+/g, " ").trim();
       if(text && !/^\[?(BLANK_AUDIO|MUSIC|SILENCE)\]?\.?$/i.test(text)){
         var at = pos / RATE;
         splitSentences(text).forEach(function(sn){
-          lines.push({ id:++seq, time:mmss(at), speaker:"Speaker", raw:sn, lang:"en-IN", en:sn, src:"asr" });
+          lines.push({ id:++seq, time:mmss(at), speaker:"Speaker", raw:sn,
+                       lang: stillNotEnglish ? (detectScript(sn) || "hi-IN") : "en-IN",
+                       en: stillNotEnglish ? null : sn, src:"asr", needsFix: stillNotEnglish });
           added++;
         });
         prevText = text;
@@ -1548,6 +1739,7 @@ async function transcribeBlob(blob, label){
     save();
     var secs = Math.round((Date.now() - t0) / 1000);
     setProg(100, added + " point(s) from " + mmss(total/RATE) + " of audio in " + secs + "s" + (label ? " — " + label : ""), true);
+    if(notEnglish) toast(notEnglish + " passage(s) could not be forced into English — try the Small model, or correct them in the list.", true);
     if(added){
       toast("Transcribed " + added + " point(s). Generating the minutes…");
       await generate();                                             /* upload in, minutes out */
@@ -1558,6 +1750,37 @@ async function transcribeBlob(blob, label){
     setProg(0, "Transcription failed: " + (e && e.message ? e.message : e));
     toast(e && e.message ? e.message : "Transcription failed.", true);
   }finally{ ASR.busy = false; }
+}
+
+/* ---------- the live microphone also keeps the audio, as a safety net ----------
+   If the speech service writes an Indian language in English letters, the meeting
+   can be re-transcribed properly from this recording instead of being retyped.  */
+var liveAudio = { wanted:true, mr:null, chunks:[], blob:null, stream:null };
+async function startLiveAudio(){
+  if(!navigator.mediaDevices || !window.MediaRecorder || liveAudio.mr) return;
+  try{
+    var stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+    var mr = new MediaRecorder(stream);
+    liveAudio.chunks = []; liveAudio.stream = stream;
+    mr.ondataavailable = function(e){ if(e.data && e.data.size) liveAudio.chunks.push(e.data); };
+    mr.onstop = function(){
+      liveAudio.blob = new Blob(liveAudio.chunks, { type: mr.mimeType || "audio/webm" });
+      stream.getTracks().forEach(function(t){ t.stop(); });
+      liveAudio.mr = null; liveAudio.stream = null;
+      $("btnRedo").disabled = !liveAudio.blob;
+      $("btnLiveSave").disabled = !liveAudio.blob;
+      showRomanBanner();
+    };
+    mr.start(2000); liveAudio.mr = mr;
+  }catch(e){ /* no audio safety net; live text still works */ }
+}
+function stopLiveAudio(){ if(liveAudio.mr && liveAudio.mr.state !== "inactive") liveAudio.mr.stop(); }
+async function redoFromLiveAudio(){
+  if(!liveAudio.blob){ toast("No recorded audio from this session.", true); return; }
+  if(!confirm("Re-transcribe the whole meeting from the recorded audio?\n\nThe points captured live will be replaced with the English transcript.")) return;
+  lines = lines.filter(function(L){ return L.src === "asr"; });
+  renderTranscript();
+  await transcribeBlob(liveAudio.blob, "re-transcribed from the live recording");
 }
 
 /* ---------- record the meeting audio in the browser ---------- */
@@ -1615,7 +1838,7 @@ function restore(data){
   lines = Array.isArray(data.lines) ? data.lines : [];
   seq = lines.reduce(function(a,l){ return Math.max(a, l.id||0); }, 0);
   mom = data.mom || null;
-  renderTranscript(); renderMinutes(); buildSpeakerChips();
+  renderTranscript(); renderMinutes(); buildSpeakerChips(); showRomanBanner();
 }
 function load(){ try{ restore(JSON.parse(localStorage.getItem(STORE) || "null")); }catch(e){} }
 
@@ -1658,6 +1881,14 @@ $("exJson").onclick   = exportJson;
 $("imJson").onclick   = function(){ $("fileJson").click(); };
 $("fileJson").onchange = function(){ if(this.files[0]) importJson(this.files[0]); this.value = ""; };
 $("btnPrep").onclick  = prepareTranslation;
+$("asrModel").onchange = updateModelHint;
+$("optLiveAudio").onchange = function(){ liveAudio.wanted = this.checked; };
+$("btnRedo").onclick  = redoFromLiveAudio;
+$("btnLiveSave").onclick = function(){
+  if(!liveAudio.blob) return;
+  var ext = (liveAudio.blob.type.indexOf("ogg") >= 0) ? "ogg" : "webm";
+  download(liveAudio.blob, baseName() + "-live-recording." + ext);
+};
 $("btnAud").onclick   = function(){ (aud.mr && aud.mr.state === "recording") ? stopAudio() : startAudio(); };
 $("btnAudGo").onclick = function(){ if(aud.blob) transcribeBlob(aud.blob, "recorded in this page"); };
 $("btnAudSave").onclick = function(){
@@ -1697,10 +1928,11 @@ window.addEventListener("beforeunload", function(e){
   $("m_start").value = nowHHMM();
   buildLangPicks(); buildLangChips();
   load();
+  updateModelHint();
   buildSpeakerChips();
   if(!$("m_date").value) $("m_date").value = today;
   var msgs = [];
-  msgs.push(SR ? "<b>Live capture.</b> Mark every language spoken in this meeting, then tap one to point the microphone at it — tap another any time, the recogniser restarts by itself. Each line's language is also detected from its script. For a meeting that keeps switching languages, the <b>Record</b> or <b>Upload</b> tab is easier: those transcribe straight into English with no switching at all."
+  msgs.push(SR ? "<b>Live capture.</b> Mark every language spoken in this meeting, then tap one to point the microphone at it — tap another any time, the recogniser restarts by itself. Each line's language is also detected from its script. If a line comes out as an Indian language written in English letters, the microphone moves to that language by itself. For a meeting that keeps switching languages, the <b>Record</b> or <b>Upload</b> tab is the reliable one: those transcribe straight into English, and the audio kept here can be re-transcribed the same way."
                 : "<b>This browser cannot listen live.</b> Open the file in Chrome or Edge for the microphone — the Record and Upload tabs, typing, minutes and exports still work here.");
   if(translationSupported()){
     $("btnPrep").style.display = "inline-flex";

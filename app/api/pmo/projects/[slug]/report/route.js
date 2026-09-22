@@ -1,7 +1,7 @@
 import { handle, json, searchParams } from '@/lib/http';
 import { badRequest } from '@/lib/errors';
-import { REPORT_TYPES } from '@/lib/pmo/reports/index.js';
-import { renderHtml } from '@/lib/pmo/render/html';
+import { REPORT_TYPES, REPORT_TYPE_KEYS } from '@/lib/pmo/reports/index.js';
+import { renderBundleHtml, renderHtml } from '@/lib/pmo/render/html';
 import { renderXlsx, renderScheduleXlsx } from '@/lib/pmo/render/xlsx';
 import { renderDocx } from '@/lib/pmo/render/docx';
 import { writeCsv } from '@/lib/pmo/ingest/csv';
@@ -41,6 +41,16 @@ export const GET = handle(async (request, { params }) => {
 
   const type = p.get('type') ?? 'weekly-exception';
   if (!REPORT_TYPES[type]) throw badRequest(`Unknown report type "${type}"`);
+
+  // The whole pack as one document, for a client review that wants one file
+  // rather than seven attachments.
+  if (p.get('bundle') === 'true') {
+    const asOf = p.get('asOf') || null;
+    const packs = REPORT_TYPE_KEYS.map((each) => produceReport(project, { type: each, asOf }).pack);
+    return new Response(renderBundleHtml(packs, { title: 'Project Reporting Pack' }), {
+      headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+    });
+  }
   const format = p.get('format') ?? 'html';
   const spec = FORMATS[format];
   if (!spec) throw badRequest(`Unknown format "${format}". Use html, xlsx, docx, csv, p6 or json.`);
@@ -68,6 +78,7 @@ export const GET = handle(async (request, { params }) => {
       { label: 'Excel workbook', href: `?type=${type}&format=xlsx${p.get('asOf') ? `&asOf=${p.get('asOf')}` : ''}` },
       { label: 'Word document', href: `?type=${type}&format=docx${p.get('asOf') ? `&asOf=${p.get('asOf')}` : ''}` },
       { label: 'Exceptions (CSV)', href: `?type=${type}&format=csv${p.get('asOf') ? `&asOf=${p.get('asOf')}` : ''}` },
+      { label: 'All seven as one document', href: `?bundle=true${p.get('asOf') ? `&asOf=${p.get('asOf')}` : ''}` },
     ];
     return new Response(renderHtml(pack, { downloads }), {
       headers: { 'Content-Type': spec.type, 'Cache-Control': 'no-store' },

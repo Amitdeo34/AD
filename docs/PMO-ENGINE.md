@@ -5,8 +5,19 @@ paper, the monthly, the quarterly, the digital DPR and the schedule update —
 all from the same set of numbers, so they agree with each other in front of a
 client.
 
-Open it at **`/pmo`**. Run `npm run pmo:seed` first if you want a worked
-example to look at before you upload anything real.
+Two ways to run it:
+
+```bash
+npm run pmo:seed && npm run dev     # the served app, at /pmo
+npm run pmo:standalone              # dist/pmo-engine.html — one file, no install
+```
+
+The standalone file is the whole engine in a single HTML document. Open it from
+a desktop on any machine — no Node, no install, no network — and it parses the
+workbook, reconciles it and writes the reports in the browser tab. Project data
+stays in that browser's own storage and never leaves the machine, which is what
+makes it usable on a client site where nothing can be installed. Mail it to a
+colleague and it works for them too.
 
 ---
 
@@ -135,6 +146,11 @@ Every report comes out as:
 - **CSV** — the exception register, for pasting into an action tracker.
 - **P6 / MSP Excel** — schedule update only, in a column order that pastes back.
 
+And **all seven merged into one document** — one cover, one contents page, each
+report starting on its own page when printed. In the served app that is
+`?bundle=true` on the report route, or the "Open the complete pack" button; in
+the standalone file it is the same button.
+
 ---
 
 ## Thresholds
@@ -163,6 +179,8 @@ lib/pmo/
     xml.js          the little of XML the Office formats need
     xlsx-read.js    workbooks in
     xlsx-write.js   workbooks out
+    codec.js        raw deflate (Node)
+    codec.browser.js  raw deflate, written from scratch, for a browser tab
     csv.js          delimited text, sniffed
     pdf-text.js     best-effort text out of a PDF
     tabulate.js     one door for every format, incl. .xer and MSP XML
@@ -180,9 +198,14 @@ lib/pmo/
     blocks.js       the pieces a report is assembled from
     types.js        the seven reports
     index.js        the registry
+  store-core.js     what the data *is*, independent of where it is kept
+  browser/
+    buffer.js       the part of Node's Buffer the binary formats need
+    store.js        the same store, over localStorage
+    app.js          the framework-free UI of the standalone file
   render/
     charts.js       inline SVG — S-curve, grouped bars, status bars
-    html.js         print-ready document
+    html.js         print-ready document, single report or the whole pack
     xlsx.js         workbook
     docx.js         Word document
     format.js       how a value is written, once, for all three
@@ -193,8 +216,16 @@ components/pmo/     project list, cockpit, upload wizard, report runner
 test/pmo-*.test.js  43 tests over ingest, analytics and the deliverables
 ```
 
-**No new dependencies.** The XLSX, DOCX and ZIP handling is written against
-Node's own `zlib`, in the same spirit as the rest of this repository.
+**No dependencies at all.** The XLSX, DOCX and ZIP handling is written against
+Node's own `zlib` on the server, and against a from-scratch RFC 1951 deflate in
+the browser — the same files come out either way, and both are verified
+byte-for-byte against `zlib` in the tests.
+
+`scripts/build-standalone.mjs` inlines the engine into one HTML file. It is a
+small, legible bundler rather than a toolchain: the modules are plain ESM with
+named exports and no cycles, so they are wrapped in a registry and required in
+order. Two modules exist twice — the deflate codec and the store — and the
+browser build takes the second of each.
 
 ---
 
@@ -207,7 +238,7 @@ Node's own `zlib`, in the same spirit as the rest of this repository.
 | `GET PATCH DELETE /api/pmo/projects/{slug}` | Overview, edit, remove |
 | `POST /api/pmo/projects/{slug}/upload` | Multipart → inspection; JSON → commit |
 | `GET DELETE /api/pmo/projects/{slug}/data` | Uploads, and removing one |
-| `GET /api/pmo/projects/{slug}/report` | `?type=&format=&from=&to=&asOf=` |
+| `GET /api/pmo/projects/{slug}/report` | `?type=&format=&from=&to=&asOf=`, or `?bundle=true` for all seven as one document |
 
 Example:
 

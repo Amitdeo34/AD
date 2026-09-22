@@ -47,3 +47,4 @@ mobile/android/app/src/main/assets/public/
 
 # Vercel
 .vercel
+dist/

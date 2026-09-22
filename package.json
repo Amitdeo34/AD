@@ -17,7 +17,8 @@
     "mobile:sync": "npm run sync --workspace mobile",
     "mobile:icons": "npm run icons --workspace mobile",
     "seed": "node scripts/seed-demo.mjs",
-    "pmo:seed": "node scripts/pmo-seed.mjs"
+    "pmo:seed": "node scripts/pmo-seed.mjs",
+    "pmo:standalone": "node scripts/build-standalone.mjs"
   },
   "dependencies": {
     "next": "^16.3.4",

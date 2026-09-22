@@ -22,9 +22,14 @@ quarterly reports, the digital DPR and the schedule update from one reconciled
 set of numbers, as HTML, Excel and Word.
 
 ```bash
-npm run pmo:seed   # a worked example project
-npm run dev        # http://localhost:3000/pmo
+npm run pmo:seed         # a worked example project
+npm run dev              # http://localhost:3000/pmo
+npm run pmo:standalone   # dist/pmo-engine.html — the whole engine in one file
 ```
+
+That last one is a single HTML document that runs the entire engine in a browser
+tab with no install and no network: useful on a client site where nothing can be
+installed.
 
 It shares this deployment and the framework-free `lib/` convention, and adds no
 dependencies. It is otherwise independent of the booking site: separate data
@@ -113,7 +118,7 @@ lib/            Domain logic, all of it framework-free
   upi.js        UPI intents, QR codes, UTR handling
   store.js      Accounts, bookings, payments and reviews
 mobile/         Capacitor Android shell
-test/           93 tests over the domain logic and the real route handlers
+test/           102 tests over the domain logic and the real route handlers
 lib/pmo/        The PMO reporting engine — see docs/PMO-ENGINE.md
 ```
 
@@ -152,9 +157,10 @@ database, before taking real bookings.
 | --- | --- |
 | `npm run dev` | Development server on :3000 |
 | `npm run build` / `npm start` | Production build and server |
-| `npm test` | The full suite — 93 tests |
+| `npm test` | The full suite — 102 tests |
 | `npm run seed` | Demo accounts, bookings and a review |
 | `npm run pmo:seed` | A worked example project for the PMO engine |
+| `npm run pmo:standalone` | The PMO engine as one self-contained HTML file |
 | `npm run build:android` | Signed release `.aab` |
 | `npm run mobile:icons` | Regenerate every icon from `mobile/assets/icon.svg` |
 

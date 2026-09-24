@@ -47,7 +47,7 @@ p{margin:0;max-width:70ch}
 .side{display:grid;gap:20px}
 section.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px;display:grid;gap:12px;align-content:start;min-width:0}
 label.f{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
-select,input[type=text],input[type=number],input[type=date]{font:inherit;color:var(--ink);background:var(--ground);border:1px solid var(--line);border-radius:4px;padding:6px 8px;width:100%;min-width:0}
+select,input[type=text],input[type=password],input[type=number],input[type=date]{font:inherit;color:var(--ink);background:var(--ground);border:1px solid var(--line);border-radius:4px;padding:6px 8px;width:100%;min-width:0}
 input[type=number]{font-family:var(--mono)}
 select:focus-visible,input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -85,13 +85,19 @@ details summary{cursor:pointer;font-weight:600}
 details ol{margin:8px 0 0;padding-left:20px;display:grid;gap:4px}
 code{font:12px var(--mono);background:var(--row);padding:1px 4px;border-radius:3px}
 .note{font-size:12px;color:var(--muted)}
+.note a{color:var(--accent)}
+.log{list-style:none;margin:0;padding:10px 12px;display:grid;gap:4px;font:12px/1.5 var(--mono);background:var(--row);border-radius:4px}
+.log li::before{content:"✓ ";color:var(--accent)}
+.log li.run::before{content:"… ";color:var(--warn)}
+.log li.err{color:var(--warn)}
+.log li.err::before{content:"✕ ";color:var(--warn)}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
 <div class="wrap">
 <header>
-  <h1><small>Navisworks · IFC · Quantity export</small>BIM Activity Builder</h1>
+  <h1><small>Navisworks NWD → Excel activity list</small>BIM Activity Builder</h1>
   <div class="stats" id="stats"></div>
 </header>
 
@@ -100,22 +106,24 @@ code{font:12px var(--mono);background:var(--row);padding:1px 4px;border-radius:3
 
   <section class="card">
     <h2><span class="n">01</span>Load model data</h2>
-    <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose a model export file">
-      <strong>Drop an export file here</strong>
-      <span class="muted">.csv · .xlsx · .xls · .ifc</span>
-      <input type="file" id="file" accept=".csv,.xlsx,.xls,.txt,.ifc" hidden>
+    <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose a model file">
+      <strong>Drop your .nwd model here</strong>
+      <span class="muted">.nwd · .nwc · also .ifc · .csv · .xlsx</span>
+      <input type="file" id="file" accept=".nwd,.nwc,.ifc,.csv,.xlsx,.xls,.txt" hidden>
     </div>
     <div id="srcInfo"><span class="chip warn">Sample model loaded</span></div>
     <label class="f" id="sheetWrap" hidden>Sheet<select id="sheet"></select></label>
-    <details>
-      <summary>How to get data out of an NWD file</summary>
-      <p class="note" style="margin-top:6px">The browser can't open <code>.nwd</code> files directly, so export the element list from Navisworks with either route:</p>
-      <ol>
-        <li><b>Selection Inspector</b>: go to <i>Options › Interface › Quick Properties</i> and add <code>Element › Category</code>, <code>Element › Level</code> (or <code>Item › Layer</code>), plus <code>Volume</code>/<code>Area</code>/<code>Length</code>. Select all (Ctrl+A), open <i>Home › Selection Inspector</i> and click <b>Export › CSV</b>.</li>
-        <li><b>Quantification</b>: run Model Takeoff on the model, then use <i>Import/Export › Export quantities to Excel</i>.</li>
-        <li>An <b>IFC</b> file of the same model (for example from Revit) also works here.</li>
-      </ol>
+    <details id="apsBox">
+      <summary>Autodesk connection for .nwd files <span id="apsState" class="chip warn">not set</span></summary>
+      <div style="display:grid;gap:10px;margin-top:10px">
+        <p class="note">Browsers can't read <code>.nwd</code> files, so the page sends the model to Autodesk Platform Services. Autodesk converts it and returns every element's properties. The file goes only to Autodesk, into a temporary bucket they delete after 24 hours.</p>
+        <p class="note">You need an APS app once: sign in at <a href="https://aps.autodesk.com/myapps" target="_blank" rel="noopener">aps.autodesk.com/myapps</a>, create an app (type "Traditional Web App" or "Server-to-Server") with <b>Data Management</b> and <b>Model Derivative</b> APIs, and paste its keys below. Depending on your APS plan, conversions may use Autodesk cloud credits.</p>
+        <label class="f">Client ID<input type="text" id="apsId" autocomplete="off" spellcheck="false"></label>
+        <label class="f">Client Secret<input type="password" id="apsSecret" autocomplete="off" spellcheck="false"></label>
+        <label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="apsRemember"> Remember keys on this computer</label>
+      </div>
     </details>
+    <ol class="log" id="log" hidden></ol>
   </section>
 
   <section class="card">
@@ -271,7 +279,147 @@ function setData(data, name){
   $("srcInfo").innerHTML = name === "Sample model" ? '<span class="chip warn">Sample model loaded</span>'
     : '<span class="chip">'+esc(name)+' · '+rows.length+' elements</span>';
 }
+// ---------- NWD via Autodesk Platform Services ----------
+const APS = "https://developer.api.autodesk.com";
+const store = { get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+  set(k,v){ try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k,v); } catch(e){} } };
+function apsKeys(){ return { id: $("apsId").value.trim(), secret: $("apsSecret").value.trim() }; }
+function apsStateUpdate(){
+  const k = apsKeys(), ok = k.id && k.secret;
+  $("apsState").className = "chip" + (ok ? "" : " warn"); $("apsState").textContent = ok ? "ready" : "not set";
+  if ($("apsRemember").checked){ store.set("aps.id", k.id); store.set("aps.secret", k.secret); }
+}
+function log(msg, cls){ const ol = $("log"); ol.hidden = false; const li = document.createElement("li"); li.textContent = msg; if (cls) li.className = cls; ol.appendChild(li); return li; }
+const wait = ms => new Promise(r => setTimeout(r, ms));
+async function apsFetch(token, path, opt = {}){
+  const res = await fetch(path.startsWith("http") ? path : APS + path, Object.assign({}, opt, {
+    headers: Object.assign({ Authorization: "Bearer " + token }, opt.headers || {}) }));
+  return res;
+}
+async function apsJson(res, what){
+  if (!res.ok){ let t = ""; try { t = await res.text(); } catch(e){} throw new Error(what + " failed (HTTP " + res.status + "). " + t.slice(0,200)); }
+  return res.json();
+}
+async function loadNwd(f){
+  const k = apsKeys();
+  if (!k.id || !k.secret){ $("apsBox").open = true; $("apsId").focus(); return fail("Add your Autodesk Client ID and Secret below, then drop the .nwd file again."); }
+  $("log").innerHTML = ""; $("srcInfo").innerHTML = '<span class="chip">Reading '+esc(f.name)+'…</span>';
+  let step = log("Signing in to Autodesk", "run");
+  try {
+    // 1. token
+    const tr = await fetch(APS + "/authentication/v2/token", { method:"POST",
+      headers: { Authorization: "Basic " + btoa(k.id + ":" + k.secret), "Content-Type":"application/x-www-form-urlencoded", Accept:"application/json" },
+      body: "grant_type=client_credentials&scope=" + encodeURIComponent("data:read data:write data:create bucket:create bucket:read") });
+    if (tr.status === 401 || tr.status === 400) throw new Error("Autodesk rejected the Client ID or Secret. Check the keys of your APS app.");
+    const token = (await apsJson(tr, "Sign-in")).access_token;
+    step.className = "";
+
+    // 2. bucket (transient: Autodesk deletes it after 24 h)
+    step = log("Preparing temporary storage", "run");
+    const bucket = ("bimact-" + k.id.toLowerCase().replace(/[^a-z0-9]/g,"")).slice(0, 60);
+    const br = await apsFetch(token, "/oss/v2/buckets", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ bucketKey: bucket, policyKey: "transient" }) });
+    if (!br.ok && br.status !== 409) await apsJson(br, "Creating storage");
+    step.className = "";
+
+    // 3. upload in 10 MB parts via signed S3 URLs
+    const key = Date.now() + "_" + f.name.replace(/[^\w.-]+/g, "_");
+    const part = 10 * 1024 * 1024, parts = Math.max(1, Math.ceil(f.size / part));
+    step = log("Uploading " + (f.size/1048576).toFixed(1) + " MB (0/" + parts + ")", "run");
+    const base = "/oss/v2/buckets/" + bucket + "/objects/" + encodeURIComponent(key) + "/signeds3upload";
+    let uploadKey = null;
+    for (let first = 1; first <= parts; first += 25){
+      const n = Math.min(25, parts - first + 1);
+      const s = await apsJson(await apsFetch(token, base + "?parts=" + n + "&firstPart=" + first + "&minutesExpiration=60" + (uploadKey ? "&uploadKey=" + encodeURIComponent(uploadKey) : "")), "Getting upload links");
+      uploadKey = s.uploadKey;
+      for (let i = 0; i < n; i++){
+        const idx = first - 1 + i, blob = f.slice(idx * part, Math.min(f.size, (idx + 1) * part));
+        const up = await fetch(s.urls[i], { method:"PUT", body: blob });
+        if (!up.ok) throw new Error("Upload of part " + (idx+1) + " failed (HTTP " + up.status + ").");
+        step.textContent = "Uploading " + (f.size/1048576).toFixed(1) + " MB (" + (idx+1) + "/" + parts + ")";
+      }
+    }
+    const done = await apsJson(await apsFetch(token, base, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ uploadKey }) }), "Finishing upload");
+    const urn = btoa(done.objectId).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+    step.className = "";
+
+    // 4. translate
+    step = log("Converting model at Autodesk", "run");
+    await apsJson(await apsFetch(token, "/modelderivative/v2/designdata/job", { method:"POST",
+      headers:{ "Content-Type":"application/json", "x-ads-force":"true" },
+      body: JSON.stringify({ input:{ urn }, output:{ formats:[{ type:"svf2", views:["3d"] }] } }) }), "Starting conversion");
+    const md = "/modelderivative/v2/designdata/" + urn;
+    for (let t = 0; ; t++){
+      await wait(t < 6 ? 3000 : 8000);
+      const m = await apsJson(await apsFetch(token, md + "/manifest"), "Checking conversion");
+      step.textContent = "Converting model at Autodesk (" + (m.progress || m.status) + ")";
+      if (m.status === "success") break;
+      if (m.status === "failed" || m.status === "timeout") throw new Error("Autodesk couldn't convert this file. If it's an .nwf, save it as .nwd in Navisworks first.");
+      if (t > 450) throw new Error("Conversion is taking over an hour. Try again later.");
+    }
+    step.className = "";
+
+    // 5. object tree + properties
+    step = log("Reading element properties", "run");
+    const meta = (await apsJson(await apsFetch(token, md + "/metadata"), "Reading views")).data.metadata;
+    const view = meta.find(v => v.role === "3d") || meta[0];
+    if (!view) throw new Error("The converted model has no 3D view.");
+    const getReady = async (path, what) => { for (let t = 0; t < 120; t++){ const r = await apsFetch(token, path); if (r.status === 202){ await wait(4000); continue; } return r; } throw new Error(what + " timed out."); };
+    const tree = (await apsJson(await getReady(md + "/metadata/" + view.guid + "?forceget=true", "Reading tree"), "Reading tree")).data.objects;
+    let pr = await getReady(md + "/metadata/" + view.guid + "/properties?forceget=true", "Reading properties"), coll;
+    if (pr.status === 413){ // very large model: query properties in batches of object IDs
+      const ids = []; (function walk(n){ (n || []).forEach(o => { ids.push(o.objectid); walk(o.objects); }); })(tree);
+      coll = [];
+      for (let i = 0; i < ids.length; i += 1000){
+        const q = await apsJson(await apsFetch(token, md + "/metadata/" + view.guid + "/properties:query", { method:"POST", headers:{ "Content-Type":"application/json" },
+          body: JSON.stringify({ query:{ "$in": ["objectid", ...ids.slice(i, i + 1000)] }, pagination:{ offset: 0, limit: 1000 } }) }), "Reading properties");
+        coll.push(...((q.data && q.data.collection) || [])); step.textContent = "Reading element properties (" + coll.length + "/" + ids.length + ")";
+      }
+    } else coll = (await apsJson(pr, "Reading properties")).data.collection;
+    step.className = "";
+
+    const data = nwdRows(tree, coll);
+    if (!data.length) throw new Error("No elements with properties were found in this model.");
+    log(data.length.toLocaleString() + " elements read");
+    workbook = null; $("sheetWrap").hidden = true;
+    setData(data, f.name);
+  } catch(e){
+    step.className = "err";
+    const msg = e instanceof TypeError ? "Network request was blocked. Check your internet connection and try again." : e.message;
+    log(msg, "err"); fail(msg);
+  }
+}
+// Turn the APS tree + property collection into one row per model element.
+function nwdRows(tree, coll){
+  const parent = {}, name = {}, kids = {};
+  (function walk(nodes, p){ (nodes || []).forEach(o => { parent[o.objectid] = p; name[o.objectid] = o.name; kids[o.objectid] = (o.objects || []).length; walk(o.objects, o.objectid); }); })(tree, null);
+  const path = id => { const a = []; for (let x = parent[id]; x != null; x = parent[x]) a.unshift(name[x]); return a.slice(1); }; // drop the root node
+  const flat = (obj, pre, out) => { for (const [k,v] of Object.entries(obj || {})){ const key = pre ? pre + " > " + k : k;
+    if (v && typeof v === "object" && !Array.isArray(v)) flat(v, key, out); else if (v !== "" && v != null) out[key] = v; } return out; };
+  const items = coll.map(c => ({ id: c.objectid, name: c.name, p: flat(c.properties, "", {}) }));
+  const hasEl = it => Object.keys(it.p).some(k => /^element > /i.test(k));
+  let pick = items.filter(hasEl);
+  if (pick.length < 10) pick = items.filter(it => !kids[it.id]); // not a Revit model: use leaf geometry
+  const picked = new Set(pick.map(it => it.id));
+  pick = pick.filter(it => { for (let x = parent[it.id]; x != null; x = parent[x]) if (picked.has(x)) return false; return true; });
+  // Keep property columns that most elements share, so the sheet stays readable
+  const freq = {}; pick.forEach(it => Object.keys(it.p).forEach(k => freq[k] = (freq[k]||0) + 1));
+  const keep = Object.keys(freq).filter(k => freq[k] >= Math.max(1, pick.length * 0.05)).sort((a,b) => freq[b]-freq[a]).slice(0, 60);
+  const first = (p, keys) => { for (const k of keys){ const hit = Object.keys(p).find(x => x.toLowerCase() === k); if (hit && String(p[hit]).trim()) return String(p[hit]).trim(); } return ""; };
+  const looksLevel = s => /level|storey|story|floor|basement|roof|ground|found|^l\d|^b\d/i.test(s);
+  return pick.map(it => {
+    const tp = path(it.id);
+    const lvl = first(it.p, ["element > level","element > base constraint","element > reference level","element > schedule level","element > base level","constraints > level","item > layer"])
+      || tp.find(looksLevel) || "Unassigned";
+    const cat = first(it.p, ["element > category","item > type"]) || tp[tp.length - 3] || tp[tp.length - 1] || "Elements";
+    const row = { "Item Name": it.name, "Level": lvl, "Category": cat, "Tree Path": tp.join(" / ") };
+    keep.forEach(k => row[k] = it.p[k] ?? "");
+    return row;
+  });
+}
+
 function loadFile(f){
+  if (/\.nw[dc]$/i.test(f.name)) return loadNwd(f);
+  if (/\.nwf$/i.test(f.name)) return fail(".nwf files only link to other files. In Navisworks, use Save As › .nwd and load that instead.");
   const r = new FileReader();
   if (/\.ifc$/i.test(f.name)){
     r.onload = () => { const d = parseIfc(r.result); workbook = null; $("sheetWrap").hidden = true;
@@ -444,6 +592,10 @@ document.querySelector(".side").addEventListener("click", e => {
   const arr = b.dataset.k === "L" ? levelOrder : catOrder, i = +b.dataset.i, j = i + +b.dataset.d;
   if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; renderOrders(); compute();
 });
+["apsId","apsSecret"].forEach(id => $(id).addEventListener("input", apsStateUpdate));
+$("apsRemember").addEventListener("change", e => { if (!e.target.checked){ store.set("aps.id", null); store.set("aps.secret", null); } apsStateUpdate(); });
+if (store.get("aps.id")){ $("apsId").value = store.get("aps.id"); $("apsSecret").value = store.get("aps.secret") || ""; $("apsRemember").checked = true; }
+apsStateUpdate();
 $("btnXlsx").addEventListener("click", exportXlsx);
 $("btnCsv").addEventListener("click", exportCsv);
 

@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BIM Activity Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --ground:#EEF1EF; --panel:#FFFFFF; --ink:#18201F; --muted:#5B6664; --line:#D3DAD7;
+  --accent:#0C6B63; --accent-ink:#FFFFFF; --accent-soft:#DCEDEA;
+  --warn:#9A5B00; --warn-soft:#FBEBD2; --row:#F6F8F7;
+  --display:"Archivo","Arial Narrow",Arial,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#111615; --panel:#19201F; --ink:#E4EBE9; --muted:#95A3A0; --line:#2C3634;
+    --accent:#3FB5A8; --accent-ink:#0B1413; --accent-soft:#1D3431;
+    --warn:#E9A94A; --warn-soft:#3A2C15; --row:#1D2524; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#111615; --panel:#19201F; --ink:#E4EBE9; --muted:#95A3A0; --line:#2C3634;
+  --accent:#3FB5A8; --accent-ink:#0B1413; --accent-soft:#1D3431;
+  --warn:#E9A94A; --warn-soft:#3A2C15; --row:#1D2524; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+[hidden]{display:none!important}
+body{background:var(--ground);color:var(--ink);font:14px/1.5 var(--body);padding-inline:16px;padding-block:24px 48px}
+.wrap{max-width:1280px;margin:0 auto;display:grid;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:12px}
+h1{font:800 clamp(24px,4vw,34px)/1.05 var(--display);letter-spacing:-.01em;margin:0;text-wrap:balance}
+h1 small{display:block;font:500 12px/1.4 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+h2{font:700 15px/1.3 var(--display);text-transform:uppercase;letter-spacing:.06em;margin:0;display:flex;gap:10px;align-items:baseline}
+h2 .n{font:500 12px var(--mono);color:var(--accent)}
+p{margin:0;max-width:70ch}
+.muted{color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.side{display:grid;gap:20px}
+section.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px;display:grid;gap:12px;align-content:start;min-width:0}
+label.f{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:500}
+select,input[type=text],input[type=number],input[type=date]{font:inherit;color:var(--ink);background:var(--ground);border:1px solid var(--line);border-radius:4px;padding:6px 8px;width:100%;min-width:0}
+input[type=number]{font-family:var(--mono)}
+select:focus-visible,input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button{font:600 13px var(--body);border-radius:4px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:7px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.primary:hover{filter:brightness(1.08)}
+button.mini{padding:0 6px;font:500 12px var(--mono);line-height:20px}
+.drop{border:1.5px dashed var(--line);border-radius:6px;padding:18px;text-align:center;display:grid;gap:8px;cursor:pointer;background:var(--ground)}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop strong{font-family:var(--display)}
+.chip{display:inline-flex;align-items:center;gap:6px;font:500 12px var(--mono);padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.stats{display:flex;flex-wrap:wrap;gap:8px 20px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.stats b{color:var(--ink);font-weight:500;font-size:16px;display:block}
+.order{list-style:none;margin:0;padding:0;display:grid;gap:4px;max-height:220px;overflow:auto}
+.order li{display:flex;align-items:center;gap:6px;padding:3px 6px;background:var(--row);border-radius:4px;font-size:13px}
+.order li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.order li em{font:normal 11px var(--mono);color:var(--muted)}
+.tablebox{overflow:auto;max-height:70vh;border:1px solid var(--line);border-radius:4px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{position:sticky;top:0;background:var(--panel);text-align:left;font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+tbody tr:nth-child(even) td{background:var(--row)}
+td.num{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+td.id{font-family:var(--mono);color:var(--accent)}
+td.lvl{font-weight:600;color:var(--muted)}
+td input[type=number]{width:80px;padding:2px 6px;text-align:right}
+.bar{height:8px;background:var(--accent);border-radius:2px;min-width:2px}
+.gcell{min-width:180px;position:relative}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.toolbar .btns{display:flex;flex-wrap:wrap;gap:8px}
+details{font-size:13px}
+details summary{cursor:pointer;font-weight:600}
+details ol{margin:8px 0 0;padding-left:20px;display:grid;gap:4px}
+code{font:12px var(--mono);background:var(--row);padding:1px 4px;border-radius:3px}
+.note{font-size:12px;color:var(--muted)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1><small>Navisworks · IFC · Quantity export</small>BIM Activity Builder</h1>
+  <div class="stats" id="stats"></div>
+</header>
+
+<div class="grid">
+<div class="side">
+
+  <section class="card">
+    <h2><span class="n">01</span>Load model data</h2>
+    <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose a model export file">
+      <strong>Drop an export file here</strong>
+      <span class="muted">.csv · .xlsx · .xls · .ifc</span>
+      <input type="file" id="file" accept=".csv,.xlsx,.xls,.txt,.ifc" hidden>
+    </div>
+    <div id="srcInfo"><span class="chip warn">Sample model loaded</span></div>
+    <label class="f" id="sheetWrap" hidden>Sheet<select id="sheet"></select></label>
+    <details>
+      <summary>How to get data out of an NWD file</summary>
+      <p class="note" style="margin-top:6px">The browser can't open <code>.nwd</code> files directly, so export the element list from Navisworks with either route:</p>
+      <ol>
+        <li><b>Selection Inspector</b>: go to <i>Options › Interface › Quick Properties</i> and add <code>Element › Category</code>, <code>Element › Level</code> (or <code>Item › Layer</code>), plus <code>Volume</code>/<code>Area</code>/<code>Length</code>. Select all (Ctrl+A), open <i>Home › Selection Inspector</i> and click <b>Export › CSV</b>.</li>
+        <li><b>Quantification</b>: run Model Takeoff on the model, then use <i>Import/Export › Export quantities to Excel</i>.</li>
+        <li>An <b>IFC</b> file of the same model (for example from Revit) also works here.</li>
+      </ol>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">02</span>Map columns</h2>
+    <div class="row2">
+      <label class="f">Level / storey<select id="colLevel"></select></label>
+      <label class="f">Category / trade<select id="colCat"></select></label>
+    </div>
+    <div class="row2">
+      <label class="f">Zone (optional)<select id="colZone"></select></label>
+      <label class="f">Quantity<select id="colQty"></select></label>
+    </div>
+    <p class="note">Each Level × Zone × Category group becomes one activity. If you don't pick a quantity column, durations use element count.</p>
+  </section>
+
+  <section class="card">
+    <h2><span class="n">03</span>Schedule rules</h2>
+    <div class="row2">
+      <label class="f">Project start<input type="date" id="start"></label>
+      <label class="f">Work week<select id="week"><option value="6">Mon–Sat</option><option value="5">Mon–Fri</option></select></label>
+    </div>
+    <div class="row2">
+      <label class="f">ID prefix<input type="text" id="prefix" value="A"></label>
+      <label class="f">Default rate / day<input type="number" id="defRate" value="20" min="0.01" step="any"></label>
+    </div>
+    <label class="f">Sequencing<select id="seq">
+      <option value="floor">Floor by floor (trades follow each other up)</option>
+      <option value="chain">Single chain (one activity at a time)</option>
+      <option value="none">No links (all start on day 1)</option>
+    </select></label>
+    <div>
+      <p class="f note" style="margin-bottom:4px">Level order (bottom → top)</p>
+      <ul class="order" id="levelOrder"></ul>
+    </div>
+    <div>
+      <p class="f note" style="margin-bottom:4px">Trade order (first → last)</p>
+      <ul class="order" id="catOrder"></ul>
+    </div>
+  </section>
+</div>
+
+<section class="card">
+  <div class="toolbar">
+    <h2><span class="n">04</span>Activity list</h2>
+    <div class="btns">
+      <button id="btnCsv">TimeLiner CSV</button>
+      <button id="btnXlsx" class="primary">Export Excel</button>
+    </div>
+  </div>
+  <p class="note">Edit the rate (quantity per day) to change durations. A rate set on one activity applies to every activity of that trade.</p>
+  <div class="tablebox">
+    <table>
+      <thead><tr>
+        <th>ID</th><th>WBS</th><th>Activity</th><th>Elem.</th><th>Qty</th><th>Rate/day</th><th>Dur (d)</th><th>Start</th><th>Finish</th><th>Pred.</th><th>Timeline</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</section>
+</div>
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+const NONE = "(none)";
+
+// Construction order: lower rank = earlier. Matched by keyword against the category name.
+const TRADE_RANK = [
+  [/excav|earth|site/i,5],[/pile/i,8],[/found|footing|pile cap|raft/i,10],[/slab.?on.?grade|sog/i,12],
+  [/column/i,20],[/framing|beam|girder|truss|brace/i,25],[/floor|slab|deck/i,30],[/stair|ramp/i,35],
+  [/shaft|core|shear/i,22],[/roof/i,40],[/wall|partition|masonry|block/i,50],[/curtain|facade|panel|cladding/i,55],
+  [/window|glazing/i,60],[/door/i,62],[/duct|hvac|mechanical|air terminal/i,70],[/pipe|plumb|sanitary|sprinkler|fire/i,72],
+  [/cable|conduit|electric|lighting|light fixture|tray/i,74],[/ceiling/i,80],[/railing|handrail/i,82],
+  [/casework|furniture|fixture|equipment/i,85],[/finish|paint|tile|floor finish/i,88],[/landscape|planting|paving/i,95]
+];
+const tradeRank = c => { for (const [re,r] of TRADE_RANK) if (re.test(c)) return r; return 90; };
+const levelKey = l => {
+  const s = String(l).toLowerCase();
+  if (/found|footing|pile/.test(s)) return -1000;
+  if (/basement|b\d|lower ground|cellar/.test(s)) { const m = s.match(/-?\d+(\.\d+)?/); return -100 - (m ? Math.abs(+m[0]) : 1); }
+  if (/ground|gf|^g$|lobby/.test(s)) return 0;
+  if (/roof|parapet|top/.test(s)) return 10000;
+  const m = s.match(/-?\d+(\.\d+)?/); return m ? +m[0] : 5000;
+};
+
+// ---------- state ----------
+let rows = [], headers = [], workbook = null, srcName = "Sample model";
+let levelOrder = [], catOrder = [], rates = {}, activities = [];
+const today = new Date(); $("start").value = iso(nextMonday(today));
+
+function iso(d){ return d.toISOString().slice(0,10); }
+function nextMonday(d){ const x = new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())); while (x.getUTCDay()!==1) x.setUTCDate(x.getUTCDate()+1); return x; }
+function isWork(d, wk){ const g = d.getUTCDay(); return g !== 0 && (wk === 6 || g !== 6); }
+function addWork(d, n, wk){ const x = new Date(d); while (!isWork(x,wk)) x.setUTCDate(x.getUTCDate()+1); let k = n; while (k > 0){ x.setUTCDate(x.getUTCDate()+1); if (isWork(x,wk)) k--; } return x; }
+function fmt(d){ return d.toLocaleDateString(undefined,{day:"2-digit",month:"short",year:"2-digit",timeZone:"UTC"}); }
+function num(v){ if (typeof v === "number") return v; if (v == null) return NaN; const m = String(v).replace(/,/g,"").match(/-?\d+(\.\d+)?([eE][-+]?\d+)?/); return m ? parseFloat(m[0]) : NaN; }
+function unitOf(h){ const s = String(h); const m = s.match(/\(([^)]+)\)|\[([^\]]+)\]/); if (m) return m[1]||m[2];
+  if (/volume/i.test(s)) return "m³"; if (/area/i.test(s)) return "m²"; if (/length/i.test(s)) return "m"; return "ea"; }
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+// ---------- sample ----------
+function sample(){
+  const lv = ["Foundation","Level 1","Level 2","Level 3","Roof"], out = []; let id = 1;
+  const spec = {
+    "Foundation":[["Structural Foundations",24,"Volume",3.2]],
+    "Level 1":[["Structural Columns",18,"Volume",0.9],["Structural Framing",42,"Volume",1.1],["Floors",6,"Volume",14],["Walls",36,"Volume",2.4],["Doors",22,"Volume",0.1],["Windows",30,"Volume",0.05],["Ducts",64,"Volume",0.02],["Pipes",90,"Volume",0.01]],
+    "Level 2":[["Structural Columns",18,"Volume",0.9],["Structural Framing",42,"Volume",1.1],["Floors",6,"Volume",14],["Walls",34,"Volume",2.4],["Doors",20,"Volume",0.1],["Windows",32,"Volume",0.05],["Ducts",58,"Volume",0.02],["Pipes",84,"Volume",0.01]],
+    "Level 3":[["Structural Columns",16,"Volume",0.9],["Structural Framing",38,"Volume",1.1],["Floors",6,"Volume",14],["Walls",30,"Volume",2.4],["Doors",18,"Volume",0.1],["Windows",28,"Volume",0.05],["Ducts",52,"Volume",0.02],["Pipes",70,"Volume",0.01]],
+    "Roof":[["Roofs",4,"Volume",22],["Railings",12,"Volume",0.08]]
+  };
+  lv.forEach(l => spec[l].forEach(([c,n,,v]) => { for (let i=0;i<n;i++) out.push({"Item Name":c.replace(/s$/,"")+" "+(id), "Element Category":c, "Element Level":l, "Zone":i%2?"Zone B":"Zone A", "Volume (m³)":+(v*(0.8+((id*37)%40)/100)).toFixed(3), "GUID":"S-"+String(id++).padStart(5,"0")}); }));
+  return out;
+}
+
+// ---------- IFC ----------
+function parseIfc(text){
+  const ents = new Map(), re = /#(\d+)\s*=\s*(IFC[A-Z0-9]+)\s*\(([\s\S]*?)\);/g; let m;
+  while ((m = re.exec(text))) ents.set(m[1], [m[2], m[3]]);
+  const arg = (s, i) => { const a = []; let d = 0, cur = "", q = false;
+    for (const ch of s){ if (ch === "'" ) q = !q; if (!q && ch === "(") d++; if (!q && ch === ")") d--; if (!q && d === 0 && ch === ","){ a.push(cur.trim()); cur = ""; } else cur += ch; }
+    a.push(cur.trim()); return a[i]; };
+  const str = v => v && v.startsWith("'") ? v.slice(1,-1) : "";
+  const storeyOf = {}, storeys = {};
+  for (const [id,[t,a]] of ents) if (t === "IFCBUILDINGSTOREY") storeys[id] = str(arg(a,2)) || ("Storey #"+id);
+  for (const [,[t,a]] of ents) if (t === "IFCRELCONTAINEDINSPATIALSTRUCTURE"){
+    const st = (arg(a,5)||"").replace("#",""); const list = (arg(a,4)||"").match(/#\d+/g) || [];
+    list.forEach(r => storeyOf[r.slice(1)] = storeys[st] || "Unassigned");
+  }
+  const skip = /^IFC(REL|PROPERTY|QUANTITY|ELEMENTQUANTITY|OWNERHISTORY|PERSON|ORGANIZATION|APPLICATION|CARTESIAN|DIRECTION|AXIS|LOCAL|SHAPE|PRODUCTDEFINITION|GEOMETRIC|UNIT|SIUNIT|DIMENSIONAL|MEASURE|STYLED|PRESENTATION|SURFACE|COLOUR|POLY|EXTRUDED|FACE|CLOSED|OPEN|MAPPED|REPRESENTATION|BUILDINGSTOREY|BUILDING$|SITE|PROJECT|MATERIAL|TYPE|.*TYPE$)/;
+  const out = [];
+  for (const [id,[t,a]] of ents){
+    if (!storeyOf[id] || skip.test(t)) continue;
+    const cat = t.replace(/^IFC/,"").replace(/STANDARDCASE$/,"").toLowerCase().replace(/^./,c=>c.toUpperCase());
+    out.push({"Item Name": str(arg(a,2)) || cat+" #"+id, "IFC Class": cat, "Storey": storeyOf[id], "GlobalId": str(arg(a,0)), "Count": 1});
+  }
+  return out;
+}
+
+// ---------- loading ----------
+function tableFromSheet(ws){
+  const aoa = XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:true});
+  let h = aoa.findIndex(r => r.filter(c => String(c).trim() !== "").length >= 2); if (h < 0) return [[],[]];
+  const hd = aoa[h].map((c,i) => String(c).trim() || "Column "+(i+1));
+  const data = aoa.slice(h+1).filter(r => r.some(c => String(c).trim() !== "")).map(r => Object.fromEntries(hd.map((k,i) => [k, r[i]])));
+  return [hd, data];
+}
+function setData(data, name){
+  rows = data; headers = rows.length ? Object.keys(rows[0]) : []; srcName = name;
+  rates = {}; levelOrder = []; catOrder = [];
+  fillSelects(); rebuild();
+  $("srcInfo").innerHTML = name === "Sample model" ? '<span class="chip warn">Sample model loaded</span>'
+    : '<span class="chip">'+esc(name)+' · '+rows.length+' elements</span>';
+}
+function loadFile(f){
+  const r = new FileReader();
+  if (/\.ifc$/i.test(f.name)){
+    r.onload = () => { const d = parseIfc(r.result); workbook = null; $("sheetWrap").hidden = true;
+      if (!d.length) return fail("No building elements with a storey were found in this IFC file."); setData(d, f.name); };
+    r.readAsText(f);
+  } else {
+    r.onload = () => {
+      try { workbook = XLSX.read(new Uint8Array(r.result),{type:"array"}); } catch(e){ return fail("This file couldn't be read as CSV or Excel."); }
+      const names = workbook.SheetNames; let best = names[0], bestN = -1;
+      names.forEach(n => { const [,d] = tableFromSheet(workbook.Sheets[n]); if (d.length > bestN){ bestN = d.length; best = n; } });
+      $("sheet").innerHTML = names.map(n => '<option'+(n===best?" selected":"")+'>'+esc(n)+'</option>').join("");
+      $("sheetWrap").hidden = names.length < 2; useSheet(best, f.name);
+    };
+    r.readAsArrayBuffer(f);
+  }
+}
+function useSheet(n, fname){ const [,d] = tableFromSheet(workbook.Sheets[n]); if (!d.length) return fail("Sheet \""+n+"\" has no rows."); setData(d, fname || srcName); }
+function fail(msg){ $("srcInfo").innerHTML = '<span class="chip warn">'+esc(msg)+'</span>'; }
+
+// ---------- mapping ----------
+function guess(pats, exclude){
+  for (const p of pats){ const h = headers.find(h => p.test(h) && !(exclude||[]).includes(h)); if (h) return h; }
+  return NONE;
+}
+function fillSelects(){
+  const opts = sel => [NONE, ...headers].map(h => '<option'+(h===sel?" selected":"")+'>'+esc(h)+'</option>').join("");
+  const lvl = guess([/^(element.?)?level$/i,/storey|story/i,/level/i,/floor/i,/layer/i]);
+  const cat = guess([/^(element.?)?category$/i,/ifc.?class/i,/category/i,/^type$/i,/family/i,/group/i], [lvl]);
+  const zone = guess([/zone/i,/area.?name|phase|sector/i], [lvl,cat]);
+  const qty = guess([/volume/i,/area(?!.?name)/i,/length/i,/count|quantity|qty/i]);
+  $("colLevel").innerHTML = opts(lvl); $("colCat").innerHTML = opts(cat); $("colZone").innerHTML = opts(zone); $("colQty").innerHTML = opts(qty);
+}
+
+// ---------- build ----------
+function rebuild(){
+  const cL = $("colLevel").value, cC = $("colCat").value, cZ = $("colZone").value;
+  const val = (r,c) => c === NONE ? "" : (String(r[c] ?? "").trim() || "Unassigned");
+  const lv = [...new Set(rows.map(r => val(r,cL) || "All levels"))];
+  const ct = [...new Set(rows.map(r => val(r,cC) || "Elements"))];
+  levelOrder = levelOrder.filter(l => lv.includes(l)).concat(lv.filter(l => !levelOrder.includes(l)).sort((a,b) => levelKey(a)-levelKey(b) || a.localeCompare(b,undefined,{numeric:true})));
+  catOrder = catOrder.filter(c => ct.includes(c)).concat(ct.filter(c => !catOrder.includes(c)).sort((a,b) => tradeRank(a)-tradeRank(b) || a.localeCompare(b)));
+  // Keep newly-seen trades in rank order relative to existing ones
+  renderOrders(); compute();
+}
+function compute(){
+  const cL = $("colLevel").value, cC = $("colCat").value, cZ = $("colZone").value, cQ = $("colQty").value;
+  const val = (r,c,d) => c === NONE ? d : (String(r[c] ?? "").trim() || "Unassigned");
+  const unit = cQ === NONE ? "ea" : unitOf(cQ);
+  const groups = new Map();
+  rows.forEach((r,i) => {
+    const L = val(r,cL,"All levels"), C = val(r,cC,"Elements"), Z = val(r,cZ,"");
+    const k = L+"\u0000"+Z+"\u0000"+C;
+    if (!groups.has(k)) groups.set(k,{level:L,zone:Z,cat:C,rows:[],qty:0});
+    const g = groups.get(k); g.rows.push(i);
+    const q = cQ === NONE ? 1 : num(r[cQ]); if (!isNaN(q)) g.qty += q;
+  });
+  const zones = [...new Set([...groups.values()].map(g => g.zone))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+  const list = [...groups.values()].sort((a,b) =>
+    levelOrder.indexOf(a.level)-levelOrder.indexOf(b.level) || zones.indexOf(a.zone)-zones.indexOf(b.zone) || catOrder.indexOf(a.cat)-catOrder.indexOf(b.cat));
+  const wk = +$("week").value, seq = $("seq").value, pfx = $("prefix").value.trim(), def = Math.max(0.01, +$("defRate").value || 20);
+  const start0 = new Date($("start").value + "T00:00:00Z");
+  const byKey = new Map();
+  list.forEach((a,i) => {
+    a.id = pfx + (1000 + (i+1)*10);
+    a.wbs = [levelOrder.indexOf(a.level)+1, a.zone ? zones.indexOf(a.zone)+1 : null, catOrder.indexOf(a.cat)+1].filter(x => x != null).join(".");
+    a.name = a.cat + (a.zone ? " – " + a.zone : "") + " – " + a.level;
+    a.unit = unit; a.qty = +a.qty.toFixed(3);
+    a.rate = rates[a.cat] ?? def;
+    a.dur = Math.max(1, Math.ceil(a.qty / a.rate));
+    byKey.set(a.level+"\u0000"+a.zone+"\u0000"+a.cat, a);
+  });
+  list.forEach((a,i) => {
+    let preds = [];
+    if (seq === "chain" && i > 0) preds = [list[i-1]];
+    if (seq === "floor"){
+      const ci = catOrder.indexOf(a.cat), li = levelOrder.indexOf(a.level);
+      for (let k = ci-1; k >= 0; k--){ const p = byKey.get(a.level+"\u0000"+a.zone+"\u0000"+catOrder[k]); if (p){ preds.push(p); break; } }
+      for (let k = li-1; k >= 0; k--){ const p = byKey.get(levelOrder[k]+"\u0000"+a.zone+"\u0000"+a.cat); if (p){ preds.push(p); break; } }
+      if (!preds.length) for (let k = li-1; k >= 0; k--){ // first trade on a level waits for the level below to be structurally complete
+        const below = list.filter(x => x.level === levelOrder[k] && x.zone === a.zone && tradeRank(x.cat) < 40);
+        if (below.length){ preds.push(below[below.length-1]); break; } }
+    }
+    a.preds = preds.map(p => p.id);
+    let s = new Date(start0);
+    preds.forEach(p => { const n = addWork(p.finish, 1, wk); if (n > s) s = n; });
+    a.start = addWork(s, 0, wk); a.finish = addWork(a.start, a.dur-1, wk);
+  });
+  activities = list; render();
+}
+
+// ---------- render ----------
+function renderOrders(){
+  const counts = (col, def) => { const m = {}; rows.forEach(r => { const k = col === NONE ? def : (String(r[col] ?? "").trim() || "Unassigned"); m[k] = (m[k]||0)+1; }); return m; };
+  const lc = counts($("colLevel").value,"All levels"), cc = counts($("colCat").value,"Elements");
+  const li = (arr, cnt, kind) => arr.map((x,i) => '<li><span title="'+esc(x)+'">'+esc(x)+'</span><em>'+(cnt[x]||0)+'</em>'+
+    '<button class="mini" data-k="'+kind+'" data-i="'+i+'" data-d="-1" aria-label="Move '+esc(x)+' up">↑</button>'+
+    '<button class="mini" data-k="'+kind+'" data-i="'+i+'" data-d="1" aria-label="Move '+esc(x)+' down">↓</button></li>').join("");
+  $("levelOrder").innerHTML = li(levelOrder, lc, "L"); $("catOrder").innerHTML = li(catOrder, cc, "C");
+}
+function render(){
+  if (!activities.length){ $("tbody").innerHTML = '<tr><td colspan="11" class="muted">No rows to group. Check the column mapping.</td></tr>'; $("stats").innerHTML = ""; return; }
+  const t0 = Math.min(...activities.map(a => a.start)), t1 = Math.max(...activities.map(a => a.finish));
+  const span = Math.max(1, (t1 - t0) / 864e5 + 1);
+  let prevLevel = null, html = "";
+  activities.forEach((a,i) => {
+    if (a.level !== prevLevel){ html += '<tr><td colspan="11" class="lvl">'+esc(a.level)+'</td></tr>'; prevLevel = a.level; }
+    const left = (a.start - t0)/864e5/span*100, w = ((a.finish - a.start)/864e5+1)/span*100;
+    html += '<tr><td class="id">'+a.id+'</td><td class="num">'+a.wbs+'</td><td>'+esc(a.name)+'</td><td class="num">'+a.rows.length+'</td>'+
+      '<td class="num">'+a.qty.toLocaleString(undefined,{maximumFractionDigits:2})+' '+esc(a.unit)+'</td>'+
+      '<td><input type="number" min="0.01" step="any" value="'+a.rate+'" data-cat="'+esc(a.cat)+'" aria-label="Rate per day for '+esc(a.cat)+'"></td>'+
+      '<td class="num">'+a.dur+'</td><td class="num">'+fmt(a.start)+'</td><td class="num">'+fmt(a.finish)+'</td>'+
+      '<td class="num">'+(a.preds.join(", ")||"–")+'</td>'+
+      '<td class="gcell"><div class="bar" style="margin-left:'+left.toFixed(2)+'%;width:'+w.toFixed(2)+'%"></div></td></tr>';
+  });
+  $("tbody").innerHTML = html;
+  const days = Math.round((t1 - t0)/864e5)+1;
+  $("stats").innerHTML = '<span><b>'+rows.length.toLocaleString()+'</b>elements</span><span><b>'+activities.length+'</b>activities</span>'+
+    '<span><b>'+fmt(new Date(t0))+'</b>start</span><span><b>'+fmt(new Date(t1))+'</b>finish</span><span><b>'+days+'</b>calendar days</span>';
+}
+
+// ---------- export ----------
+function stamp(){ return (srcName.replace(/\.[^.]+$/,"").replace(/[^\w-]+/g,"_") || "model"); }
+function exportXlsx(){
+  const wb = XLSX.utils.book_new();
+  const act = activities.map(a => ({"Activity ID":a.id,"WBS":a.wbs,"Activity Name":a.name,"Level":a.level,"Zone":a.zone,"Trade / Category":a.cat,
+    "Element Count":a.rows.length,"Quantity":a.qty,"Unit":a.unit,"Rate per Day":a.rate,"Duration (days)":a.dur,"Start":a.start,"Finish":a.finish,"Predecessors (FS)":a.preds.join(", ")}));
+  const ws1 = XLSX.utils.json_to_sheet(act,{cellDates:true,dateNF:"dd-mmm-yyyy"});
+  ws1["!cols"] = [10,8,44,16,10,24,10,12,8,10,10,13,13,20].map(w => ({wch:w}));
+  ws1["!autofilter"] = {ref: ws1["!ref"]};
+  XLSX.utils.book_append_sheet(wb, ws1, "Activity List");
+
+  const tl = activities.map(a => ({"Display ID":a.id,"Name":a.name,"Task Type":"Construct","Planned Start":a.start,"Planned End":a.finish}));
+  const ws2 = XLSX.utils.json_to_sheet(tl,{cellDates:true,dateNF:"dd-mmm-yyyy"}); ws2["!cols"] = [{wch:10},{wch:44},{wch:12},{wch:14},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, ws2, "TimeLiner");
+
+  const map = []; activities.forEach(a => a.rows.forEach(i => map.push(Object.assign({"Activity ID":a.id,"Activity Name":a.name}, rows[i]))));
+  const ws3 = XLSX.utils.json_to_sheet(map); ws3["!autofilter"] = {ref: ws3["!ref"]};
+  XLSX.utils.book_append_sheet(wb, ws3, "Element Mapping");
+
+  const sum = levelOrder.map(l => { const xs = activities.filter(a => a.level === l); if (!xs.length) return null;
+    const s = new Date(Math.min(...xs.map(a=>a.start))), f = new Date(Math.max(...xs.map(a=>a.finish)));
+    return {"Level":l,"Activities":xs.length,"Elements":xs.reduce((n,a)=>n+a.rows.length,0),"Start":s,"Finish":f}; }).filter(Boolean);
+  const ws4 = XLSX.utils.json_to_sheet(sum,{cellDates:true,dateNF:"dd-mmm-yyyy"}); ws4["!cols"] = [{wch:20},{wch:10},{wch:10},{wch:13},{wch:13}];
+  XLSX.utils.book_append_sheet(wb, ws4, "Level Summary");
+
+  XLSX.writeFile(wb, stamp()+"_activity_list.xlsx", {cellDates:true});
+}
+function exportCsv(){
+  const d = x => x.toISOString().slice(0,10), q = s => '"'+String(s).replace(/"/g,'""')+'"';
+  const lines = ["Display ID,Name,Task Type,Planned Start,Planned End"].concat(activities.map(a => [a.id,q(a.name),"Construct",d(a.start),d(a.finish)].join(",")));
+  const blob = new Blob([lines.join("\r\n")],{type:"text/csv"}), url = URL.createObjectURL(blob), el = document.createElement("a");
+  el.href = url; el.download = stamp()+"_timeliner.csv"; document.body.appendChild(el); el.click(); el.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ---------- events ----------
+const drop = $("drop"), file = $("file");
+drop.addEventListener("click", () => file.click());
+drop.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); file.click(); } });
+file.addEventListener("change", () => file.files[0] && loadFile(file.files[0]));
+["dragenter","dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => e.dataTransfer.files[0] && loadFile(e.dataTransfer.files[0]));
+$("sheet").addEventListener("change", e => useSheet(e.target.value));
+["colLevel","colCat","colZone"].forEach(id => $(id).addEventListener("change", () => { levelOrder = []; catOrder = []; rebuild(); }));
+["colQty","start","week","prefix","seq"].forEach(id => $(id).addEventListener("change", compute));
+$("defRate").addEventListener("change", compute);
+$("tbody").addEventListener("change", e => { const c = e.target.dataset.cat; if (c != null){ const v = +e.target.value; if (v > 0){ rates[c] = v; compute(); } } });
+document.querySelector(".side").addEventListener("click", e => {
+  const b = e.target.closest("button[data-k]"); if (!b) return;
+  const arr = b.dataset.k === "L" ? levelOrder : catOrder, i = +b.dataset.i, j = i + +b.dataset.d;
+  if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; renderOrders(); compute();
+});
+$("btnXlsx").addEventListener("click", exportXlsx);
+$("btnCsv").addEventListener("click", exportCsv);
+
+if (typeof XLSX === "undefined"){ fail("The Excel library didn't load. Check your internet connection and reload."); }
+setData(sample(), "Sample model");
+})();
+</script>
+</body>
+</html>

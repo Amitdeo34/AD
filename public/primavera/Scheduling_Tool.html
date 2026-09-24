@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>CPM Forge</title>
+<title>Scheduling Tool</title>
 <style>
 :root{
   --ground:#EEF2F7; --surface:#FFFFFF; --surface2:#F4F7FB; --ink:#0C233C; --muted:#4D5B70; --faint:#8793A6; --line:#C9D2DF; --line2:#E3E8F0;
@@ -239,7 +239,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
 <body>
 <div class="app" id="app">
   <div class="bar" role="toolbar" aria-label="Commands">
-    <div class="brand"><b>CPM Forge</b><span id="projTitle">Schedule</span></div>
+    <div class="brand"><b>Scheduling Tool</b><span id="projTitle">Schedule</span></div>
     <div class="menu"><button class="btn ghost" data-menu="file" aria-haspopup="true">File</button></div>
     <div class="menu"><button class="btn ghost" data-menu="edit" aria-haspopup="true">Edit</button></div>
     <div class="menu"><button class="btn ghost" data-menu="sched" aria-haspopup="true">Schedule</button></div>
@@ -327,7 +327,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
 
 <script>
 /* ==== engine.js ==== */
-/* CPM Forge - scheduling engine (CPM with calendars). Same math as the Excel workbook formulas.
+/* Scheduling Tool - scheduling engine (CPM with calendars). Same math as the Excel workbook formulas.
    Dates are Excel serial day numbers. Moments: start of day D = D, end of day D = D + 0.5. */
 (function (root) {
   'use strict';
@@ -453,7 +453,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /* ==== cpm.js ==== */
-/* CPM Forge - CPM schedule (forward/backward pass, float, longest path, WBS roll-up).
+/* Scheduling Tool - CPM schedule (forward/backward pass, float, longest path, WBS roll-up).
    Every step mirrors a column formula in the Excel workbook (see xlsxbook.js). */
 (function (root) {
   'use strict';
@@ -848,7 +848,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
       '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>');
     add('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>');
     const now = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
-    add('docProps/core.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>' + esc(this.title || 'P6 Scheduler') + '</dc:title><dc:creator>CPM Forge</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">' + now + '</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">' + now + '</dcterms:modified></cp:coreProperties>');
+    add('docProps/core.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>' + esc(this.title || 'P6 Scheduler') + '</dc:title><dc:creator>Scheduling Tool</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">' + now + '</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">' + now + '</dcterms:modified></cp:coreProperties>');
     add('docProps/app.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>Microsoft Excel</Application></Properties>');
     const active = Math.max(0, S.findIndex(s => s.opt.selected));
     add('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><workbookPr defaultThemeVersion="164011"/><bookViews><workbookView xWindow="0" yWindow="0" windowWidth="28800" windowHeight="15000" activeTab="' + active + '"/></bookViews><sheets>' +
@@ -888,7 +888,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /* ==== xlsxbook.js ==== */
-/* CPM Forge - builds the Excel scheduler workbook. All scheduling math is live Excel formulas
+/* Scheduling Tool - builds the Excel scheduler workbook. All scheduling math is live Excel formulas
    (no macros) that mirror cpm.js exactly. Needs Excel 2019 / 2021 / 365 (MAXIFS, MINIFS, TEXTJOIN). */
 (function (root) {
   'use strict';
@@ -1028,7 +1028,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
     for (let c = 9; c <= 16; c++) sh.col(c, { w: 13 });
     sh.row(1, { h: 30 }); sh.row(2, { h: 16 });
     for (let c = 1; c <= 16; c++) { sh.set(1, c, null, s.title); sh.set(2, c, null, s.titleSub); }
-    sh.set(1, 2, 'CPM Forge - Project Settings', s.title);
+    sh.set(1, 2, 'Scheduling Tool - Project Settings', s.title);
     sh.set(2, 2, 'Yellow cells are inputs. Everything else is calculated by formulas - no macros needed.', s.titleSub);
     sh.set(4, 2, 'PROJECT INPUTS', s.sec); sh.set(4, 3, null, s.sec);
     sh.set(4, 6, 'CALCULATED (do not edit)', s.sec); sh.set(4, 7, null, s.sec);
@@ -1137,7 +1137,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /* ==== xlsxsched.js ==== */
-/* CPM Forge - Schedule sheet (P6 layout + formula engine + Gantt) for the Excel workbook */
+/* Scheduling Tool - Schedule sheet (P6 layout + formula engine + Gantt) for the Excel workbook */
 (function (root) {
   'use strict';
   const isNode = typeof module !== 'undefined' && module.exports;
@@ -1344,7 +1344,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /* ==== xlsxrel.js ==== */
-/* CPM Forge - Relationships sheet + Guide sheet */
+/* Scheduling Tool - Relationships sheet + Guide sheet */
 (function (root) {
   'use strict';
   const isNode = typeof module !== 'undefined' && module.exports;
@@ -1483,10 +1483,10 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
     sh.col(1, { w: 3 }); sh.col(2, { w: 28 }); sh.col(3, { w: 110 });
     for (let x = 1; x <= 3; x++) sh.set(1, x, null, s.title);
     sh.row(1, { h: 30 });
-    sh.set(1, 2, 'CPM Forge - Excel Scheduler (Primavera-style, formula engine)', s.title);
+    sh.set(1, 2, 'Scheduling Tool - Excel Scheduler (Primavera-style, formula engine)', s.title);
     const T = [
       ['WHAT IT IS', ''],
-      ['Engine', 'Critical Path Method with calendars, same math as the CPM Forge HTML tool. Everything recalculates live with Excel formulas - no macros, no add-ins. Needs Excel 2019, 2021 or Microsoft 365.'],
+      ['Engine', 'Critical Path Method with calendars, same math as the Scheduling Tool HTML tool. Everything recalculates live with Excel formulas - no macros, no add-ins. Needs Excel 2019, 2021 or Microsoft 365.'],
       ['Sheets', 'Project = settings and summary.  Schedule = P6-style activity table + Gantt.  Relationships = logic links.  Calendars = work weeks, holidays and working exceptions.'],
       ['BUILD A SCHEDULE', ''],
       ['1. Project', 'Enter Project Name, Project Start and Data Date (status date). Pick the default calendar, progress option (Retained Logic / Progress Override), lag calendar and Gantt timescale (Day / Week / Month / Quarter).'],
@@ -1500,7 +1500,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
       ['Status', 'Move the Data Date. Enter Actual Start for started work and Actual Finish for completed work. Remaining duration = Original x (1 - % Compl), or type an exact value in "Rem Dur Override" (expand the grouped columns after Successors).'],
       ['Dates shown', 'Start / Finish show actual dates with an "A" suffix once actualised. Total Float, Free Float, Late dates, Critical and Longest Path (LP) update instantly.'],
       ['PRIMAVERA DATA', ''],
-      ['From P6', 'Open CPM Forge (HTML), import the P6 Excel export (File > Export > Spreadsheet: TASK + TASKPRED sheets) or an XER file, then press "Export Excel". You get this workbook filled with your WBS, activities, calendars, logic, actuals and baseline - all live.'],
+      ['From P6', 'Open Scheduling Tool (HTML), import the P6 Excel export (File > Export > Spreadsheet: TASK + TASKPRED sheets) or an XER file, then press "Export Excel". You get this workbook filled with your WBS, activities, calendars, logic, actuals and baseline - all live.'],
       ['Manual paste', 'You can also paste P6 columns straight into the yellow columns here: Activity ID, Activity Name, WBS Code, Original Duration, Actual Start/Finish, Calendar; and the relationship list into Relationships.'],
       ['GANTT LEGEND', ''],
       ['Bars', 'Green = remaining work, Red = critical remaining work, Dark blue = actual (done) part, Black cell = milestone, Grey = WBS summary span, Orange underline = baseline, Red dashed line = data date.'],
@@ -1608,8 +1608,8 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /* ==== p6import.js ==== */
-/* CPM Forge - Primavera P6 importers: XER (native) and P6 spreadsheet export (XLSX: TASK / TASKPRED / PROJWBS),
-   plus plain activity tables (copy of a P6 layout). Output = CPM Forge project model. */
+/* Scheduling Tool - Primavera P6 importers: XER (native) and P6 spreadsheet export (XLSX: TASK / TASKPRED / PROJWBS),
+   plus plain activity tables (copy of a P6 layout). Output = Scheduling Tool project model. */
 (function (root) {
   'use strict';
   const isNode = typeof module !== 'undefined' && module.exports;
@@ -1906,7 +1906,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /* ==== p6export.js ==== */
-/* CPM Forge - XER export (Primavera P6 native text format). Writes PROJECT, CALENDAR, PROJWBS, TASK, TASKPRED. */
+/* Scheduling Tool - XER export (Primavera P6 native text format). Writes PROJECT, CALENDAR, PROJWBS, TASK, TASKPRED. */
 (function (root) {
   'use strict';
   const isNode = typeof module !== 'undefined' && module.exports;
@@ -1927,7 +1927,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
     R = R || E.schedule(P);
     const out = [], pid = 1000, now = new Date();
     const nowS = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-    out.push(['ERMHDR', '19.12', nowS, 'Project', 'admin', 'CPM Forge', 'dbxDatabaseNoName', 'Project Management', 'INR'].join('\t'));
+    out.push(['ERMHDR', '19.12', nowS, 'Project', 'admin', 'Scheduling Tool', 'dbxDatabaseNoName', 'Project Management', 'INR'].join('\t'));
     const table = (name, fields, rows) => { out.push('%T\t' + name); out.push('%F\t' + fields.join('\t')); rows.forEach(r => out.push('%R\t' + fields.map(f => tsv(r[f])).join('\t'))); };
     const code = String(P.code || (P.name || 'P6S').replace(/[^A-Za-z0-9]+/g, '').slice(0, 20) || 'P6S');
     const cals = (P.calendars || []).slice(0, E.MAX_CALS).map((c, i) => ({ c, id: 5000 + i }));
@@ -1936,7 +1936,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
     table('CURRTYPE', ['curr_id', 'decimal_digit_cnt', 'curr_symbol', 'decimal_symbol', 'digit_group_symbol', 'pos_curr_fmt_type', 'neg_curr_fmt_type', 'curr_type', 'curr_short_name', 'group_digit_cnt', 'base_exch_rate'],
       [{ curr_id: 1, decimal_digit_cnt: 2, curr_symbol: 'Rs', decimal_symbol: '.', digit_group_symbol: ',', pos_curr_fmt_type: '#1.1', neg_curr_fmt_type: '(#1.1)', curr_type: 'Indian Rupee', curr_short_name: 'INR', group_digit_cnt: 3, base_exch_rate: 1 }]);
     table('PROJECT', ['proj_id', 'fy_start_month_num', 'rsrc_self_add_flag', 'allow_complete_flag', 'rsrc_multi_assign_flag', 'checkout_flag', 'project_flag', 'step_complete_flag', 'cost_qty_recalc_flag', 'batch_sum_flag', 'name_sep_char', 'def_complete_pct_type', 'proj_short_name', 'acct_id', 'orig_proj_id', 'source_proj_id', 'base_type_id', 'clndr_id', 'sum_base_proj_id', 'task_code_base', 'task_code_step', 'priority_num', 'wbs_max_sum_level', 'strgy_priority_num', 'last_checksum', 'critical_drtn_hr_cnt', 'def_cost_per_qty', 'last_recalc_date', 'plan_start_date', 'plan_end_date', 'scd_end_date', 'add_date', 'last_tasksum_date', 'fcst_start_date', 'def_duration_type', 'task_code_prefix', 'guid', 'def_qty_type', 'add_by_name', 'web_local_root_path', 'proj_url', 'def_rate_type', 'add_act_remain_flag', 'act_this_per_link_flag', 'def_task_type', 'act_pct_link_flag', 'critical_path_type', 'task_code_prefix_flag', 'def_rollup_dates_flag', 'use_project_baseline_flag', 'rem_target_link_flag', 'reset_planned_flag', 'allow_neg_act_flag', 'sum_assign_level', 'last_fin_dates_id', 'fintmpl_id', 'last_baseline_update_date', 'cr_external_key', 'apply_actuals_date', 'location_id', 'last_schedule_date', 'loaded_scope_level', 'export_flag', 'new_fin_dates_id', 'baselines_to_export', 'baseline_names_to_export', 'next_data_date', 'close_period_flag', 'sum_refresh_date', 'trsrcsum_loaded', 'sumtask_loaded', 'sched_progress_override', 'sched_retained_logic', 'sched_calendar_on_relationship_lag'],
-      [{ proj_id: pid, fy_start_month_num: 4, rsrc_self_add_flag: 'Y', allow_complete_flag: 'Y', rsrc_multi_assign_flag: 'Y', checkout_flag: 'N', project_flag: 'Y', step_complete_flag: 'N', cost_qty_recalc_flag: 'Y', batch_sum_flag: 'Y', name_sep_char: '.', def_complete_pct_type: 'CP_Drtn', proj_short_name: code, clndr_id: calId(P.defCal), task_code_base: 1000, task_code_step: 10, priority_num: 10, wbs_max_sum_level: 0, strgy_priority_num: 100, critical_drtn_hr_cnt: (+P.critFloat || 0) * 8, def_cost_per_qty: 0, last_recalc_date: dstr(P.dataDate), plan_start_date: dstr(P.start), plan_end_date: P.mustFinish ? dstr(P.mustFinish, '16:00') : '', scd_end_date: dstr(R.PFE, '16:00'), add_date: nowS + ' 00:00', def_duration_type: 'DT_FixedDrtn', def_qty_type: 'QT_Hour', add_by_name: 'CPM Forge', def_rate_type: 'COST_PER_QTY', add_act_remain_flag: 'N', act_this_per_link_flag: 'Y', def_task_type: 'TT_Task', act_pct_link_flag: 'N', critical_path_type: 'CT_TotFloat', task_code_prefix_flag: 'Y', def_rollup_dates_flag: 'Y', rem_target_link_flag: 'Y', reset_planned_flag: 'N', allow_neg_act_flag: 'N', sum_assign_level: 'SL_Taskrsrc', export_flag: 'Y', close_period_flag: 'N', sched_progress_override: P.progress === 'PO' ? 'Y' : 'N', sched_retained_logic: P.progress === 'PO' ? 'N' : 'Y', sched_calendar_on_relationship_lag: ['rcal_Predecessor', 'rcal_Successor', 'rcal_24Hour', 'rcal_ProjDefault'][(+P.lagCal || 1) - 1] }]);
+      [{ proj_id: pid, fy_start_month_num: 4, rsrc_self_add_flag: 'Y', allow_complete_flag: 'Y', rsrc_multi_assign_flag: 'Y', checkout_flag: 'N', project_flag: 'Y', step_complete_flag: 'N', cost_qty_recalc_flag: 'Y', batch_sum_flag: 'Y', name_sep_char: '.', def_complete_pct_type: 'CP_Drtn', proj_short_name: code, clndr_id: calId(P.defCal), task_code_base: 1000, task_code_step: 10, priority_num: 10, wbs_max_sum_level: 0, strgy_priority_num: 100, critical_drtn_hr_cnt: (+P.critFloat || 0) * 8, def_cost_per_qty: 0, last_recalc_date: dstr(P.dataDate), plan_start_date: dstr(P.start), plan_end_date: P.mustFinish ? dstr(P.mustFinish, '16:00') : '', scd_end_date: dstr(R.PFE, '16:00'), add_date: nowS + ' 00:00', def_duration_type: 'DT_FixedDrtn', def_qty_type: 'QT_Hour', add_by_name: 'Scheduling Tool', def_rate_type: 'COST_PER_QTY', add_act_remain_flag: 'N', act_this_per_link_flag: 'Y', def_task_type: 'TT_Task', act_pct_link_flag: 'N', critical_path_type: 'CT_TotFloat', task_code_prefix_flag: 'Y', def_rollup_dates_flag: 'Y', rem_target_link_flag: 'Y', reset_planned_flag: 'N', allow_neg_act_flag: 'N', sum_assign_level: 'SL_Taskrsrc', export_flag: 'Y', close_period_flag: 'N', sched_progress_override: P.progress === 'PO' ? 'Y' : 'N', sched_retained_logic: P.progress === 'PO' ? 'N' : 'Y', sched_calendar_on_relationship_lag: ['rcal_Predecessor', 'rcal_Successor', 'rcal_24Hour', 'rcal_ProjDefault'][(+P.lagCal || 1) - 1] }]);
     table('CALENDAR', ['clndr_id', 'default_flag', 'clndr_name', 'proj_id', 'base_clndr_id', 'last_chng_date', 'clndr_type', 'day_hr_cnt', 'week_hr_cnt', 'month_hr_cnt', 'year_hr_cnt', 'rsrc_private', 'clndr_data'],
       cals.map(({ c, id }) => { const h = +c.hpd || 8, w = (c.week || []).reduce((a, b) => a + (+b || 0), 0); return { clndr_id: id, default_flag: c.name === P.defCal ? 'Y' : 'N', clndr_name: c.name, proj_id: pid, clndr_type: 'CA_Project', day_hr_cnt: h, week_hr_cnt: h * w, month_hr_cnt: Math.round(h * w * 4.33), year_hr_cnt: Math.round(h * w * 52), rsrc_private: 'N', clndr_data: X.clndrData(c) }; }));
     // WBS
@@ -1980,7 +1980,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /* ==== sample.js ==== */
-/* CPM Forge - demo project (generic steel plant package). Baseline = unprogressed early dates. */
+/* Scheduling Tool - demo project (generic steel plant package). Baseline = unprogressed early dates. */
 (function (root) {
   'use strict';
   const isNode = typeof module !== 'undefined' && module.exports;
@@ -2074,7 +2074,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /* ==== ui_core.js ==== */
-/* CPM Forge UI - core: state, history, persistence, rows, commands, menus, keyboard */
+/* Scheduling Tool UI - core: state, history, persistence, rows, commands, menus, keyboard */
 (function () {
   'use strict';
   const E = window.P6E, B = window.P6B, XR = window.XR, I = window.P6I, X = window.P6X, XW = window.XW;
@@ -2225,7 +2225,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
     let oe = 0; S.P.activities.forEach((a, i) => { if (U.openEnd(i)) oe++; }); $('sOpenC').hidden = !oe; $('sOpen').textContent = oe;
     U.levelBar();
     $('sTime').textContent = 'CPM ' + st.ms + ' ms';
-    document.title = 'CPM Forge';
+    document.title = 'Scheduling Tool';
   };
   U.levelBar = () => {
     const md = U.maxDepth(), el = $('lvlBar'); if (!el) return;
@@ -2422,7 +2422,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
 })();
 
 /* ==== ui_grid.js ==== */
-/* CPM Forge UI - activity table: virtual rows, P6/Excel-style cell cursor, type-to-edit, arrow-key navigation,
+/* Scheduling Tool UI - activity table: virtual rows, P6/Excel-style cell cursor, type-to-edit, arrow-key navigation,
    outline expand/collapse, multi-select, copy / paste / fill down, context menu */
 (function () {
   'use strict';
@@ -2824,7 +2824,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
 })();
 
 /* ==== ui_gantt.js ==== */
-/* CPM Forge UI - Gantt chart (canvas): timescale, bars (actual / remaining / critical / baseline / float), milestones, WBS, logic lines */
+/* Scheduling Tool UI - Gantt chart (canvas): timescale, bars (actual / remaining / critical / baseline / float), milestones, WBS, logic lines */
 (function () {
   'use strict';
   const U = window.UI, S = U.S, E = window.P6E, $ = U.$;
@@ -2988,7 +2988,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
 })();
 
 /* ==== ui_details.js ==== */
-/* CPM Forge UI - Activity Details drawer (General / Status & Dates / Relationships / Notes) */
+/* Scheduling Tool UI - Activity Details drawer (General / Status & Dates / Relationships / Notes) */
 (function () {
   'use strict';
   const U = window.UI, S = U.S, E = window.P6E, $ = U.$;
@@ -3096,7 +3096,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
 })();
 
 /* ==== ui_dialogs.js ==== */
-/* CPM Forge UI - dialogs part 1: frame, project settings, calendars */
+/* Scheduling Tool UI - dialogs part 1: frame, project settings, calendars */
 (function () {
   'use strict';
   const U = window.UI, S = U.S, E = window.P6E, $ = U.$, esc = U.esc;
@@ -3209,7 +3209,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
 })();
 
 /* ==== ui_dialogs2.js ==== */
-/* CPM Forge UI - dialogs part 2: import, progress update, health & log, columns, help + boot */
+/* Scheduling Tool UI - dialogs part 2: import, progress update, health & log, columns, help + boot */
 (function () {
   'use strict';
   const U = window.UI, S = U.S, E = window.P6E, I = window.P6I, XR = window.XR, $ = U.$, esc = U.esc, D = U.dialogs;
@@ -3222,7 +3222,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
       if (!src) return;
       try {
         if (src.kind === 'xer') res = I.fromXER(src.T, { projId: o.projId, baseline: o.baseline === 'none' ? 'none' : 'auto' });
-        else if (src.kind === 'json') { const P = JSON.parse(src.text); if (!P.activities) throw new Error('This JSON is not a CPM Forge project file'); res = { project: P, log: [{ lvl: 'info', msg: 'CPM Forge project: ' + P.activities.length + ' rows' }] }; }
+        else if (src.kind === 'json') { const P = JSON.parse(src.text); if (!P.activities) throw new Error('This JSON is not a Scheduling Tool project file'); res = { project: P, log: [{ lvl: 'info', msg: 'Scheduling Tool project: ' + P.activities.length + ' rows' }] }; }
         else { const opts = { durUnit: o.durUnit || undefined, baseline: o.baseline === 'none' ? 'none' : o.baseline === 'bl' ? 'bl' : undefined, hoursPerDay: o.hoursPerDay, dataDate: o.dataDate, start: o.start, name: src.name };
           res = src.kind === 'xlsx' ? I.fromTables(src.book.sheets, opts) : I.fromText(src.text, opts); }
         show();
@@ -3258,7 +3258,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
         await parse();
       } catch (err) { $('iRes').innerHTML = '<ul class="log"><li class="err">' + esc(err.message || String(err)) + '</li></ul>'; }
     };
-    D.open(pasteMode ? 'Paste an activity table' : 'Import from Primavera P6', (pasteMode ? '' : '<div class="drop" id="iDrop" tabindex="0" role="button" aria-label="Choose a file"><b>Drop a P6 file here or click to choose</b><br><span class="small">.xer (P6 export) &middot; .xlsx (P6 File &gt; Export &gt; Spreadsheet: TASK + TASKPRED) &middot; .csv / .txt &middot; CPM Forge .json</span></div>') +
+    D.open(pasteMode ? 'Paste an activity table' : 'Import from Primavera P6', (pasteMode ? '' : '<div class="drop" id="iDrop" tabindex="0" role="button" aria-label="Choose a file"><b>Drop a P6 file here or click to choose</b><br><span class="small">.xer (P6 export) &middot; .xlsx (P6 File &gt; Export &gt; Spreadsheet: TASK + TASKPRED) &middot; .csv / .txt &middot; Scheduling Tool .json</span></div>') +
       '<details' + (pasteMode ? ' open' : '') + '><summary class="small" style="cursor:pointer">Or paste rows copied from P6 / Excel (with a header row: Activity ID, Activity Name, Original Duration, Start, Finish, Predecessors, WBS Code...)</summary><textarea id="iPaste" rows="6" style="width:100%;margin-top:6px;border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:8px;font:12px var(--f-grid)" placeholder="Activity ID&#9;Activity Name&#9;Original Duration&#9;Predecessors"></textarea><button class="btn" id="iPasteGo" style="margin-top:6px">Read pasted rows</button></details>' +
       '<div id="iOpts"></div><div id="iRes"></div>',
       [{ label: 'Cancel' }, { label: 'Load schedule', cls: 'pri', id: 'iLoad', act: () => { if (!res) return false; U.load(res.project); U.toast('Loaded ' + res.project.activities.length + ' rows - scheduled with CPM'); } }], () => { $('iLoad').disabled = true; });
@@ -3341,7 +3341,7 @@ dialog::backdrop{background:rgba(10,18,30,.45)}
   };
 
   /* ---------- help ---------- */
-  D.help = () => D.open('How CPM Forge works', '<div class="cols2"><div><h3 style="margin:0 0 6px;font:700 15px var(--f-disp)">Scheduling engine</h3><p class="small">Critical Path Method exactly like the Excel workbook it exports: forward and backward pass on working-day calendars (work week + holidays + extra working days), FS / SS / FF / SF links with leads and lags, start and finish milestones, constraints (Start/Finish On or After / On or Before / On, Mandatory, As Late As Possible), actuals with Retained Logic or Progress Override, total and free float, driving links and the longest path.</p>' +
+  D.help = () => D.open('How Scheduling Tool works', '<div class="cols2"><div><h3 style="margin:0 0 6px;font:700 15px var(--f-disp)">Scheduling engine</h3><p class="small">Critical Path Method exactly like the Excel workbook it exports: forward and backward pass on working-day calendars (work week + holidays + extra working days), FS / SS / FF / SF links with leads and lags, start and finish milestones, constraints (Start/Finish On or After / On or Before / On, Mandatory, As Late As Possible), actuals with Retained Logic or Progress Override, total and free float, driving links and the longest path.</p>' +
     '<h3 style="margin:10px 0 6px;font:700 15px var(--f-disp)">From Primavera P6</h3><p class="small"><b>XER</b>: File &gt; Export &gt; Primavera PM (XER) - brings WBS, calendars with holidays, logic, actuals and planned dates.<br><b>Excel</b>: File &gt; Export &gt; Spreadsheet (XLSX), pick <i>Activities</i> and <i>Activity Relationships</i>. Calendar names come across; set their work weeks and holidays in Calendars.<br><b>Paste</b>: copy rows from a P6 layout or Excel (with a header row).</p>' +
     '<h3 style="margin:10px 0 6px;font:700 15px var(--f-disp)">Excel export</h3><p class="small">Export Excel gives a macro-free workbook where every date is a live formula (Excel 2019 / 2021 / 365). Edit durations, logic, actuals or calendars there and it recalculates like this app.</p></div>' +
     '<div><h3 style="margin:0 0 6px;font:700 15px var(--f-disp)">Keys</h3><table class="tbl"><tbody>' + [['← ↑ ↓ →', 'Move the cell cursor (like Excel / P6)'], ['Home / End', 'First / last column'], ['Ctrl+Home / Ctrl+End', 'First / last row'], ['Type any key', 'Start editing the cell with that text'], ['Enter / F2 / double-click', 'Edit cell (F2 keeps the text)'],

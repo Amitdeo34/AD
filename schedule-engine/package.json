@@ -1,0 +1,12 @@
+{
+  "name": "schedule-engine",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "Schedule Engine - offline P6-style monthly schedule updater (XER / Excel / PDF in, XER / Excel / PDF / HTML out)",
+  "scripts": {
+    "build": "node tools/build.js",
+    "test": "node --test test/*.test.js",
+    "sample": "node tools/make-sample.js"
+  }
+}

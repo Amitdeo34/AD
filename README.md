@@ -11,6 +11,12 @@ npm run seed     # demo accounts and sample bookings (optional)
 npm run dev      # http://localhost:3000
 ```
 
+
+> **Also in this repository: [Schedule Engine](schedule-engine/README.md)**, an offline
+> P6-style monthly schedule updater (XER / Excel / PDF in → XER / Excel / PDF / HTML /
+> PowerPoint one-pagers out). Open `schedule-engine/dist/ScheduleEngine.html`, or visit
+> `/schedule-engine` on the deployed site.
+
 ---
 
 ## What is in it

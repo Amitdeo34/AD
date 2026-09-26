@@ -7,6 +7,10 @@ const nextConfig = {
     // real photo library is wired in; see lib/photos.js.
     remotePatterns: [{ protocol: 'https', hostname: 'picsum.photos' }, { protocol: 'https', hostname: 'fastly.picsum.photos' }],
   },
+  // Schedule Engine is a self-contained offline page in public/schedule-engine/
+  async rewrites() {
+    return [{ source: '/schedule-engine', destination: '/schedule-engine/index.html' }];
+  },
   async headers() {
     return [
       {

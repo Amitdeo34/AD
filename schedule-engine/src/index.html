@@ -60,11 +60,17 @@
         <button data-view="dash" aria-selected="false">Dashboard</button>
         <button data-view="health" aria-selected="false">Health Check</button>
         <button data-view="changes" aria-selected="false">Changes</button>
+        <button data-view="timeline" aria-selected="false">Timeline</button>
+        <button data-view="concerns" aria-selected="false">Concerns</button>
         <button data-view="qty" aria-selected="false">Qty &amp; Liquidation</button>
-        <span class="spacer"></span>
+      </div>
+      <div class="workbar" id="workbar">
+        <div class="wb-left" id="wbLeft"></div>
         <div class="filterbar" id="filterbar"></div>
+        <div class="wb-right" id="wbRight"></div>
       </div>
       <div class="view" id="view-gantt">
+        <div class="tlstrip" id="tlstrip" hidden><canvas id="tlCanvas"></canvas></div>
         <div class="split" id="split">
           <div class="grid" id="grid">
             <div class="ghead" id="ghead"></div>
@@ -82,6 +88,8 @@
       <div class="view" id="view-dash" hidden></div>
       <div class="view" id="view-health" hidden></div>
       <div class="view" id="view-changes" hidden></div>
+      <div class="view" id="view-timeline" hidden></div>
+      <div class="view" id="view-concerns" hidden></div>
       <div class="view" id="view-qty" hidden></div>
     </section>
   </div>
@@ -108,6 +116,8 @@
 <script src="core/cpm.js"></script>
 <script src="core/xer.js"></script>
 <script src="core/analysis.js"></script>
+<script src="core/columns.js"></script>
+<script src="core/filters.js"></script>
 <script src="core/views.js"></script>
 <script src="core/importers.js"></script>
 <script src="core/exporters.js"></script>
@@ -119,6 +129,8 @@
 <script src="ui/gantt.js"></script>
 <script src="ui/panels.js"></script>
 <script src="ui/io.js"></script>
+<script src="ui/layouts.js"></script>
+<script src="ui/workbar.js"></script>
 <script src="ui/qtyview.js"></script>
 <script src="ui/boot.js"></script>
 <!--@/JS-->

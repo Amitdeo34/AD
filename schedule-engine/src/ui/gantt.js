@@ -85,6 +85,7 @@
         ctx.fillStyle = C.band[lv];
         ctx.fillRect(sl, y, W, RH);
         ctx.globalAlpha = 1;
+        if (UI.grid.cur && UI.grid.cur().row === i && !S.sel) { ctx.strokeStyle = C.brand2; ctx.lineWidth = 2; ctx.strokeRect(sl + 1, y + 1, W - 2, RH - 2); }
       } else {
         const a = r.a;
         if (S.sel === a.uid || S.multi.has(a.uid)) { ctx.fillStyle = C.select; ctx.fillRect(sl, y, W, RH); }
@@ -125,6 +126,7 @@
     ctx.beginPath(); ctx.moveTo(xd, 0); ctx.lineTo(xd, H); ctx.stroke();
     ctx.setLineDash([]);
     ctx.restore();
+    if (UI.timeline) UI.timeline.strip();
   }
 
   function drawAct(ctx, a, y, dd) {
@@ -169,10 +171,21 @@
         ctx.globalAlpha = 1;
       }
     }
+    if (S.floatBars && a.status !== 'CO' && a.tf != null && a.tf > 0 && !P.isMilestone(a)) {
+      const c = P.cal(a);
+      const fe = c.add(f, Math.round(a.tf));
+      ctx.fillStyle = C.ink3; ctx.globalAlpha = 0.55;
+      ctx.fillRect(X(f + 1), top + bh / 2 - 1, Math.max(1, X(fe + 1) - X(f + 1)), 3);
+      ctx.fillRect(X(fe + 1) - 1, top + 1, 2, bh - 2);
+      ctx.globalAlpha = 1;
+    }
     if (hoverUid === a.uid) { ctx.strokeStyle = C.ink; ctx.lineWidth = 1; ctx.strokeRect(X(s) - 2, top - 2, Math.max(4, X(f + 1) - X(s)) + 4, bh + 4); }
-    if (S.showLabels) {
+    if (S.showLabels && S.barLabel !== 'none') {
       ctx.fillStyle = a.crit && a.status !== 'CO' ? C.crit : C.ink2;
-      ctx.fillText(a.name + (a.status === 'IP' ? '  ' + Math.round(a.pct || 0) + '%' : ''), endX + 6, y + RH / 2);
+      const L = S.barLabel || 'name';
+      const txt = L === 'id' ? a.code : L === 'idname' ? a.code + ' - ' + a.name : L === 'dates' ? D.fmt(f) + (a.aFinish != null ? ' A' : '') : a.name + ((L === 'pct' || L === 'name') && a.status === 'IP' ? '  ' + Math.round(a.pct || 0) + '%' : '');
+      const fx = S.floatBars && a.status !== 'CO' && a.tf > 0 && !P.isMilestone(a) ? X(P.cal(a).add(f, Math.round(a.tf)) + 1) : endX;
+      ctx.fillText(txt, fx + 6, y + RH / 2);
     }
   }
   function roundRect(ctx, x, y, w, hh) {
@@ -359,5 +372,5 @@
     render();
   }
 
-  UI.gantt = { render, bind, fit, scrollToDay, readColors };
+  UI.gantt = { render, bind, fit, scrollToDay, readColors, t0: () => t0 };
 })();

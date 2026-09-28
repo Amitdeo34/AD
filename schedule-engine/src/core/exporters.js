@@ -177,7 +177,39 @@
       ['Activity ID', 16], ['Activity Name', 48], ['Building', 18], ['EPC', 14], ['Status', 12], ['Orig Dur', 8], ['Rem Dur', 8], ['% Complete', 9],
       ['Start', 11], ['Finish', 11], ['Actual Start', 11], ['Actual Finish', 11], ['BL Start', 11], ['BL Finish', 11], ['Finish Var (d)', 9], ['Total Float', 8], ['Critical', 7], ['Flags', 30], ['Remarks', 30]
     ];
-    {
+    if (opts.columns && opts.columns.length && SE.columns) {
+      // Schedule sheet in the user's current layout (P6 "print the layout")
+      const lc = opts.columns.map((id) => SE.columns.get(P, id)).filter(Boolean);
+      const ws = wb.addWorksheet('Schedule', { properties: { tabColor: { argb: argb(PAL.med) }, outlineLevelRow: 1 }, views: [{ state: 'frozen', xSplit: Math.min(2, lc.length), ySplit: 4 }] });
+      ws.properties.outlineProperties = { summaryBelow: false, summaryRight: false };
+      lc.forEach((c, i) => { ws.getColumn(i + 1).width = Math.max(7, Math.round(c.w / 6.5)); });
+      title(ws, 'Schedule - ' + P.meta.name + (opts.layoutName ? ' (' + opts.layoutName + ')' : ''), lc.length);
+      headerRow(ws, 4, lc.map((c) => c.label));
+      const cell = (c, v) => (v == null || v === '' ? null : c.t === 'date' ? serial(v) : c.t === 'pct' ? v / 100 : c.t === 'bool' ? (v ? 'Yes' : '') : v);
+      let r = 5;
+      for (const row of rows) {
+        const x = ws.getRow(r);
+        if (row.kind === 'group') {
+          x.values = lc.map((c) => (c.id === 'code' ? (row.code && row.code !== row.label ? row.code : '') : c.id === 'name' ? row.label + '  (' + row.count + ')' : c.sum ? cell(c, c.sum(row.sum, P)) : null));
+          const lv = Math.min(row.level, 3);
+          const bg = [PAL.band1, PAL.band2, PAL.band3, PAL.band4][lv];
+          const fg = lv < 2 ? 'FFFFFFFF' : argb(PAL.ink);
+          for (let n = 1; n <= lc.length; n++) { const cc = x.getCell(n); cc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(bg) } }; cc.font = { bold: true, size: 9, color: { argb: fg } }; }
+        } else {
+          const a = row.a;
+          x.values = lc.map((c) => cell(c, SE.columns.value(P, c, a, { flags: fl.map })));
+          x.font = { size: 9 };
+          x.outlineLevel = 1;
+          const lcol = lensColor(fl.map.get(a.uid));
+          if (lcol) for (let n = 1; n <= lc.length; n++) x.getCell(n).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(lcol) } };
+        }
+        const ni = lc.findIndex((c) => c.id === 'name');
+        if (ni >= 0) x.getCell(ni + 1).alignment = { indent: Math.min(row.level, 6) };
+        lc.forEach((c, i) => { const cc = x.getCell(i + 1); if (c.t === 'date') cc.numFmt = 'dd-mmm-yy'; else if (c.t === 'pct') cc.numFmt = '0%'; cc.border = box; });
+        r++;
+      }
+      ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4, column: lc.length } };
+    } else {
       const ws = wb.addWorksheet('Schedule', { properties: { tabColor: { argb: argb(PAL.med) }, outlineLevelRow: 1 }, views: [{ state: 'frozen', xSplit: 2, ySplit: 4 }] });
       ws.properties.outlineProperties = { summaryBelow: false, summaryRight: false };
       schedCols.forEach((c, i) => { ws.getColumn(i + 1).width = c[1]; });
@@ -377,9 +409,14 @@
     const att = [];
     for (const a of P.acts) {
       const f = fl.map.get(a.uid) || [];
-      for (const k of ['invalid', 'overdue', 'lateStart', 'future', 'outSeq', 'negFloat']) if (f.includes(k)) att.push([SE.LENS_BY_KEY[k].short, a.code, a.name, P.dim(a, 'building'), P.dim(a, 'epc'), SE.STATUS[a.status], dt(P.refStart(a)), dt(P.refFinish(a)), dt(P.startOf(a)), dt(P.finishOf(a)), pc(a.pct), a.tf, SE.LENS_BY_KEY[k].desc]);
+      const cn = a.concern || {};
+      for (const k of ['invalid', 'overdue', 'lateStart', 'future', 'outSeq', 'negFloat']) if (f.includes(k)) att.push([SE.LENS_BY_KEY[k].short, a.code, a.name, P.dim(a, 'building'), P.dim(a, 'epc'), SE.STATUS[a.status], dt(P.refStart(a)), dt(P.refFinish(a)), dt(P.startOf(a)), dt(P.finishOf(a)), pc(a.pct), a.tf, cn.cat || '', cn.text || 'NOT RAISED', cn.action || '', cn.owner || '']);
     }
-    listSheet('Attention', PAL.red, [['Flag', 16], ['Activity ID', 15], ['Activity Name', 44], ['Building', 18], ['EPC', 14], ['Status', 12], ['Ref Start', 11], ['Ref Finish', 11], ['Start', 11], ['Finish', 11], ['%', 7], ['TF', 7], ['Why flagged', 60]], att, 'Activities needing attention');
+    listSheet('Attention', PAL.red, [['Flag', 16], ['Activity ID', 15], ['Activity Name', 44], ['Building', 18], ['EPC', 14], ['Status', 12], ['Ref Start', 11], ['Ref Finish', 11], ['Start', 11], ['Finish', 11], ['%', 7], ['TF', 7], ['Concern category', 20], ['Concern', 60], ['Action', 40], ['Owner', 16]], att, 'Activities needing attention (flag + concern raised)');
+    const reg = P.acts.filter((a) => a.concern && a.concern.text);
+    listSheet('Concerns', PAL.pink, [['Building', 20], ['EPC', 14], ['Activity ID', 15], ['Activity Name', 44], ['Flags', 26], ['Category', 22], ['Concern', 70], ['Action', 44], ['Owner', 16], ['Target date', 11], ['Raised', 11], ['Finish', 11], ['TF', 7]],
+      reg.sort((x, y) => String(P.dim(x, 'building')).localeCompare(P.dim(y, 'building')) || (P.startOf(x) - P.startOf(y))).map((a) => [P.dim(a, 'building'), P.dim(a, 'epc'), a.code, a.name, flagText(fl.map.get(a.uid)), a.concern.cat || '', a.concern.text, a.concern.action || '', a.concern.owner || '', dt(a.concern.due), dt(a.concern.raised), dt(P.finishOf(a)), a.tf]),
+      'Concerns register - ' + reg.length + ' concerns as of ' + D.fmtLong(dd));
     const hc = A().healthCheck(P);
     listSheet('Health Check', PAL.violet, [['Check', 40], ['Result', 10], ['Count', 9], ['Of', 9], ['%', 9], ['Guideline', 80]],
       hc.checks.map((c) => [c.name, c.pass ? 'PASS' : 'FAIL', c.count, c.total, Math.round(c.pct * 10) / 10, c.what]), 'Schedule health check - score ' + hc.score + '%');
@@ -508,9 +545,26 @@
 
     /* ---- Gantt layout pages ---- */
     if (opts.gantt) {
-      const cols = [['Activity ID', 26], ['Activity Name', 78], ['OD', 10], ['RD', 10], ['%', 10], ['Start', 19], ['Finish', 19], ['TF', 10]];
+      let cols = [['Activity ID', 26], ['Activity Name', 78], ['OD', 10], ['RD', 10], ['%', 10], ['Start', 19], ['Finish', 19], ['TF', 10]];
+      let lcols = null;
+      if (opts.columns && opts.columns.length && SE.columns) {
+        lcols = opts.columns.map((id) => SE.columns.get(P, id)).filter(Boolean);
+        const maxW = (W - 2 * M) * (opts.gantt === 'table' ? 1 : 0.55);
+        const out = [];
+        let tot = 0;
+        for (const c of lcols) { const w = Math.max(9, Math.min(90, c.w * (c.id === 'name' ? 0.27 : 0.22))); if (tot + w > maxW && out.length >= 2) break; out.push(c); tot += w; }
+        lcols = out;
+        cols = lcols.map((c) => [c.short != null ? c.short : c.label, Math.max(9, Math.min(90, c.w * (c.id === 'name' ? 0.27 : 0.22)))]);
+        if (opts.gantt === 'table') { const sc = (W - 2 * M) / tot; cols.forEach((c) => { c[1] *= Math.min(sc, 2); }); }
+      }
+      const cellTxt = (row) => {
+        if (!lcols) return null;
+        if (row.kind === 'group') return lcols.map((c) => { if (c.id === 'code') return row.code && row.code !== row.label ? row.code : ''; if (c.id === 'name') return '  '.repeat(row.level) + row.label; if (!c.sum) return ''; const v = c.sum(row.sum, P); return v == null ? '' : SE.columns.fmt(c, c.t === 'num' || c.t === 'pct' ? Math.round(v * 10) / 10 : v); });
+        return lcols.map((c) => (c.id === 'name' ? '  '.repeat(Math.max(0, row.level - 1)) : '') + SE.columns.text(P, c, row.a, { flags: fl.map }));
+      };
+      const barsOn = opts.gantt !== 'table';
       const tableW = cols.reduce((s, c) => s + c[1], 0);
-      const gx = M + tableW, gw = W - M - gx;
+      const gx = M + tableW, gw = Math.max(1, W - M - gx);
       const top = 22, hdrH = 11, rowH = 4.4, bottom = H - 16;
       const perPage = Math.floor((bottom - top - hdrH) / rowH);
       const rg = A().range(P);
@@ -521,7 +575,8 @@
         fill(PAL.blue); doc.rect(M, top, tableW, hdrH, 'F');
         color('#FFFFFF'); doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
         let x = M;
-        cols.forEach((c) => { doc.text(c[0], x + 1.2, top + 7); x += c[1]; });
+        cols.forEach((c) => { doc.text(ascii(fit(c[0], c[1] - 2)), x + 1.2, top + 7); x += c[1]; });
+        if (!barsOn) return;
         fill(PAL.med); doc.rect(gx, top, gw, hdrH / 2, 'F');
         fill(PAL.blue); doc.rect(gx, top + hdrH / 2, gw, hdrH / 2, 'F');
         doc.setFontSize(6.5);
@@ -541,12 +596,12 @@
       chunks.forEach((chunk, ci) => {
         newPage(null);
         color(PAL.blue); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-        doc.text('Gantt layout' + (chunks.length > 1 ? ' (' + (ci + 1) + '/' + chunks.length + ')' : ''), M, 20.5);
+        doc.text((barsOn ? 'Gantt layout' : 'Schedule') + (chunks.length > 1 ? ' (' + (ci + 1) + '/' + chunks.length + ')' : ''), M, 20.5);
         drawHeader();
         // month grid lines
         let m = t0;
         draw('#E6EAF1'); doc.setLineWidth(0.1);
-        while (m < t1) { doc.line(X(m), top + hdrH, X(m), top + hdrH + chunk.length * rowH); m = D.addMonths(m, 1); }
+        while (barsOn && m < t1) { doc.line(X(m), top + hdrH, X(m), top + hdrH + chunk.length * rowH); m = D.addMonths(m, 1); }
         chunk.forEach((row, i) => {
           const y = top + hdrH + i * rowH;
           if (row.kind === 'group') {
@@ -554,11 +609,16 @@
             const bg = [PAL.band1, PAL.band2, '#C9D7EE', '#E3EAF6'][lv];
             fill(bg); doc.rect(M, y, W - 2 * M, rowH, 'F');
             color(lv < 2 ? '#FFFFFF' : PAL.ink); doc.setFont('helvetica', 'bold'); doc.setFontSize(6.8);
-            doc.text(ascii(fit('  '.repeat(row.level) + row.label, cols[0][1] + cols[1][1] - 2)), M + 1.2, y + 3.1);
             const s = row.sum;
-            let x = M + cols[0][1] + cols[1][1];
-            [String(s.origDur || ''), '', s.pct.toFixed(0) + '%', D.fmt(s.start), D.fmt(s.finish), s.tf != null ? String(Math.round(s.tf)) : ''].forEach((v, k) => { doc.text(v, x + 1.2, y + 3.1); x += cols[k + 2][1]; });
-            if (s.start != null && s.finish != null) {
+            if (lcols) {
+              let x = M;
+              cellTxt(row).forEach((v, k) => { doc.text(ascii(fit(v, cols[k][1] - 2)), x + 1.2, y + 3.1); x += cols[k][1]; });
+            } else {
+              doc.text(ascii(fit('  '.repeat(row.level) + row.label, cols[0][1] + cols[1][1] - 2)), M + 1.2, y + 3.1);
+              let x = M + cols[0][1] + cols[1][1];
+              [String(s.origDur || ''), '', s.pct.toFixed(0) + '%', D.fmt(s.start), D.fmt(s.finish), s.tf != null ? String(Math.round(s.tf)) : ''].forEach((v, k) => { doc.text(v, x + 1.2, y + 3.1); x += cols[k + 2][1]; });
+            }
+            if (barsOn && s.start != null && s.finish != null) {
               fill(lv < 2 ? '#FFFFFF' : '#404040');
               doc.rect(X(s.start), y + 1.3, Math.max(0.6, X(s.finish + 1) - X(s.start)), 1.4, 'F');
             }
@@ -569,10 +629,11 @@
           const lc = lensColor(f);
           if (lc) { fill(lc); doc.rect(M, y, tableW, rowH, 'F'); } else if (i % 2) { fill('#F7F9FC'); doc.rect(M, y, W - 2 * M, rowH, 'F'); }
           color(a.crit && a.status !== 'CO' ? PAL.red : '#262626'); doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5);
-          const vals = [a.code, '  '.repeat(Math.max(0, row.level - 1)) + a.name, String(a.origDur), a.status === 'CO' ? '0' : String(a.remDur), (a.pct || 0).toFixed(0) + '%',
+          const vals = cellTxt(row) || [a.code, '  '.repeat(Math.max(0, row.level - 1)) + a.name, String(a.origDur), a.status === 'CO' ? '0' : String(a.remDur), (a.pct || 0).toFixed(0) + '%',
             D.fmt(P.startOf(a)) + (a.aStart != null ? ' A' : ''), D.fmt(P.finishOf(a)) + (a.aFinish != null ? ' A' : ''), a.status === 'CO' || a.tf == null ? '' : String(Math.round(a.tf))];
           let x = M;
           vals.forEach((v, k) => { doc.text(ascii(fit(v, cols[k][1] - 2)), x + 1.2, y + 3.1); x += cols[k][1]; });
+          if (!barsOn) return;
           // bars
           const s = P.startOf(a), e = P.finishOf(a);
           if (a.bl && a.bl.start != null && a.bl.finish != null && !P.isMilestone(a)) { fill(PAL.base); doc.rect(X(a.bl.start), y + 3.1, Math.max(0.5, X(a.bl.finish + 1) - X(a.bl.start)), 0.8, 'F'); }
@@ -595,11 +656,12 @@
           }
         });
         // data date line
-        if (dd >= t0 && dd <= t1) { draw(PAL.red); doc.setLineWidth(0.35); doc.setLineDashPattern([1.2, 0.8], 0); doc.line(X(dd), top, X(dd), top + hdrH + chunk.length * rowH); doc.setLineDashPattern([], 0); }
+        if (barsOn && dd >= t0 && dd <= t1) { draw(PAL.red); doc.setLineWidth(0.35); doc.setLineDashPattern([1.2, 0.8], 0); doc.line(X(dd), top, X(dd), top + hdrH + chunk.length * rowH); doc.setLineDashPattern([], 0); }
         draw('#BFC7D5'); doc.setLineWidth(0.2); doc.rect(M, top, W - 2 * M, hdrH + chunk.length * rowH);
         doc.line(gx, top, gx, top + hdrH + chunk.length * rowH);
         // legend
         const ly = H - 11;
+        if (!barsOn) return;
         const leg = [[PAL.actual, 'Actual work'], [PAL.remain, 'Remaining work'], [PAL.crit, 'Critical remaining'], [PAL.base, 'Baseline'], [PAL.purple, 'Milestone'], [PAL.red, 'Data Date']];
         leg.forEach((l, k) => { fill(l[0]); doc.rect(M + k * 34, ly - 2, 5, 2.2, 'F'); color('#404040'); doc.setFontSize(7); doc.text(l[1], M + 6.5 + k * 34, ly - 0.3); });
         const lens = [['#FFF1CC', 'Late start'], ['#FBE3E8', 'Overdue'], ['#EFE3F7', 'Future progress'], ['#FFD6D6', 'Invalid']];
@@ -609,13 +671,13 @@
 
     /* ---- tables ---- */
     if (opts.tables) {
-      const tbl = (title, head, body, colColors) => {
+      const tbl = (title, head, body, colColors, colStyles) => {
         if (!body.length) return;
         newPage(title);
         doc.autoTable({
           startY: 29, margin: { left: M, right: M, top: 22 }, head: [head], body, theme: 'striped',
           styles: { fontSize: 7.5, cellPadding: 1.1, overflow: 'ellipsize' }, headStyles: { fillColor: rgb(PAL.blue), textColor: 255 },
-          alternateRowStyles: { fillColor: [244, 247, 252] },
+          alternateRowStyles: { fillColor: [244, 247, 252] }, columnStyles: colStyles || {},
           didParseCell: colColors || undefined,
           didDrawPage: () => { header(title); }
         });
@@ -623,11 +685,11 @@
       const att = [];
       for (const a of P.acts) {
         const f = fl.map.get(a.uid) || [];
-        for (const k of ['invalid', 'overdue', 'lateStart', 'future', 'outSeq']) if (f.includes(k)) att.push([SE.LENS_BY_KEY[k].short, a.code, ascii(a.name), ascii(P.dim(a, 'building')), P.dim(a, 'epc'), SE.STATUS[a.status], D.fmt(P.refStart(a)), D.fmt(P.refFinish(a)), D.fmt(P.startOf(a)), D.fmt(P.finishOf(a)), (a.pct || 0) + '%', a.tf == null ? '' : a.tf]);
+        for (const k of ['invalid', 'overdue', 'lateStart', 'future', 'outSeq']) if (f.includes(k)) att.push([SE.LENS_BY_KEY[k].short, a.code, ascii(a.name), ascii(P.dim(a, 'building')), SE.STATUS[a.status], D.fmt(P.refStart(a)), D.fmt(P.refFinish(a)), D.fmt(P.finishOf(a)), (a.pct || 0) + '%', ascii(a.concern && a.concern.text ? (a.concern.cat ? a.concern.cat + ': ' : '') + a.concern.text + (a.concern.action ? ' -> ' + a.concern.action : '') + (a.concern.owner ? ' (' + a.concern.owner + ')' : '') : 'Concern not raised')]);
       }
-      tbl('Activities needing attention', ['Flag', 'Activity ID', 'Activity Name', 'Building', 'EPC', 'Status', 'Ref Start', 'Ref Finish', 'Start', 'Finish', '%', 'TF'], att, (d) => {
+      tbl('Activities needing attention', ['Flag', 'Activity ID', 'Activity Name', 'Building', 'Status', 'Ref Start', 'Ref Finish', 'Finish', '%', 'Concern / action'], att, (d) => {
         if (d.section === 'body' && d.column.index === 0) { const t = d.cell.raw; d.cell.styles.textColor = rgb(t === 'Overdue' || t === 'Invalid' ? PAL.red : t === 'Late start' ? '#B07800' : PAL.purple); d.cell.styles.fontStyle = 'bold'; }
-      });
+      }, { 2: { cellWidth: 60 }, 9: { cellWidth: 120, overflow: 'linebreak' } });
       const la = P.acts.filter((a) => !P.isSummaryType(a) && a.status !== 'CO' && P.startOf(a) != null && P.startOf(a) < dd + 28).sort(SE.views.sorter(P, { key: 'start' }));
       tbl('4-week look-ahead from ' + D.fmtLong(dd), ['Activity ID', 'Activity Name', 'Building', 'EPC', 'Status', 'Start', 'Finish', 'Rem Dur', '%', 'TF'],
         la.map((a) => [a.code, ascii(a.name), ascii(P.dim(a, 'building')), P.dim(a, 'epc'), SE.STATUS[a.status], D.fmt(P.startOf(a)), D.fmt(P.finishOf(a)), a.remDur, (a.pct || 0) + '%', a.tf == null ? '' : a.tf]));
@@ -767,7 +829,16 @@
   /* ================================================================== *
    * CSV / MS Project XML / JSON
    * ================================================================== */
-  function toCSV(P, rows) {
+  function toCSV(P, rows, columns) {
+    if (columns && columns.length && SE.columns) {
+      rows = rows || SE.views.buildRows(P, { groupBy: [] });
+      const fl0 = A().flagAll(P);
+      const lc = columns.map((id) => SE.columns.get(P, id)).filter(Boolean);
+      const q0 = (v) => { const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+      const lines = [lc.map((c) => q0(c.label)).join(',')];
+      rows.forEach((r) => { if (r.kind === 'act') lines.push(lc.map((c) => q0(SE.columns.text(P, c, r.a, { flags: fl0.map }))).join(',')); });
+      return '\ufeff' + lines.join('\r\n');
+    }
     rows = rows || SE.views.buildRows(P, { groupBy: [] });
     const fl = A().flagAll(P);
     const q = (v) => { const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };

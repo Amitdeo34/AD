@@ -23,8 +23,12 @@
     { key: 'outSeq', label: 'Out of sequence', short: 'Out of sequence', color: '#6D2077', icon: '↯', desc: 'Started/finished before its predecessors allow.' },
     { key: 'lookahead', label: '4-week look-ahead', short: 'Look-ahead', color: '#005EB8', icon: '→', desc: 'Not complete and starting within 28 days after the Data Date.' },
     { key: 'invalid', label: 'Invalid progress data', short: 'Invalid', color: '#FF0000', icon: '✖', desc: 'Actual dates after the Data Date, completed without Actual Finish, etc.' },
-    { key: 'openEnd', label: 'Missing logic (open ends)', short: 'Open end', color: '#7F7F7F', icon: '○', desc: 'No predecessor or no successor.' }
+    { key: 'openEnd', label: 'Missing logic (open ends)', short: 'Open end', color: '#7F7F7F', icon: '○', desc: 'No predecessor or no successor.' },
+    { key: 'concern', label: 'Concern raised', short: 'Concern', color: '#C6007E', icon: '!', desc: 'A concern (reason / action / owner) has been recorded for this activity.' },
+    { key: 'needConcern', label: 'Flagged - concern not yet raised', short: 'No concern yet', color: '#FD349C', icon: '?', desc: 'Late start, overdue, future progress, out of sequence or invalid - and no concern recorded yet.' }
   ];
+  const CONCERN_KEYS = ['lateStart', 'overdue', 'future', 'outSeq', 'invalid', 'negFloat'];
+  const CONCERN_CATS = ['Drawings / design', 'Client approval', 'Material / supply', 'Manpower', 'Equipment / crane', 'Work front not available', 'Design change / scope', 'Predecessor delay', 'Weather', 'Statutory / permits', 'Payment / commercial', 'Progress data to verify', 'Other'];
   const LENS_BY_KEY = {};
   LENSES.forEach((l) => { LENS_BY_KEY[l.key] = l; });
 
@@ -65,6 +69,8 @@
       }
     }
     if (P.rels.length && !P.isSummaryType(a) && (!P.predsOf(a.uid).length || !P.succsOf(a.uid).length)) f.push('openEnd');
+    if (a.concern && a.concern.text) f.push('concern');
+    else if (f.some((k) => CONCERN_KEYS.includes(k))) f.push('needConcern');
     return f;
   }
 
@@ -180,10 +186,10 @@
   }
 
   /** group summary rows for dashboards: [{name, count, planned, actual, variance, NS, IP, CO, late, overdue, crit}] */
-  function breakdown(P, key, fl) {
+  function breakdown(P, key, fl, acts) {
     fl = fl || flagAll(P);
     const groups = new Map();
-    for (const a of P.acts) {
+    for (const a of acts || P.acts) {
       if (P.isSummaryType(a)) continue;
       const g = P.dim(a, key);
       if (!groups.has(g)) groups.set(g, []);
@@ -435,6 +441,23 @@
   }
 
   SE.LENSES = LENSES;
+  SE.CONCERN_KEYS = CONCERN_KEYS;
+  SE.CONCERN_CATS = CONCERN_CATS;
   SE.LENS_BY_KEY = LENS_BY_KEY;
-  SE.analysis = { flags, flagAll, actualFrac, progressOf, prevActual, plannedFrac, sCurve, breakdown, healthCheck, insights, ask, applyFilter, compare, range, weightOf };
+  /** a suggested concern for a flagged activity (the planner edits it) */
+  function suggestConcern(P, a, fl) {
+    const f = fl || flags(P, a);
+    const dd = P.meta.dataDate;
+    const bits = [];
+    let cat = 'Other';
+    if (f.includes('invalid')) { bits.push('Progress data is inconsistent with the Data Date - verify actual dates.'); cat = 'Progress data to verify'; }
+    if (f.includes('lateStart')) bits.push('Planned to start ' + D.fmt(P.refStart(a)) + ', not started as of ' + D.fmt(dd) + '.');
+    if (f.includes('overdue')) bits.push('Planned to finish ' + D.fmt(P.refFinish(a)) + ', still ' + (a.status === 'IP' ? Math.round(a.pct || 0) + '% complete' : 'not started') + ' as of ' + D.fmt(dd) + '.');
+    if (f.includes('future')) { bits.push('Planned start ' + D.fmt(P.refStart(a)) + ' is after the Data Date but progress is reported - confirm with site.'); cat = 'Progress data to verify'; }
+    if (f.includes('outSeq')) { const p = P.predsOf(a.uid).map((r) => P.act(r.pred)).find((x) => x && x.status !== 'CO'); bits.push('Progressing before predecessor ' + (p ? p.code : '') + ' is complete.'); if (cat === 'Other') cat = 'Predecessor delay'; }
+    if (f.includes('negFloat')) bits.push('Negative float ' + a.tf + 'd against a constraint / must-finish date.');
+    return { cat, text: bits.join(' '), action: '', owner: '', due: null, auto: true };
+  }
+
+  SE.analysis = { suggestConcern, flags, flagAll, actualFrac, progressOf, prevActual, plannedFrac, sCurve, breakdown, healthCheck, insights, ask, applyFilter, compare, range, weightOf };
 })(typeof module === 'object' && module.exports ? (global.SE = global.SE || {}) : (window.SE = window.SE || {}));

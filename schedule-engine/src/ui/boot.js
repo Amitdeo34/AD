@@ -32,6 +32,10 @@
       if ((e.ctrlKey || e.metaKey) && k === 'o') { e.preventDefault(); UI.io.pickFile(); return; }
       if ((e.ctrlKey || e.metaKey) && k === 'e') { e.preventDefault(); if (S.P) UI.io.exportDialog(); return; }
       if ((e.ctrlKey || e.metaKey) && k === 'f') { e.preventDefault(); ask.focus(); ask.select(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && k === 'g') { e.preventDefault(); if (S.P) UI.workbar.setPane(S.pane === 'grid' ? 'both' : 'grid'); return; }
+      if ((e.ctrlKey || e.metaKey) && k === 'g') { e.preventDefault(); UI.goTo(); return; }
+      if (e.altKey && /^[1-9]$/.test(e.key) && S.P && !inField) { e.preventDefault(); UI.levels.to(+e.key); return; }
+      if (e.altKey && e.key === '0' && S.P && !inField) { e.preventDefault(); UI.levels.all(); return; }
       if (inField) return;
       if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); if (S.P) UI.undo(); }
       if ((e.ctrlKey || e.metaKey) && (k === 'y' || (e.shiftKey && k === 'z'))) { e.preventDefault(); if (S.P) UI.redo(); }

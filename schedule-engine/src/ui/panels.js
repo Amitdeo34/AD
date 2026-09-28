@@ -292,8 +292,12 @@
       lookahead: 'Starts in the next 4 weeks - make sure fronts, drawings, material and manpower are ready.',
       updated: 'Changed in this session.'
     };
-    f.forEach((k) => ul.append(h('li', { class: ['invalid', 'overdue', 'negFloat'].includes(k) ? 'bad' : ['lateStart', 'future', 'outSeq', 'pending'].includes(k) ? 'warn' : k === 'updated' ? 'good' : '', html: '<b>' + esc(SE.LENS_BY_KEY[k].label) + '.</b> ' + esc(fixes[k] || SE.LENS_BY_KEY[k].desc) })));
-    body.append(ul);
+    f.filter((k) => k !== 'concern' && k !== 'needConcern').forEach((k) => ul.append(h('li', { class: ['invalid', 'overdue', 'negFloat'].includes(k) ? 'bad' : ['lateStart', 'future', 'outSeq', 'pending'].includes(k) ? 'warn' : k === 'updated' ? 'good' : '', html: '<b>' + esc(SE.LENS_BY_KEY[k].label) + '.</b> ' + esc(fixes[k] || SE.LENS_BY_KEY[k].desc) })));
+    const c = a.concern;
+    const cbox = h('div', { class: 'msg ' + (c && c.text ? 'w' : f.includes('needConcern') ? 'e' : 'i'), style: { marginTop: '10px' } });
+    cbox.innerHTML = c && c.text ? '<b>Concern' + (c.auto ? ' (draft)' : '') + ':</b> ' + (c.cat ? esc(c.cat) + ' - ' : '') + esc(c.text) + (c.action ? '<br><b>Action:</b> ' + esc(c.action) : '') + (c.owner ? ' · <b>Owner:</b> ' + esc(c.owner) : '') + (c.due != null ? ' · by ' + D.fmt(c.due) : '') : f.includes('needConcern') ? 'This activity is flagged and no concern has been raised yet. Raising a concern records the reason and action; it does not change any date.' : 'No concern raised.';
+    cbox.append(h('div', { style: { marginTop: '6px' } }, h('button', { class: 'btn sm pri', type: 'button', text: c && c.text ? 'Edit concern' : 'Raise concern', onclick: () => UI.concerns.raise([a.uid]) })));
+    body.append(ul, cbox);
   }
   function historyTab(body, a) {
     const P = S.P;
@@ -324,6 +328,7 @@
       many ? { label: 'Mark all started on their planned start', run: () => UI.applyPatches(sel.filter((b) => b.status === 'NS' && P.refStart(b) < dd).map((b) => ({ uid: b.uid, changes: P.isMilestone(b) && b.type === 'finish' ? { aFinish: P.refStart(b) } : { aStart: P.refStart(b) } })), 'Bulk started on plan') } : null,
       many ? { label: 'Mark all finished on their planned finish', run: () => UI.applyPatches(sel.filter((b) => b.status !== 'CO' && P.refFinish(b) < dd).map((b) => ({ uid: b.uid, changes: { aFinish: P.refFinish(b), aStart: b.aStart != null ? b.aStart : P.refStart(b) } })), 'Bulk finished on plan') } : null,
       !many && !P.isMilestone(a) ? { label: 'Quantity calculator…', run: () => qtyDialog(a.uid) } : null,
+      { label: (a.concern && a.concern.text ? 'Edit concern…' : 'Raise concern…') + (many ? ' (' + sel.length + ')' : ''), run: () => UI.concerns.raise(sel.map((x) => x.uid)) },
       '-',
       { label: 'Add successor…', run: () => relDialog(a.uid, null) },
       { label: 'Add predecessor…', run: () => relDialog(null, a.uid) },
@@ -658,6 +663,7 @@
     const plan = h('div', { class: 'plan' });
     const ins = h('div', { class: 'einputs' });
     const msg = h('div', { class: 'emsg' });
+    const cline = h('div', { class: 'econcern' });
     const inp = (id, ph, w) => h('input', { id: 'e_' + id + '_' + a.uid, placeholder: ph, autocomplete: 'off', style: w ? { width: w } : null });
     const as = inp('as', 'dd-mmm-yy'), af = inp('af', 'dd-mmm-yy');
     const pn = h('input', { id: 'e_pct_' + a.uid, type: 'number', min: 0, max: 100, step: 1 });
@@ -684,7 +690,11 @@
       if (a.status === 'IP' && !ms) q('+10%', { pct: Math.min(99, (a.pct || 0) + 10) });
       if (a.status !== 'CO') q('Done ' + D.fmt(dd - 1), { aFinish: D.fmt(dd - 1) }, 'Actual Finish = day before Data Date');
       if (!ms && a.status !== 'CO') quick.append(h('button', { type: 'button', text: 'Qty…', title: 'Quantity calculator', onclick: () => qtyDialog(a.uid).then(() => sync()) }));
+      const fz = S.fl.map.get(a.uid) || [];
+      if (fz.includes('needConcern') || (a.concern && a.concern.text)) quick.append(h('button', { type: 'button', class: a.concern && a.concern.text ? '' : 'needc', text: a.concern && a.concern.text ? '⚑ Concern ✓' : '⚑ Concern', title: 'Record reason / action / owner (does not change dates)', onclick: () => UI.concerns.raise([a.uid]).then(() => sync()) }));
       quick.append(h('button', { type: 'button', text: 'Open', title: 'Open in schedule', onclick: () => { UI.setView('gantt'); UI.grid.reveal(a.uid); } }));
+      cline.innerHTML = a.concern && a.concern.text ? '⚑ <b>' + esc(a.concern.cat || 'Concern') + ':</b> ' + esc(a.concern.text) + (a.concern.action ? ' → ' + esc(a.concern.action) : '') + (a.concern.owner ? ' (' + esc(a.concern.owner) + ')' : '') : '';
+      cline.hidden = !(a.concern && a.concern.text);
     };
     const apply = (changes, label, input) => {
       const r = UI.applyPatches([{ uid: a.uid, changes }], label + ' ' + a.code, { quiet: true, soft: () => {} });
@@ -703,10 +713,30 @@
     pr.oninput = () => { pn.value = pr.value; };
     pr.onchange = () => apply({ pct: pr.value }, '% Complete', pn);
     rd.onchange = () => apply({ remDur: rd.value }, 'Remaining', rd);
-    [as, af, pn, rd].forEach((i) => i.addEventListener('keydown', (e) => { if (e.key === 'Enter') i.blur(); }));
+    [as, af, pn, rd].forEach((i, k) => {
+      i.dataset.nav = String(k);
+      i.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { i.blur(); return; }
+        const isText = i.type === 'text' || i.type === '';
+        const st = isText ? i.selectionStart : 0, en = isText ? i.selectionEnd : 0, len = isText ? i.value.length : 0;
+        const atStart = !isText || (st === 0 && en === 0) || (st === 0 && en === len);
+        const atEnd = !isText || (st === len && en === len) || (st === 0 && en === len);
+        let target = null;
+        const rows = Array.from(document.querySelectorAll('#view-easy .erow'));
+        const ri = rows.indexOf(row);
+        const inRow = (r, idx) => r && Array.from(r.querySelectorAll('input[data-nav]')).filter((x) => !x.disabled)[idx];
+        const enabled = Array.from(row.querySelectorAll('input[data-nav]')).filter((x) => !x.disabled);
+        const pos = enabled.indexOf(i);
+        if (e.key === 'ArrowRight' && atEnd) target = enabled[pos + 1] || inRow(rows[ri + 1], 0);
+        else if (e.key === 'ArrowLeft' && atStart) target = enabled[pos - 1] || (rows[ri - 1] && Array.from(rows[ri - 1].querySelectorAll('input[data-nav]')).filter((x) => !x.disabled).pop());
+        else if (e.key === 'ArrowDown') { for (let j = ri + 1; j < rows.length && !target; j++) { const t = rows[j].querySelector('input[data-nav="' + k + '"]'); if (t && !t.disabled) target = t; } }
+        else if (e.key === 'ArrowUp') { for (let j = ri - 1; j >= 0 && !target; j--) { const t = rows[j].querySelector('input[data-nav="' + k + '"]'); if (t && !t.disabled) target = t; } }
+        if (target) { e.preventDefault(); i.blur(); setTimeout(() => { target.focus(); if (target.select) target.select(); target.scrollIntoView({ block: 'nearest' }); }, 0); }
+      });
+    });
     const lab = (t, el) => h('div', null, h('label', { text: t }), el);
     ins.append(lab('Actual start', as), lab('Actual finish', af), lab('% complete', h('div', { class: 'pctin' }, pr, pn)), lab('Rem. days', rd), quick);
-    row.append(who, plan, ins, msg);
+    row.append(who, plan, ins, msg, cline);
     sync();
     return row;
   }
@@ -720,9 +750,10 @@
     v.innerHTML = '';
     const pane = h('div', { class: 'pane' });
     v.append(pane);
-    const all = P.acts.filter((a) => !P.isSummaryType(a));
+    const all = P.acts.filter((a) => !P.isSummaryType(a) && UI.passes(a));
     const pr = A().progressOf(P, all);
     const prevA = A().prevActual(P, all);
+    if (UI.filtered()) pane.append(h('div', { class: 'msg i', style: { marginBottom: '10px' }, html: 'Dashboard is filtered: <b>' + esc([Array.from(S.dimSel.building).join(', '), Array.from(S.dimSel.epc).join(', ')].filter(Boolean).join(' · ') || 'current filters') + '</b> (' + all.length + ' activities). Clear the filters to see the whole project.' }));
     const cnt = { NS: 0, IP: 0, CO: 0 }; all.forEach((a) => { cnt[a.status]++; });
     const c = S.fl.counts;
     const blF = Math.max.apply(null, all.map((a) => (a.bl && a.bl.finish != null ? a.bl.finish : -Infinity)));
@@ -740,7 +771,7 @@
     }));
     const cards = h('div', { class: 'cards' });
     pane.append(cards);
-    cards.append(h('div', { class: 'card span2' }, h('h3', { html: 'S-curve <small>cumulative, duration weighted · hover for values</small>' }), sCurveSVG(P)));
+    cards.append(h('div', { class: 'card span2' }, h('h3', { html: 'S-curve <small>cumulative, duration weighted · hover for values</small>' }), sCurveSVG(P, all)));
     const insC = h('div', { class: 'card' }, h('h3', { text: 'Engine insights' }));
     const ul = h('ul', { class: 'ins' });
     A().insights(P, S.fl).forEach((i) => { const li = h('li', { class: i.tone + (i.lens || i.dim ? ' click' : ''), html: esc(i.text) + (i.lens || i.dim ? '<span class="go">show →</span>' : '') }); if (i.lens || i.dim) li.onclick = () => goInsight(i); ul.append(li); });
@@ -749,7 +780,7 @@
     const bars = (key, title) => {
       const card = h('div', { class: 'card' }, h('h3', { html: title + ' <small>bar = actual · top line = planned · click to filter</small>' }));
       const box = h('div', { class: 'hbars' });
-      A().breakdown(P, key, S.fl).filter((b) => b.count).forEach((b) => {
+      A().breakdown(P, key, S.fl, all).filter((b) => b.count).forEach((b) => {
         const row = h('div', { class: 'hb', title: b.name + ': ' + b.actual.toFixed(1) + '% vs ' + b.planned.toFixed(1) + '% planned; ' + b.lateStart + ' late start, ' + b.overdue + ' overdue', html:
           '<span class="nm">' + esc(b.name) + '</span><span class="tr"><span class="pl" style="width:' + b.planned.toFixed(1) + '%"></span><span class="ac' + (b.variance < -5 ? ' behind' : '') + '" style="width:' + b.actual.toFixed(1) + '%"></span></span><span class="v"><b>' + b.actual.toFixed(0) + '%</b> / ' + b.planned.toFixed(0) + '%</span>' });
         row.onclick = () => { UI.clearFilters(); S.dimSel[key].add(b.name); UI.setView('gantt'); };
@@ -794,8 +825,8 @@
     t2.append(tb2);
     cards.append(h('div', { class: 'card' }, h('h3', { text: 'Milestones' }), h('div', { style: { overflowX: 'auto', maxHeight: '360px', overflowY: 'auto' } }, t2)));
   }
-  function sCurveSVG(P) {
-    const sc = A().sCurve(P);
+  function sCurveSVG(P, acts) {
+    const sc = A().sCurve(P, acts);
     const W = 640, H = 260, L = 42, R = 12, T = 12, B = 30;
     const n = sc.points.length;
     const x = (i) => L + (W - L - R) * (n > 1 ? i / (n - 1) : 0);
@@ -896,6 +927,8 @@
     else if (v === 'health') renderHealth();
     else if (v === 'changes') renderChanges();
     else if (v === 'qty' && UI.qty) UI.qty.render();
+    else if (v === 'timeline') UI.timeline.render();
+    else if (v === 'concerns') UI.concerns.render();
   }
 
   UI.panels = {

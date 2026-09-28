@@ -166,12 +166,15 @@
     if (S.ask && !S.ask.uids.has(a.uid)) return false;
     if (S.uidFilter && !S.uidFilter.uids.has(a.uid)) return false;
     if (S.text) { const t = (a.code + ' ' + a.name).toLowerCase(); if (t.indexOf(S.text) < 0) return false; }
+    if (S.filtersOn && S.filtersOn.length && UI.filtersUI && !UI.filtersUI.pass(a)) return false;
+    if (S.concernsOnly) { const f = S.fl.map.get(a.uid) || []; if (!f.some((k) => k === 'concern' || SE.CONCERN_KEYS.includes(k))) return false; }
     return true;
   }
-  function filtered() { return !!(S.lensSel.size || S.dimSel.building.size || S.dimSel.epc.size || S.statusSel.size || S.ask || S.uidFilter || S.text); }
+  function filtered() { return !!(S.concernsOnly || (S.filtersOn && S.filtersOn.length) || S.lensSel.size || S.dimSel.building.size || S.dimSel.epc.size || S.statusSel.size || S.ask || S.uidFilter || S.text); }
+  function rowOpts() { return { groupBy: S.groupBy, filter: passes, sort: S.sort, collapsed: S.collapsed, flags: S.fl.map, noActs: S.noActs }; }
   function buildRows() {
     if (!S.P) { S.rows = []; return; }
-    S.rows = SE.views.buildRows(S.P, { groupBy: S.groupBy, filter: passes, sort: S.sort, collapsed: S.collapsed, flags: S.fl.map });
+    S.rows = SE.views.buildRows(S.P, rowOpts());
   }
 
   /* ---------------- refresh ---------------- */
@@ -186,6 +189,7 @@
     renderWizard();
     renderFilterbar();
     renderStatus();
+    if (UI.workbar) UI.workbar.render();
     if (S.view === 'gantt') { UI.grid.render(); UI.gantt.render(); UI.panels.details(); }
     else UI.panels.renderView(S.view);
     if (!opts.noSave) UI.io.autosave();
@@ -212,10 +216,11 @@
 
   function renderStatus() {
     const P = S.P;
-    const acts = S.rows.filter((r) => r.kind === 'act').length;
+    const acts = P.acts.filter((a) => !P.isSummaryType(a) && passes(a)).length;
+    const bands = S.rows.filter((r) => r.kind === 'group').length;
     const all = P.acts.length;
     const sel = S.multi.size > 1 ? S.multi.size + ' selected' : S.sel ? (P.act(S.sel) || {}).code || '' : 'none';
-    $('#statusbar').innerHTML = '<span>Showing <b>' + acts + '</b> of <b>' + all + '</b> activities</span><span>Relationships <b>' + P.rels.length + '</b></span>' +
+    $('#statusbar').innerHTML = '<span>Showing <b>' + acts + '</b> of <b>' + all + '</b> activities' + (bands ? ' in <b>' + bands + '</b> bands' : '') + (S.collapsed.size ? ' · <b>' + S.collapsed.size + '</b> collapsed' : '') + '</span><span>Relationships <b>' + P.rels.length + '</b></span>' +
       '<span>Selected <b>' + esc(sel) + '</b></span><span>Source <b>' + esc(P.meta.source.toUpperCase()) + '</b> ' + esc(P.meta.fileName || '') + '</span>' +
       '<span class="sp"></span><span>Last update DD <b>' + D.fmt(P.meta.prevDataDate) + '</b></span><span>Data Date <b>' + D.fmt(P.meta.dataDate) + '</b></span>' +
       '<span>Changes this session <b>' + P.acts.filter((a) => a.touched).length + '</b></span><span class="saved">' + (S.savedAt ? 'Autosaved ' + new Date(S.savedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '') + '</span>';
@@ -285,6 +290,9 @@
     if (S.ask) chip('Ask: ' + S.ask.question, () => { S.ask = null; $('#ask').value = ''; });
     if (S.uidFilter) chip(S.uidFilter.label, () => { S.uidFilter = null; });
     if (S.text) chip('"' + S.text + '"', () => { S.text = ''; });
+    (S.filtersOn || []).forEach((f) => chip('Filter: ' + f.name, () => { S.filtersOn = S.filtersOn.filter((x) => x !== f); }));
+    if (S.noActs) chip('Bands only', () => { S.noActs = false; });
+    if (S.concernsOnly) chip('Concerns only', () => { S.concernsOnly = false; });
     fb.innerHTML = '';
     chips.forEach((c) => {
       const x = h('span', { class: 'fchip' }, c.label, h('button', { 'aria-label': 'Remove filter ' + c.label, html: '&times;', onclick: () => { c.clear(); refresh({ noSave: true }); } }));
@@ -293,7 +301,7 @@
     if (chips.length > 1) fb.append(h('button', { class: 'btn sm', text: 'Clear all', onclick: clearFilters }));
   }
   function clearFilters() {
-    S.lensSel.clear(); S.dimSel.building.clear(); S.dimSel.epc.clear(); S.statusSel.clear(); S.ask = null; S.uidFilter = null; S.text = '';
+    S.lensSel.clear(); S.dimSel.building.clear(); S.dimSel.epc.clear(); S.statusSel.clear(); S.ask = null; S.uidFilter = null; S.text = ''; S.filtersOn = []; S.concernsOnly = false;
     $('#ask').value = '';
     refresh({ noSave: true });
   }
@@ -341,7 +349,8 @@
       rgroup('Offline update', rbtn('btnImpUpd', 'importSheet', 'Import Update Sheet', () => UI.io.pickFile('update'), '', 'Load the filled "Update Sheet" from the Excel export'))
     );
     upd.append(
-      rgroup('Status date', rbtn('btnDD', 'dd', 'Data Date', () => UI.dataDateDialog())),
+      rgroup('Status date', rbtn('btnDD', 'dd', 'Data Date', () => UI.dataDateDialog(), '', 'Choose the Data Date (calendar picker)')),
+      rgroup('Concerns', rbtn('btnConcern', 'bulb', 'Raise concern', () => S.P && UI.concerns.raise(), '', 'Record reason, action and owner for the selected flagged activities - dates are not changed'), rbtn('btnDraftC', 'wand', 'Draft for flagged', () => S.P && UI.concerns.draft(), '', 'Write a suggested concern on every flagged activity without one'), rbtn('btnCReg', 'changes', 'Register', () => setView('concerns'), '', 'Concerns register, building-wise')),
       rgroup('Calculate', rbtn('btnF9', 'run', 'Schedule F9', () => UI.runSchedule(), 'primary', 'Recalculate dates, float and critical path (F9)')),
       rgroup('Assist', rbtn('btnAssist', 'wand', 'Apply planned progress', () => UI.panels.progressAssistant(), '', 'P6-style "Update Progress": suggest actuals from the plan, you review'), rbtn('btnBulk', 'bulk', 'Bulk update', () => UI.panels.bulkDialog(), '', 'Update all selected activities at once'), rbtn('btnQty', 'qty', 'Qty calculator', () => UI.panels.qtyDialog(), '', 'Scope vs completed quantity → % complete')),
       rgroup('Edit', rbtn('btnUndo', 'undo', 'Undo', () => UI.undo()), rbtn('btnRedo', 'redo', 'Redo', () => UI.redo())),
@@ -349,20 +358,63 @@
       rgroup('Mode', rbtn('btnEasy', 'easy', 'Easy Update', () => setView('easy'), '', 'Card view to update building-wise or EPC-wise'))
     );
     const gsel = h('select', { id: 'groupSel', 'aria-label': 'Group by' });
-    GROUPS.forEach((g) => gsel.append(h('option', { value: g[0], text: g[1] })));
+    const fillGroups = () => {
+      const cur = S.groupKey || 'wbs';
+      gsel.innerHTML = '';
+      const base = GROUPS.slice();
+      if (S.P) {
+        const extra = [];
+        S.P.codeTypes.forEach((ct) => extra.push(['code:' + ct.name, 'Code: ' + ct.name]));
+        for (let i = 1; i <= Math.min(S.P.maxWbsLevel(), 6); i++) extra.push(['wbs:' + i, 'WBS level ' + i]);
+        [['tf', 'Total float band'], ['crit', 'Critical'], ['calendar', 'Calendar'], ['type', 'Activity type'], ['start', 'Start month'], ['finish', 'Finish month']].forEach((x) => extra.push(x));
+        base.splice(base.length - 1, 0, ...extra);
+      }
+      base.forEach((g) => gsel.append(h('option', { value: g[0], text: g[1] })));
+      if (!base.some((g) => g[0] === cur)) gsel.append(h('option', { value: cur, text: 'Custom: ' + cur.replace(/,/g, ' → ') }));
+      gsel.value = cur;
+    };
+    fillGroups();
+    gsel.addEventListener('mousedown', fillGroups);
+    gsel.addEventListener('focus', fillGroups);
     gsel.onchange = () => setGroup(gsel.value);
     const ssel = h('select', { id: 'sortSel', 'aria-label': 'Sort by' });
-    [['start', 'Start date'], ['finish', 'Finish date'], ['code', 'Activity ID'], ['name', 'Activity name'], ['tf', 'Total float'], ['pct', '% complete'], ['status', 'Status']].forEach((s) => ssel.append(h('option', { value: s[0], text: s[1] })));
-    ssel.onchange = () => { S.sort = { key: ssel.value, dir: 'asc' }; refresh({ noSave: true }); };
+    [['start', 'Start date'], ['finish', 'Finish date'], ['code', 'Activity ID'], ['name', 'Activity name'], ['tf', 'Total float'], ['pct', '% complete'], ['status', 'Status'], ['var', 'Finish slip vs BL'], ['movFinish', 'Finish movement']].forEach((x) => ssel.append(h('option', { value: x[0], text: x[1] })));
+    ssel.onchange = () => { S.sort = [{ key: ssel.value, dir: 'asc' }]; refresh({ noSave: true }); };
     const zsel = h('select', { id: 'zoomSel', 'aria-label': 'Timescale' });
     [['day', 'Days'], ['week', 'Weeks'], ['month', 'Months'], ['quarter', 'Quarters'], ['year', 'Years']].forEach((z) => zsel.append(h('option', { value: z[0], text: z[1] })));
     zsel.value = S.zoom;
     zsel.onchange = () => { S.zoom = zsel.value; UI.gantt.render(true); };
+    const lsel = h('select', { id: 'levelSel', 'aria-label': 'Expand / collapse level' });
+    const fillLevels = () => {
+      lsel.innerHTML = '';
+      lsel.append(h('option', { value: '', text: 'Choose level…' }), h('option', { value: 'all', text: 'Expand all' }));
+      const n = S.P ? UI.levels.max() : 1;
+      for (let i = 1; i <= n; i++) lsel.append(h('option', { value: String(i), text: 'Collapse to level ' + i }));
+      lsel.append(h('option', { value: 'none', text: 'Collapse all' }), h('option', { value: 'bands', text: S.noActs ? 'Show activities again' : 'Group bands only (hide activities)' }));
+    };
+    fillLevels();
+    lsel.addEventListener('mousedown', fillLevels);
+    lsel.addEventListener('focus', fillLevels);
+    lsel.onchange = () => {
+      const v = lsel.value;
+      if (!S.P || !v) return;
+      if (v === 'all') UI.levels.all(); else if (v === 'none') UI.levels.none(); else if (v === 'bands') UI.levels.bands(); else UI.levels.to(+v);
+      lsel.value = '';
+    };
+    const lblSel = h('select', { id: 'barLabelSel', 'aria-label': 'Bar labels' }, [['name', 'Name'], ['id', 'Activity ID'], ['idname', 'ID - Name'], ['pct', 'Name + %'], ['dates', 'Finish date'], ['none', 'No labels']].map((o) => h('option', { value: o[0], text: o[1] })));
+    lblSel.value = S.barLabel || 'name';
+    lblSel.onchange = () => { S.barLabel = lblSel.value; S.showLabels = lblSel.value !== 'none'; UI.LS.set('se.barLabel', S.barLabel); syncToggles(); UI.gantt.render(); };
+    const levelBtns = h('div', { class: 'lvlbtns', role: 'group', 'aria-label': 'Quick levels' });
+    [1, 2, 3, 4].forEach((n) => levelBtns.append(h('button', { type: 'button', text: 'L' + n, title: 'Collapse to level ' + n, onclick: () => S.P && UI.levels.to(n) })));
+    levelBtns.append(h('button', { type: 'button', text: 'All', title: 'Expand all', onclick: () => S.P && UI.levels.all() }));
     view.append(
-      rgroup('Organize', h('div', { class: 'rsmall' }, h('span', { class: 'lab' }, 'Group by'), gsel, h('span', { class: 'lab' }, 'Sort by'), ssel)),
-      rgroup('Timescale', h('div', { class: 'rsmall' }, h('span', { class: 'lab' }, 'Zoom'), zsel), rbtn('btnFit', 'fit', 'Fit', () => UI.gantt.fit()), rbtn('btnGoDD', 'dd', 'Go to DD', () => UI.gantt.scrollToDay(S.P.meta.dataDate))),
-      rgroup('Show', rbtn('tgRel', 'link', 'Logic lines', () => { S.showRels = !S.showRels; syncToggles(); UI.gantt.render(); }), rbtn('tgBl', 'bars', 'Baseline', () => { S.showBaseline = !S.showBaseline; syncToggles(); UI.gantt.render(); }), rbtn('tgColor', 'filter', 'Flag colours', () => { S.colorRows = !S.colorRows; syncToggles(); UI.grid.render(); }), rbtn('tgLabels', 'bars', 'Bar labels', () => { S.showLabels = !S.showLabels; syncToggles(); UI.gantt.render(); })),
-      rgroup('Rows', rbtn('btnExp', 'expand', 'Expand all', () => { S.collapsed.clear(); refresh({ noSave: true }); }), rbtn('btnCol', 'collapse', 'Collapse', () => collapseAll()), rbtn('btnCols', 'cols', 'Columns', () => UI.grid.columnsDialog()), rbtn('btnSide', 'side', 'Filters panel', () => { const m = $('#main'); if (innerWidth > 1100) m.classList.toggle('noside'); else m.classList.toggle('showside'); setTimeout(() => UI.gantt.render(true), 0); }))
+      rgroup('Layout', h('div', { class: 'rsmall' }, h('span', { class: 'lab' }, 'Layout'), UI.layouts.select(), h('button', { class: 'btn sm', type: 'button', text: 'Save layout…', onclick: () => S.P && UI.layouts.saveDialog() }))),
+      rgroup('Organize', h('div', { class: 'rsmall' }, h('span', { class: 'lab' }, 'Group by'), gsel, h('span', { class: 'lab' }, 'Sort by'), ssel), rbtn('btnGS', 'bars', 'Group & Sort', () => S.P && UI.groupSortDialog(), '', 'Multi-level grouping and sorting (P6 Group and Sort)'), rbtn('btnFlt', 'filter', 'Filters', () => S.P && UI.filtersUI.dialog(), '', 'P6-style filters: built-in and your own')),
+      rgroup('Expand / collapse', h('div', { class: 'rsmall' }, h('span', { class: 'lab' }, 'Level'), lsel, levelBtns), rbtn('btnExp', 'expand', 'Expand all', () => S.P && UI.levels.all()), rbtn('btnCol', 'collapse', 'Collapse all', () => S.P && UI.levels.none()), rbtn('tgBands', 'side', 'Bands only', () => S.P && UI.levels.bands(), '', 'Show only group bands (WBS summary), hide activities')),
+      rgroup('Columns', rbtn('btnCols', 'cols', 'Columns', () => UI.grid.columnsDialog(), '', 'Add, remove and order columns (P6 Columns)'), rbtn('btnGoto', 'dd', 'Go to', () => UI.goTo(), '', 'Go to an activity (Ctrl+G)'), rbtn('btnSide', 'side', 'Filters panel', () => { const m = $('#main'); if (innerWidth > 1100) m.classList.toggle('noside'); else m.classList.toggle('showside'); setTimeout(() => UI.gantt.render(true), 0); })),
+      rgroup('Timescale', h('div', { class: 'rsmall' }, h('span', { class: 'lab' }, 'Zoom'), zsel, h('span', { class: 'lab' }, 'Bar labels'), lblSel), rbtn('btnFit', 'fit', 'Fit', () => UI.gantt.fit()), rbtn('btnGoDD', 'dd', 'Go to DD', () => UI.gantt.scrollToDay(S.P.meta.dataDate))),
+      rgroup('Panes', rbtn('pmGrid', 'cols', 'Table only', () => UI.workbar.setPane('grid'), '', 'Hide the Gantt (Ctrl+Shift+G)'), rbtn('pmBoth', 'side', 'Table + Gantt', () => UI.workbar.setPane('both')), rbtn('pmGantt', 'bars', 'Gantt only', () => UI.workbar.setPane('gantt')), rbtn('tgTL', 'fit', 'Timeline strip', () => { S.showTimeline = !S.showTimeline; UI.LS.set('se.timeline', S.showTimeline); syncToggles(); UI.workbar.render(); }), rbtn('btnTLV', 'dash', 'Timeline view', () => setView('timeline'))),
+      rgroup('Bars', rbtn('tgRel', 'link', 'Logic lines', () => { S.showRels = !S.showRels; syncToggles(); UI.gantt.render(); }), rbtn('tgBl', 'bars', 'Baseline', () => { S.showBaseline = !S.showBaseline; syncToggles(); UI.gantt.render(); }), rbtn('tgFloat', 'bars', 'Float bars', () => { S.floatBars = !S.floatBars; UI.LS.set('se.floatBars', S.floatBars); syncToggles(); UI.gantt.render(); }, '', 'Total float bar after the remaining work'), rbtn('tgColor', 'filter', 'Flag colours', () => { S.colorRows = !S.colorRows; syncToggles(); UI.grid.render(); UI.gantt.render(); }))
     );
     an.append(
       rgroup('Views', rbtn('btnDash', 'dash', 'Dashboard', () => setView('dash')), rbtn('btnHealth', 'health', 'Health check', () => setView('health')), rbtn('btnChanges', 'changes', 'Changes', () => setView('changes'))),
@@ -379,22 +431,21 @@
   }
   function syncToggles() {
     const set = (id, on) => { const e = $('#' + id); if (e) e.classList.toggle('on', on); };
-    set('tgRel', S.showRels); set('tgBl', S.showBaseline); set('tgColor', S.colorRows); set('tgLabels', S.showLabels);
+    set('tgRel', S.showRels); set('tgBl', S.showBaseline); set('tgColor', S.colorRows); set('tgLabels', S.showLabels); set('tgFloat', S.floatBars); set('tgBands', S.noActs);
+    set('tgTL', S.showTimeline); set('pmGrid', S.pane === 'grid'); set('pmBoth', S.pane === 'both'); set('pmGantt', S.pane === 'gantt');
+    const bl = $('#barLabelSel'); if (bl) bl.value = S.showLabels ? (S.barLabel || 'name') : 'none';
   }
   function setGroup(key) {
     S.groupKey = key;
     S.groupBy = key === 'none' ? [] : key.split(',');
     S.collapsed.clear();
     const g = $('#groupSel');
-    if (g) { if (!Array.from(g.options).some((o) => o.value === key)) g.append(h('option', { value: key, text: key.replace('code:', 'Code: ').replace('wbs:', 'WBS level ') })); g.value = key; }
+    if (g) { if (!Array.from(g.options).some((o) => o.value === key)) g.append(h('option', { value: key, text: key.split(',').map((k) => { const c = S.P && !/^(building|epc|status|lens|none|wbs)$/.test(k) && !/^(code|wbs):/.test(k) ? SE.columns.get(S.P, k) : null; return c ? c.label : k.replace('code:', 'Code: ').replace('wbs:', 'WBS level ').replace(/^building$/, 'Building').replace(/^epc$/, 'EPC').replace(/^status$/, 'Status').replace(/^lens$/, 'Update flag'); }).join(' → ') })); g.value = key; }
+    syncToggles();
     if (S.view !== 'gantt') setView('gantt');
     refresh({ noSave: true });
   }
-  function collapseAll() {
-    const all = SE.views.buildRows(S.P, { groupBy: S.groupBy, filter: passes, sort: S.sort, collapsed: new Set() });
-    S.collapsed = new Set(all.filter((r) => r.kind === 'group' && r.level >= (S.groupBy[0] === 'wbs' ? 1 : 0)).map((r) => r.id));
-    refresh({ noSave: true });
-  }
+  function collapseAll() { UI.levels.none(); }
   function setView(v) {
     S.view = v;
     $$('#vtabs button[data-view]').forEach((b) => b.setAttribute('aria-selected', b.dataset.view === v ? 'true' : 'false'));
@@ -461,15 +512,17 @@
       hint.innerHTML = m;
       return p.day;
     };
-    inp.addEventListener('input', check);
+    inp.addEventListener('input', () => { const d = check(); if (d != null) pick.value = D.fmtISO(d); });
+    const pick = h('input', { type: 'date', class: 'inp', id: 'ddPick', value: D.fmtISO(first ? suggest : cur), style: { maxWidth: '180px', fontSize: '15px' }, 'aria-label': 'Pick the Data Date from a calendar' });
+    pick.addEventListener('change', () => { const d = D.parseDay(pick.value); if (d != null) { inp.value = D.fmtLong(d); check(); } });
     const quick = h('div', { class: 'quick', style: { margin: '10px 0' } });
     const qd = [[suggest, '1st of next month'], [D.monthEnd(prev) + 1 > prev ? D.monthEnd(D.addMonths(prev, 0)) + 1 : prev, 'Start of month after last DD'], [D.todayDay(), 'Today'], [prev + 7, '+1 week'], [prev + 14, '+2 weeks']];
     const seen = new Set();
-    qd.forEach(([d, l]) => { if (seen.has(d)) return; seen.add(d); quick.append(h('button', { type: 'button', text: l + ' · ' + D.fmt(d), onclick: () => { inp.value = D.fmtLong(d); check(); } })); });
+    qd.forEach(([d, l]) => { if (seen.has(d)) return; seen.add(d); quick.append(h('button', { type: 'button', text: l + ' · ' + D.fmt(d), onclick: () => { inp.value = D.fmtLong(d); pick.value = D.fmtISO(d); check(); } })); });
     check();
     const body = h('div', null,
       h('p', { style: { marginTop: 0 }, html: first ? 'Loaded <b>' + esc(P.meta.name) + '</b> with <b>' + P.acts.length + '</b> activities and <b>' + P.rels.length + '</b> relationships.<br>Last update Data Date in the file: <b>' + D.fmtLong(prev) + '</b>. Set the Data Date for <b>this</b> monthly update:' : 'The Data Date is the status date: everything before it is actual, everything on or after it is forecast.' }),
-      inp, hint, quick,
+      h('div', { style: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' } }, inp, h('span', { class: 'sub', text: 'or pick:' }), pick), hint, quick,
       h('div', { class: 'msg i', html: 'The engine compares each activity with its last-update dates to highlight what should have started, what is overdue and what is progressing ahead of plan. Actual dates must be <b>before</b> the Data Date.' }));
     return modal(first ? 'Start this month\'s update' : 'Data Date', body, [
       { label: first ? 'Keep ' + D.fmt(cur) : 'Cancel', value: null },
@@ -527,6 +580,6 @@
 
   window.UI = {
     S, h, $, $$, esc, icon, toast, modal, menu, closeMenu, busy, tick, refresh, redrawSoon, buildRibbon, bindSide, setView, setGroup, setTheme,
-    applyPatches, softRefresh, undo, redo, runSchedule, dataDateDialog, help, doAsk, clearFilters, passes, filtered, computeFlags, buildRows, syncToggles
+    applyPatches, softRefresh, undo, redo, runSchedule, dataDateDialog, help, doAsk, clearFilters, passes, filtered, computeFlags, buildRows, syncToggles, rowOpts
   };
 })();

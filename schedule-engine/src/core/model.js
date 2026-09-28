@@ -73,7 +73,7 @@
       tStart: null, tFinish: null, eStart: null, eFinish: null, lStart: null, lFinish: null,
       aStart: null, aFinish: null, rStart: null, tf: null, ff: null, crit: false,
       cstr: null, cstr2: null, codes: {}, udf: {}, qty: null, notes: '', dimOverride: {},
-      prev: null, bl: null, touched: false, isNew: false, expFinish: null
+      prev: null, bl: null, touched: false, isNew: false, expFinish: null, concern: null
     }, o || {});
   }
 
@@ -504,7 +504,8 @@
         }
         if (any) {
           undo.push({ uid: a.uid, before, after: JSON.parse(JSON.stringify(changes)), touchedBefore: a.touched });
-          a.touched = true;
+          // recording a concern or a remark is not a progress update
+          if (Object.keys(before).some((k) => k !== 'concern' && k !== 'notes')) a.touched = true;
           out.applied++;
         }
       }
@@ -512,7 +513,8 @@
         this.undoStack.push({ label: label || 'Update', items: undo, at: Date.now() });
         if (this.undoStack.length > 200) this.undoStack.shift();
         this.redoStack = [];
-        this.settings.scheduled = false;
+        const soft = ['concern', 'notes', 'dimOverride', 'codes', 'name', 'qty'];
+        if (undo.some((u) => Object.keys(u.before).some((k) => !soft.includes(k)))) this.settings.scheduled = false;
         if (this._idx) this._idx.dimCache.clear();
       }
       return out;

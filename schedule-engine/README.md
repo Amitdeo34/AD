@@ -93,6 +93,62 @@ activities; inline editing is keyboard driven (Enter, Tab, arrows). The canvas G
 
 Themes: **KPMG India** (light), KPMG India dark, and Primavera classic.
 
+**Primavera-style layout control.**
+- **Columns:** 60+ columns, plus one per activity code, UDF and WBS level. The Columns dialog has
+  search, add/remove and move up/down. Headers can be dragged to reorder, resized
+  (double-click for best fit), and right-clicked for sort / group by / filter on / hide /
+  freeze. The first columns can be frozen.
+- **Editing in the grid:** activity codes, Building and EPC can be typed into the grid
+  (drop-down of existing values).
+- **Expand / collapse:**
+  - **Collapse to level 1..N**, Expand all, Collapse all, and **Group bands only**
+    (WBS summary view).
+  - Quick buttons L1–L4 / All, shortcuts `Alt+1..9` / `Alt+0`.
+  - `+` / `−` / `*` on a selected band, or right-click a band (expand all below, collapse to
+    this level, select all activities in the band).
+- **Group & Sort:** up to 4 nested levels by WBS, building, EPC, any activity code, WBS level,
+  float band, month, critical and more. Multi-key sort (Shift+click a header adds a sort key).
+- **Filters:** 25 built-in P6-style filters (critical, longest path, look-ahead 30/60/90,
+  negative float, without predecessors…) plus your own rules (`column  operator  value`,
+  AND / OR). Filters can be saved.
+- **Layouts:** 10 built-in layouts (Classic, Monthly Update, Building → EPC, Baseline
+  Comparison, Last Update Comparison, Float & Critical Path, Look-ahead, Logic Review,
+  Quantities, Summary). You can save your own, and export / import them as JSON.
+- **Excel-like editing:**
+  - Ctrl+C copies the selected rows with your columns into Excel.
+  - Ctrl+V pastes a column block from Excel into editable columns (validated).
+  - Ctrl+D fills down.
+  - Ctrl+A selects all; Ctrl+G goes to an activity.
+- **Keyboard while updating:**
+  - In the grid editor, ← / → at the start / end of the text moves to the previous / next
+    editable column, and ↑ / ↓ (or Enter) move to the same column in the next row.
+  - In Easy Update the arrow keys move between the Actual Start / Actual Finish / % /
+    Remaining boxes and between cards.
+
+**Building-wise working.**
+- Building and EPC dropdown filters in the work bar apply to every view: grid, Gantt,
+  Easy Update, Dashboard, Timeline, Concerns. Exports can use "current filters".
+- The Data Date has a calendar picker in the work bar and in the Data Date dialog.
+
+**Concerns (flag → raise concern).**
+- A flag (late start, overdue, future progress, out of sequence, invalid, negative float) only
+  asks for a **concern**: category, reason, recovery action, owner and target date.
+  Raising a concern never changes dates or progress.
+- **Concerns only** shows just the flagged activities. **Draft for flagged** writes a
+  suggested concern from the flags for you to complete.
+- The **Concerns** register is building-wise and editable inline. It is exported to the Excel
+  "Concerns" and "Attention" sheets and the PDF attention list.
+
+**Views.**
+- **Table only / Table + Gantt / Gantt only** (Ctrl+Shift+G hides the Gantt).
+- A **Timeline strip** above the Gantt shows the project bar, Data Date, milestones and the
+  visible window; click it to jump.
+- A **Timeline** view shows building (or EPC / WBS) lanes with E / P / C bars, baseline,
+  milestones and zoom.
+- Gantt float bars and bar-label options: name, ID, ID - name, %, finish date, none.
+- Exports (Excel Schedule sheet, PDF schedule table, CSV) follow **your layout columns**.
+  The PDF can be table + Gantt or table only.
+
 **Ask the engine.** Type questions like "delayed in Admin Building", "procurement progress",
 "critical next 30 days", "how many not started in Warehouse" or "when will the project finish".
 The grid filters itself and the engine answers.

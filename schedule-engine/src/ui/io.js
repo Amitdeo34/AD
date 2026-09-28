@@ -292,7 +292,8 @@
     }
     return true;
   }
-  const exportRows = (scope) => (scope === 'view' ? S.rows : SE.views.buildRows(S.P, { groupBy: S.groupBy.length ? S.groupBy : ['wbs'], sort: S.sort, flags: S.fl.map }));
+  const exportRows = (scope) => (scope === 'view' ? S.rows : scope === 'filtered' ? SE.views.buildRows(S.P, Object.assign(UI.rowOpts(), { collapsed: new Set(), noActs: false })) : SE.views.buildRows(S.P, { groupBy: S.groupBy.length ? S.groupBy : ['wbs'], sort: S.sort, flags: S.fl.map }));
+  const layoutCols = (opts) => (opts.useLayout === false ? null : UI.grid.visibleIds());
   async function exportAs(kind, opts) {
     const P = S.P;
     if (!P) { toast('Open a schedule first.', 'w'); return; }
@@ -309,18 +310,18 @@
         else toast('In P6: File → Import → XER → choose "Update Existing Project" to bring the update into your project.', 'g', 'XER exported', 9000);
         UI.refresh({ noSave: false });
       } else if (kind === 'xlsx') {
-        const buf = await SE.exporters.toExcel(P, { rows: exportRows(opts.scope) });
+        const buf = await SE.exporters.toExcel(P, { rows: exportRows(opts.scope), columns: layoutCols(opts), layoutName: S.layoutName });
         download(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), b + '.xlsx');
         toast('Excel with Dashboard, Building x EPC, Schedule, Gantt, Update Sheet, Look-ahead, Attention, Health Check, Change Log and Relationships.', 'g', 'Excel exported', 7000);
       } else if (kind === 'pdf') {
-        const buf = SE.exporters.toPDF(P, { rows: exportRows(opts.scope), format: opts.format || 'a3', summary: opts.summary !== false, gantt: opts.gantt !== false, tables: opts.tables !== false });
+        const buf = SE.exporters.toPDF(P, { rows: exportRows(opts.scope), columns: layoutCols(opts), format: opts.format || 'a3', summary: opts.summary !== false, gantt: opts.ganttMode || true, tables: opts.tables !== false });
         download(new Blob([buf], { type: 'application/pdf' }), b + '.pdf');
         toast('PDF report exported.', 'g');
       } else if (kind === 'html') {
         download(new Blob([SE.exporters.toHTML(P, { rows: exportRows(opts.scope) })], { type: 'text/html' }), b + '_report.html');
         toast('Interactive HTML report exported - opens in any browser, can be emailed.', 'g');
       } else if (kind === 'csv') {
-        download(SE.exporters.toCSV(P, exportRows(opts.scope)), b + '.csv', 'text/csv');
+        download(SE.exporters.toCSV(P, exportRows(opts.scope), layoutCols(opts)), b + '.csv', 'text/csv');
       } else if (kind === 'msp') {
         download(SE.exporters.toMSP(P), b + '_MSProject.xml', 'application/xml');
         toast('MS Project XML exported (File → Open in MS Project).', 'g');
@@ -333,7 +334,12 @@
     if (!S.P) { toast('Open a schedule first.', 'w'); return; }
     const P = S.P;
     const card = (kind, ext, title, text) => h('button', { class: 'expcard', type: 'button', 'data-kind': kind, html: '<b><span class="ext">' + ext + '</span>' + title + '</b><span>' + text + '</span>' });
-    const scope = h('select', { class: 'inp', id: 'ex_scope', style: { width: 'auto' } }, h('option', { value: 'all', text: 'All activities, current grouping' }), h('option', { value: 'view', text: 'Only what is shown now (filters & collapsed groups)' }));
+    const scope = h('select', { class: 'inp', id: 'ex_scope', style: { width: 'auto' } }, h('option', { value: 'all', text: 'All activities, current grouping' }), h('option', { value: 'filtered', text: 'Current filters (building / EPC / concerns…), all rows expanded' }), h('option', { value: 'view', text: 'Exactly what is shown now (incl. collapsed groups)' }));
+    if (UI.filtered()) scope.value = 'filtered';
+    const useLayout = h('input', { type: 'checkbox', id: 'ex_layout' });
+    useLayout.checked = true;
+    const gmode = h('select', { class: 'inp', id: 'ex_gm', style: { width: 'auto' } }, h('option', { value: 'gantt', text: 'Table + Gantt bars' }), h('option', { value: 'table', text: 'Table only (no Gantt)' }));
+    if (S.pane === 'grid') gmode.value = 'table';
     const fmt = h('select', { class: 'inp', id: 'ex_fmt', style: { width: 'auto' } }, h('option', { value: 'a3', text: 'A3 landscape' }), h('option', { value: 'a4', text: 'A4 landscape' }), h('option', { value: 'a2', text: 'A2 landscape' }));
     const dimCodes = h('input', { type: 'checkbox', id: 'ex_dim' });
     const grid = h('div', { class: 'expgrid' },
@@ -345,11 +351,11 @@
       card('msp', '.XML', 'MS Project', 'MS Project XML with WBS, logic, progress and baseline.'),
       card('sej', '.SEJ', 'Engine project', 'Everything incl. quantities, remarks, change log - reopen later to continue.'));
     const body = h('div', null,
-      h('div', { class: 'opts' }, h('label', null, 'Rows: ', scope), h('label', null, 'PDF page: ', fmt), h('label', null, dimCodes, 'XER: add Building & EPC as activity codes')),
+      h('div', { class: 'opts' }, h('label', null, 'Rows: ', scope), h('label', null, useLayout, 'Use my layout columns (' + UI.grid.visibleIds().length + ') in Excel / PDF / CSV'), h('label', null, 'PDF page: ', fmt), h('label', null, 'PDF schedule: ', gmode), h('label', null, dimCodes, 'XER: add Building & EPC as activity codes')),
       grid,
       h('div', { class: 'msg i', style: { marginTop: '12px' }, html: 'Data Date <b>' + D.fmtLong(P.meta.dataDate) + '</b> · ' + (P.settings.scheduled ? 'scheduled, finish <b>' + D.fmtLong(P.meta.scheduledFinish) + '</b>' : '<b style="color:var(--bad)">not scheduled since the last change</b>') + ' · ' + (S.fl.counts.invalid ? '<b style="color:var(--bad)">' + S.fl.counts.invalid + ' invalid</b>' : 'no invalid progress') + '.' }));
     const p = modal('Export', body, [{ label: 'Close', value: null }], 'wide');
-    grid.querySelectorAll('.expcard').forEach((b) => { b.onclick = () => { const bg = b.closest('.modal-bg'); bg.querySelector('.mh button').click(); exportAs(b.dataset.kind, { scope: scope.value, format: fmt.value, addDimCodes: dimCodes.checked }); }; });
+    grid.querySelectorAll('.expcard').forEach((b) => { b.onclick = () => { const bg = b.closest('.modal-bg'); bg.querySelector('.mh button').click(); exportAs(b.dataset.kind, { scope: scope.value, format: fmt.value, addDimCodes: dimCodes.checked, useLayout: useLayout.checked, ganttMode: gmode.value === 'table' ? 'table' : true }); }; });
     return p;
   }
 

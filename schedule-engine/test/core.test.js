@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');
 const core = path.join(__dirname, '..', 'src', 'core');
-['base', 'model', 'cpm', 'xer', 'analysis', 'views', 'importers', 'demo', 'qty'].forEach((f) => require(path.join(core, f + '.js')));
+['base', 'model', 'cpm', 'xer', 'analysis', 'columns', 'filters', 'views', 'importers', 'demo', 'qty'].forEach((f) => require(path.join(core, f + '.js')));
 const SE = global.SE;
 const D = SE.D;
 
@@ -210,4 +210,45 @@ test('project save / load keeps progress, quantities and settings', () => {
   assert.equal(Q.qty.items.length, 3);
   assert.equal(Q.settings.dims.building.mode, 'wbs');
   assert.equal(Q.cal(Q.acts[5]).isWork(D.dayOf(2026, 0, 26)), false);
+});
+
+test('column catalogue, filters, multi-level group & sort, levels', () => {
+  const P = SE.demo.build();
+  P.meta.dataDate = D.dayOf(2026, 9, 1);
+  SE.schedule(P);
+  const cols = SE.columns.list(P);
+  assert.ok(cols.length >= 60);
+  assert.ok(SE.columns.get(P, 'code:Discipline'));
+  const a = P.acts.find((x) => x.status === 'CO' && !P.isMilestone(x));
+  assert.equal(SE.columns.text(P, SE.columns.get(P, 'finish'), a), D.fmt(a.aFinish) + ' A');
+  assert.equal(SE.columns.value(P, SE.columns.get(P, 'actDur'), a), P.cal(a).span(a.aStart, a.aFinish));
+  const crit = SE.filters.BUILTIN.find((f) => f.id === 'b:crit');
+  const n = P.acts.filter((x) => SE.filters.matches(P, crit, x)).length;
+  assert.equal(n, P.acts.filter((x) => x.crit && x.status !== 'CO').length);
+  const la = { rules: [{ col: 'start', op: 'nextN', value: '30' }, { col: 'code:Discipline', op: 'eq', value: 'Civil' }] };
+  P.acts.filter((x) => SE.filters.matches(P, la, x)).forEach((x) => { assert.equal(x.codes.Discipline, 'Civil'); assert.ok(P.startOf(x) >= P.meta.dataDate && P.startOf(x) < P.meta.dataDate + 30); });
+  const rows = SE.views.buildRows(P, { groupBy: ['building', 'code:Discipline'], sort: [{ key: 'tf', dir: 'asc' }, { key: 'code', dir: 'desc' }] });
+  assert.ok(rows.some((r) => r.kind === 'group' && r.level === 1));
+  const lv = SE.views.groupLevels(P, { groupBy: ['wbs'] });
+  assert.equal(lv.max, 2);
+  const bands = SE.views.buildRows(P, { groupBy: ['wbs'], noActs: true });
+  assert.ok(bands.every((r) => r.kind === 'group'));
+  const tfRows = SE.views.buildRows(P, { groupBy: ['tf'] });
+  assert.ok(tfRows.some((r) => r.kind === 'group' && r.label === 'Zero float'));
+});
+
+test('concerns are recorded without changing progress', () => {
+  const P = SE.demo.build();
+  P.meta.dataDate = D.dayOf(2026, 9, 1);
+  const fl = SE.analysis.flagAll(P);
+  assert.ok(fl.counts.needConcern > 0);
+  const a = P.acts.find((x) => fl.map.get(x.uid).includes('overdue'));
+  const before = JSON.stringify([a.status, a.pct, a.aStart, a.aFinish, a.remDur]);
+  const c = SE.analysis.suggestConcern(P, a, fl.map.get(a.uid));
+  assert.match(c.text, /Planned to finish/);
+  P.apply([{ uid: a.uid, changes: { concern: Object.assign(c, { action: 'Expedite', owner: 'Site' }) } }]);
+  assert.equal(JSON.stringify([a.status, a.pct, a.aStart, a.aFinish, a.remDur]), before);
+  assert.equal(a.touched, false);
+  const f2 = SE.analysis.flags(P, a);
+  assert.ok(f2.includes('concern') && !f2.includes('needConcern'));
 });

@@ -316,30 +316,15 @@
     editor = { inp, i, colId, uid: a.uid, hint: null, listId };
     $('#gspacer').append(inp);
     if (c.edit === 'date') {
-      const hint = h('div', { class: 'edhint' });
-      editor.hint = hint;
-      $('#gspacer').append(hint);
-      const upd = () => {
-        const v = inp.value.trim().toLowerCase();
-        let msg = '';
-        if (!v) msg = '<span>Blank = clear the date</span>';
-        else if (v === 'p' || v === 'plan') msg = '<span class="ok">→ planned ' + D.fmt(colId === 'aStart' ? S.P.refStart(a) : S.P.refFinish(a)) + '</span>';
-        else if (v === 'dd') msg = '<span class="ok">→ ' + D.fmt(S.P.meta.dataDate - 1) + ' (day before Data Date)</span>';
-        else if (v === 't') msg = '<span class="ok">→ today ' + D.fmt(D.todayDay()) + '</span>';
-        else { const p = D.parseDate(inp.value); msg = p ? '<span class="ok">→ ' + D.fmtLong(p.day) + ' (' + ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][D.parts(p.day).w] + ')</span>' : '<span class="no">Not a date yet…</span>'; }
-        hint.innerHTML = '<div>' + msg + '</div>';
-        const q = h('div', { class: 'q' });
-        const ref = colId === 'aStart' ? S.P.refStart(a) : S.P.refFinish(a);
-        const opts = [];
-        if (colId !== 'expFinish' && ref != null && ref < S.P.meta.dataDate) opts.push(['Plan ' + D.fmt(ref), D.fmt(ref)]);
-        if (colId !== 'expFinish') opts.push(['DD-1 ' + D.fmt(S.P.meta.dataDate - 1), D.fmt(S.P.meta.dataDate - 1)]);
-        if (colId === 'expFinish') { const c2 = S.P.cal(a); [7, 14, 30].forEach((n) => opts.push(['+' + n + 'd', D.fmt(c2.add(c2.next(S.P.meta.dataDate), n))])); }
-        opts.push(['Clear', '']);
-        opts.forEach(([l, v2]) => q.append(h('button', { type: 'button', text: l, onmousedown: (e) => { e.preventDefault(); inp.value = v2; commit(); } })));
-        hint.append(q);
-      };
-      inp.addEventListener('input', upd);
-      upd();
+      // click-and-select calendar under the cell; typing still works (p = plan, dd = day before DD, t = today)
+      const o = ['aStart', 'aFinish', 'expFinish'].includes(colId) ? UI.cal.actOpts(S.P, a, colId) : { title: c.label, dataDate: S.P.meta.dataDate, quick: [['Clear', null]] };
+      const p0 = D.parseDate(inp.value);
+      editor.cal = true;
+      requestAnimationFrame(() => {
+        if (!editor || editor.inp !== inp) return;
+        UI.cal.open(inp, Object.assign(o, { value: p0 ? p0.day : null, keep: inp, onPick: (d) => { if (!editor || editor.inp !== inp) return; inp.value = d == null ? '' : D.fmt(d); commit(0); } }));
+      });
+      inp.addEventListener('input', () => { const p = D.parseDate(inp.value); if (p) UI.cal.follow(p.day); });
     }
     positionEditor();
     inp.focus({ preventScroll: true });
@@ -355,7 +340,7 @@
       else if (e.key === 'Escape') { e.preventDefault(); closeEditor(); $('#gbody').focus(); }
       e.stopPropagation();
     });
-    inp.addEventListener('blur', () => { setTimeout(() => { if (editor && editor.inp === inp && document.activeElement !== inp) commit(0); }, 150); });
+    inp.addEventListener('blur', () => { setTimeout(() => { if (editor && editor.inp === inp && document.activeElement !== inp && !(document.activeElement && document.activeElement.closest && document.activeElement.closest('.calpop'))) commit(0); }, 150); });
   }
   function whyLocked(c, a) {
     if (a.status === 'CO' && (c.id === 'pct' || c.id === 'remDur' || c.id === 'expFinish')) return 'Completed activity. Clear the Actual Finish to re-open it.';
@@ -376,6 +361,7 @@
   function closeEditor() {
     if (!editor) return;
     const e = editor; editor = null;
+    if (e.cal) UI.cal.close();
     e.inp.remove(); if (e.hint) e.hint.remove();
     if (e.listId) { const dl = document.getElementById(e.listId); if (dl) dl.remove(); }
   }

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Builds dist/ScheduleEngine.html - one self-contained offline file
+/* Builds "dist/Schedule 📅.html" - one self-contained offline file
  * (all CSS, engine code and third-party libraries inlined) and copies it to
  * ../public/schedule-engine/index.html so the web app serves it at /schedule-engine. */
 'use strict';
@@ -39,7 +39,7 @@ html = html.replace('<meta name="description"', '<meta name="generator" content=
 
 const dist = path.join(root, 'dist');
 fs.mkdirSync(dist, { recursive: true });
-const out = path.join(dist, 'ScheduleEngine.html');
+const out = path.join(dist, 'Schedule 📅.html');
 fs.writeFileSync(out, html);
 const pub = path.join(root, '..', 'public', 'schedule-engine');
 if (fs.existsSync(path.join(root, '..', 'public'))) {

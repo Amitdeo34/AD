@@ -468,8 +468,26 @@
       if (n.status !== 'CO' || has('pct')) {
         if (n.pct >= 100 && n.aFinish == null) {
           if (ms) { res.errors.push('A milestone is completed by entering its Actual ' + (a.type === 'start' ? 'Start' : 'Finish') + ' date.'); return res; }
-          res.errors.push('100% needs an Actual Finish date. Enter the Actual Finish (the engine will set 100% automatically).');
-          return res;
+          // 100% without a finish date: Actual Finish = Actual Start + Original Duration
+          if (dd == null) { res.errors.push('100% needs an Actual Finish date (set the Data Date first).'); return res; }
+          if (n.aStart == null) {
+            const g = this.refStart(a);
+            n.aStart = g != null && g < dd ? g : cal.prev(dd - 1);
+            res.infos.push('Actual Start auto-filled as ' + D.fmt(n.aStart) + ' (edit if different).');
+          }
+          const durFin = cal.finishFrom(cal.next(n.aStart), a.origDur || 1);
+          const last = Math.max(n.aStart, cal.prev(dd - 1));
+          if (durFin <= last) {
+            n.aFinish = durFin;
+            res.infos.push('100%: Actual Finish set as per duration (' + D.fmt(n.aStart) + ' + ' + (a.origDur || 1) + 'd) = ' + D.fmt(durFin) + '.');
+          } else {
+            // the duration-based finish is after the Data Date: an actual cannot be in the future
+            n.aFinish = last;
+            const msg = 'As per duration the finish would be ' + D.fmt(durFin) + ', after the Data Date ' + D.fmt(dd) + '. Actual Finish set to ' + D.fmt(last) + ' (' + cal.span(n.aStart, last) + 'd actual vs ' + (a.origDur || 1) + 'd planned) - confirm the real finish date or keep it in progress.';
+            res.warnings.push('Concern: ' + msg);
+            res.concern = { cat: 'Progress data to verify', text: '100% marked but duration-based Actual Finish ' + D.fmt(durFin) + ' falls after the Data Date ' + D.fmt(dd) + '; finish taken as ' + D.fmt(last) + '.', action: 'Confirm actual finish date with site', owner: '', due: null, raised: dd, auto: true };
+          }
+          n.pct = 100; n.remDur = 0; n.status = 'CO';
         }
         if (n.pct > 0 && n.aStart == null) {
           if (this.settings.smartAutofill && dd != null) {
@@ -550,6 +568,8 @@
           r.infos.forEach((m) => out.infos.push({ uid: a.uid, code: a.code, msg: m }));
           if (r.errors.length) continue;
           changes = r.changes;
+          if (r.concern && !(a.concern && a.concern.text && !a.concern.auto)) changes.concern = r.concern;
+          else if (!r.concern && 'aFinish' in prog && a.concern && a.concern.auto) changes.concern = null;
         }
         Object.assign(changes, direct);
         const before = {};

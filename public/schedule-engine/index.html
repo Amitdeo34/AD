@@ -625,6 +625,36 @@ table.cnt a.lnk { color: var(--accent); text-decoration: none; font-weight: 600;
 
 .gempty { position: absolute; left: 0; right: 0; top: 30px; text-align: center; color: var(--ink-2); font-family: var(--font); line-height: 2; }
 
+/* ---------- calendar date picker ---------- */
+.datewrap { display: inline-flex; align-items: stretch; position: relative; width: 100%; min-width: 0; }
+.datewrap > input { flex: 1; min-width: 0; padding-right: 30px !important; }
+.calbtn { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); border: 0; background: transparent; cursor: pointer; font-size: 14px; line-height: 1; padding: 4px 5px; border-radius: 4px; opacity: .8; }
+.calbtn:hover { background: var(--hover); opacity: 1; }
+.calbtn:disabled { opacity: .3; cursor: default; }
+.calpop { position: fixed; z-index: 95; width: 268px; background: var(--surface); border: 1px solid var(--line-2); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 10px; font-size: 12.5px; color: var(--ink); user-select: none; }
+.calhd { display: grid; grid-template-columns: 28px 1fr 74px 28px; gap: 4px; align-items: center; margin-bottom: 6px; }
+.calhd select { font: inherit; font-weight: 700; padding: 3px 4px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); color: var(--ink); min-width: 0; }
+.calnav { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 5px; height: 26px; cursor: pointer; font-size: 16px; line-height: 1; }
+.calnav:hover { background: var(--hover); }
+.caltitle { font-size: 11px; color: var(--ink-3); font-weight: 600; margin: 0 2px 4px; }
+.calgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.calw { text-align: center; font-size: 10.5px; font-weight: 700; color: var(--ink-3); padding: 2px 0; }
+.cald { height: 30px; border: 1px solid transparent; background: transparent; color: var(--ink); border-radius: 6px; cursor: pointer; font: inherit; position: relative; }
+.cald:hover:not(:disabled) { background: var(--hover); border-color: var(--line-2); }
+.cald.off { color: var(--ink-3); background: repeating-linear-gradient(135deg, transparent 0 4px, var(--hover) 4px 6px); }
+.cald.today { font-weight: 800; text-decoration: underline; }
+.cald.ref { border-color: #F5A623; }
+.cald.dd { box-shadow: inset 0 -3px 0 #E4002B; font-weight: 700; }
+.cald.sel { background: var(--brand-2, #005EB8); color: #fff; font-weight: 700; }
+.cald.no, .cald:disabled { opacity: .3; cursor: not-allowed; }
+.calft { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.calft .btn { font-size: 11px; padding: 3px 7px; }
+.callg { margin-top: 6px; font-size: 10.5px; color: var(--ink-3); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.callg i { display: inline-block; width: 12px; height: 8px; border-radius: 2px; margin-left: 4px; }
+.callg .lg-dd { background: #E4002B; height: 3px; }
+.callg .lg-ref { border: 1.5px solid #F5A623; }
+.callg .lg-off { background: repeating-linear-gradient(135deg, transparent 0 2px, var(--line-2) 2px 4px); }
+
 </style>
 </head>
 <body>
@@ -2035,8 +2065,26 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (n.status !== 'CO' || has('pct')) {
         if (n.pct >= 100 && n.aFinish == null) {
           if (ms) { res.errors.push('A milestone is completed by entering its Actual ' + (a.type === 'start' ? 'Start' : 'Finish') + ' date.'); return res; }
-          res.errors.push('100% needs an Actual Finish date. Enter the Actual Finish (the engine will set 100% automatically).');
-          return res;
+          // 100% without a finish date: Actual Finish = Actual Start + Original Duration
+          if (dd == null) { res.errors.push('100% needs an Actual Finish date (set the Data Date first).'); return res; }
+          if (n.aStart == null) {
+            const g = this.refStart(a);
+            n.aStart = g != null && g < dd ? g : cal.prev(dd - 1);
+            res.infos.push('Actual Start auto-filled as ' + D.fmt(n.aStart) + ' (edit if different).');
+          }
+          const durFin = cal.finishFrom(cal.next(n.aStart), a.origDur || 1);
+          const last = Math.max(n.aStart, cal.prev(dd - 1));
+          if (durFin <= last) {
+            n.aFinish = durFin;
+            res.infos.push('100%: Actual Finish set as per duration (' + D.fmt(n.aStart) + ' + ' + (a.origDur || 1) + 'd) = ' + D.fmt(durFin) + '.');
+          } else {
+            // the duration-based finish is after the Data Date: an actual cannot be in the future
+            n.aFinish = last;
+            const msg = 'As per duration the finish would be ' + D.fmt(durFin) + ', after the Data Date ' + D.fmt(dd) + '. Actual Finish set to ' + D.fmt(last) + ' (' + cal.span(n.aStart, last) + 'd actual vs ' + (a.origDur || 1) + 'd planned) - confirm the real finish date or keep it in progress.';
+            res.warnings.push('Concern: ' + msg);
+            res.concern = { cat: 'Progress data to verify', text: '100% marked but duration-based Actual Finish ' + D.fmt(durFin) + ' falls after the Data Date ' + D.fmt(dd) + '; finish taken as ' + D.fmt(last) + '.', action: 'Confirm actual finish date with site', owner: '', due: null, raised: dd, auto: true };
+          }
+          n.pct = 100; n.remDur = 0; n.status = 'CO';
         }
         if (n.pct > 0 && n.aStart == null) {
           if (this.settings.smartAutofill && dd != null) {
@@ -2117,6 +2165,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           r.infos.forEach((m) => out.infos.push({ uid: a.uid, code: a.code, msg: m }));
           if (r.errors.length) continue;
           changes = r.changes;
+          if (r.concern && !(a.concern && a.concern.text && !a.concern.auto)) changes.concern = r.concern;
+          else if (!r.concern && 'aFinish' in prog && a.concern && a.concern.auto) changes.concern = null;
         }
         Object.assign(changes, direct);
         const before = {};
@@ -7216,7 +7266,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       '<h3>Monthly routine</h3><ol><li><b>Open</b> last month\'s .xer (or Excel / PDF / MS Project XML).</li><li>Set the new <b>Data Date</b> (normally the 1st of the month).</li><li>Work through the <b>Update spotlight</b>: <i>Should have started</i>, <i>Overdue</i>, <i>Future progress</i>, <i>In progress</i>. Use <b>Easy Update</b> to go building-wise or EPC-wise.</li><li>Use the <b>Qty calculator</b> (scope vs completed quantity) to get a defensible %.</li><li>Press <b>F9</b> to schedule, check the <b>Health check</b>, then <b>Export</b> XER / Excel / PDF / HTML.</li></ol>' +
       '<h3>Typing dates</h3><p>Any of: <span class="kbd">30-Sep-26</span> <span class="kbd">30/09/2026</span> <span class="kbd">2026-09-30</span> <span class="kbd">30 Sep</span>. Shortcuts: <span class="kbd">p</span> = planned date, <span class="kbd">dd</span> = day before Data Date, <span class="kbd">t</span> = today.</p>' +
       '<h3>Keyboard</h3><div class="helpgrid"><span class="kbd">F9</span><span>Schedule</span><span class="kbd">Ctrl+Z / Ctrl+Y</span><span>Undo / redo</span><span class="kbd">Ctrl+S</span><span>Save project (.sej)</span><span class="kbd">Ctrl+O</span><span>Open file</span><span class="kbd">Ctrl+E</span><span>Export</span><span class="kbd">Ctrl+F</span><span>Ask the engine / search</span><span class="kbd">↑ ↓</span><span>Move between activities</span><span class="kbd">Enter / F2</span><span>Edit the cell</span><span class="kbd">Tab</span><span>Next editable cell</span><span class="kbd">Esc</span><span>Cancel edit / clear selection</span></div>' +
-      '<h3>Rules the engine enforces</h3><ul><li>Actual Start and Actual Finish must be before the Data Date; Finish cannot be before Start.</li><li>100% requires an Actual Finish; progress requires an Actual Start (auto-filled from plan, you can edit it).</li><li>Completed activities are locked until the Actual Finish is cleared.</li><li>Milestones take dates, not percentages.</li><li>Out-of-sequence progress, loops and invalid dates are flagged before export.</li></ul>' +
+      '<h3>Rules the engine enforces</h3><ul><li>Actual Start and Actual Finish must be before the Data Date; Finish cannot be before Start.</li><li>Typing 100% sets the Actual Finish as per duration (Actual Start + Original Duration). If that date falls after the Data Date, the finish is capped to the day before the Data Date and a concern is raised for you to verify. Progress requires an Actual Start (auto-filled from plan, you can edit it).</li><li>Completed activities are locked until the Actual Finish is cleared.</li><li>Milestones take dates, not percentages.</li><li>Out-of-sequence progress, loops and invalid dates are flagged before export.</li></ul>' +
       '<h3>Ask the engine</h3><p>Examples: <i>delayed in Green Pelletizing Building</i> · <i>pellet-2 progress</i> · <i>procurement progress</i> · <i>critical next 30 days</i> · <i>how many not started in Screen House</i> · <i>when will the project finish</i> · <i>"excavation"</i>.</p>' +
       '<h3>Your data</h3><p>Everything runs inside this browser page. Files are never uploaded; the session is autosaved in this browser so you can close and resume.</p>'
     });
@@ -7250,6 +7300,189 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     S, h, $, $$, esc, icon, toast, modal, menu, closeMenu, busy, tick, refresh, redrawSoon, buildRibbon, bindSide, setView, setGroup, setTheme,
     applyPatches, softRefresh, undo, redo, runSchedule, dataDateDialog, help, doAsk, clearFilters, passes, filtered, hasAreas, computeFlags, buildRows, syncToggles, rowOpts
   };
+})();
+
+/* ---- ui/calendar.js ---- */
+/* Schedule Engine - ui/calendar.js
+ * Click-and-select date picker used wherever a date is updated: grid cells,
+ * Easy Update cards, the activity details panel and dialogs. Shows the Data
+ * Date, the planned date, non-working days of the activity calendar and blocks
+ * dates that are not allowed (actuals must be before the Data Date).
+ */
+(function () {
+  'use strict';
+  const D = SE.D;
+  const h = (...a) => UI.h(...a);
+  const MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  let pop = null, state = null;
+
+  function close() {
+    if (!pop) return;
+    pop.remove(); pop = null;
+    document.removeEventListener('mousedown', outside, true);
+    window.removeEventListener('resize', close);
+    const s = state; state = null;
+    if (s && s.onClose) s.onClose();
+  }
+  function outside(e) {
+    if (!pop || pop.contains(e.target)) return;
+    if (state && state.anchor && (state.anchor === e.target || state.anchor.contains(e.target))) return;
+    if (state && state.keep && state.keep.contains(e.target)) return;
+    close();
+  }
+  const isOpen = () => !!pop;
+
+  /**
+   * open(anchor, o): o = { value, min, max, dataDate, ref, refLabel, cal, title,
+   *   quick:[[label, day|null]], onPick(day|null), onClose(), keep }
+   */
+  function open(anchor, o) {
+    close();
+    state = Object.assign({ anchor }, o);
+    const dd = o.dataDate;
+    let base = o.value != null ? o.value : o.ref != null ? o.ref : dd != null ? dd - 1 : D.todayDay();
+    // open on a month that has selectable days
+    if (o.max != null && base > o.max) base = o.max;
+    if (o.min != null && base < o.min) base = o.min;
+    const p0 = D.parts(base);
+    state.y = p0.y; state.m = p0.m; state.focus = base;
+    pop = h('div', { class: 'calpop', role: 'dialog', 'aria-label': o.title || 'Pick a date' });
+    // clicks inside must not steal focus from the input being edited
+    pop.addEventListener('mousedown', (e) => { if (e.target.tagName !== 'SELECT') e.preventDefault(); });
+    document.body.append(pop);
+    draw();
+    place();
+    setTimeout(() => { document.addEventListener('mousedown', outside, true); window.addEventListener('resize', close); }, 0);
+  }
+  function place() {
+    if (!pop || !state) return;
+    const r = state.anchor.getBoundingClientRect();
+    const pw = pop.offsetWidth, ph = pop.offsetHeight;
+    let left = Math.min(Math.max(8, r.left), innerWidth - pw - 8);
+    let top = r.bottom + 4;
+    if (top + ph > innerHeight - 8) top = Math.max(8, r.top - ph - 4);
+    pop.style.left = left + 'px'; pop.style.top = top + 'px';
+  }
+  function allowed(d) {
+    if (state.min != null && d < state.min) return false;
+    if (state.max != null && d > state.max) return false;
+    return true;
+  }
+  function pick(d) {
+    if (d != null && !allowed(d)) return;
+    const s = state;
+    close();
+    if (s.onPick) s.onPick(d);
+  }
+  function refocus() { if (state && state.keep && state.keep.focus) state.keep.focus({ preventScroll: true }); }
+  function draw() {
+    const s = state;
+    pop.innerHTML = '';
+    const first = D.dayOf(s.y, s.m, 1);
+    const nextM = s.m === 11 ? D.dayOf(s.y + 1, 0, 1) : D.dayOf(s.y, s.m + 1, 1);
+    const shift = (n) => { let m = s.m + n, y = s.y; while (m < 0) { m += 12; y--; } while (m > 11) { m -= 12; y++; } s.y = y; s.m = m; draw(); };
+    const mSel = h('select', { 'aria-label': 'Month' }, MON.map((n, i) => h('option', { value: i, text: n })));
+    mSel.value = s.m; mSel.onchange = () => { s.m = +mSel.value; draw(); refocus(); };
+    const yNow = D.parts(s.dataDate != null ? s.dataDate : D.todayDay()).y;
+    const ySel = h('select', { 'aria-label': 'Year' });
+    for (let y = Math.min(s.y, yNow - 6); y <= Math.max(s.y, yNow + 6); y++) ySel.append(h('option', { value: y, text: y }));
+    ySel.value = s.y; ySel.onchange = () => { s.y = +ySel.value; draw(); refocus(); };
+    pop.append(h('div', { class: 'calhd' },
+      h('button', { type: 'button', class: 'calnav', 'aria-label': 'Previous month', text: '‹', onclick: () => shift(-1) }),
+      mSel, ySel,
+      h('button', { type: 'button', class: 'calnav', 'aria-label': 'Next month', text: '›', onclick: () => shift(1) })));
+    if (s.title) pop.append(h('div', { class: 'caltitle', text: s.title }));
+    const grid = h('div', { class: 'calgrid', role: 'grid' });
+    ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].forEach((w) => grid.append(h('span', { class: 'calw', text: w })));
+    const lead = (D.parts(first).w + 6) % 7;
+    const today = D.todayDay();
+    for (let i = 0; i < lead; i++) grid.append(h('span'));
+    for (let d = first; d < nextM; d++) {
+      const ok = allowed(d);
+      const cls = ['cald'];
+      if (s.value === d) cls.push('sel');
+      if (s.dataDate === d) cls.push('dd');
+      if (s.ref === d) cls.push('ref');
+      if (d === today) cls.push('today');
+      if (s.cal && !s.cal.isWork(d)) cls.push('off');
+      if (!ok) cls.push('no');
+      const tip = D.fmtLong(d) + (s.dataDate === d ? ' · Data Date' : '') + (s.ref === d ? ' · ' + (s.refLabel || 'Plan') : '') + (s.cal && !s.cal.isWork(d) ? ' · non-working day' : '') + (!ok ? (s.max != null && d > s.max ? ' · actuals must be before the Data Date' : ' · not allowed') : '');
+      grid.append(h('button', { type: 'button', class: cls.join(' '), text: String(D.parts(d).d), title: tip, disabled: !ok, 'aria-label': tip, onclick: () => pick(d) }));
+    }
+    pop.append(grid);
+    const foot = h('div', { class: 'calft' });
+    (s.quick || []).forEach(([label, d]) => { if (d == null || allowed(d)) foot.append(h('button', { type: 'button', class: 'btn sm', text: label, onclick: () => pick(d) })); });
+    pop.append(foot);
+    pop.append(h('div', { class: 'callg', html: '<i class="lg-dd"></i>Data Date' + (s.ref != null ? ' <i class="lg-ref"></i>' + UI.esc(s.refLabel || 'Plan') : '') + (s.cal ? ' <i class="lg-off"></i>Holiday / off' : '') }));
+  }
+  /** move the visible month to follow a date typed in the input */
+  function follow(d) {
+    if (!pop || d == null) return;
+    const p = D.parts(d);
+    state.value = d;
+    state.y = p.y; state.m = p.m;
+    draw();
+  }
+
+  /**
+   * attach(input, opts|fn): adds a calendar button to a text date input. Picking a
+   * date writes it as dd-Mmm-yy and fires 'change' so existing handlers apply it.
+   */
+  function attach(input, opts) {
+    const get = () => Object.assign({}, typeof opts === 'function' ? opts() : opts || {});
+    const btn = h('button', { type: 'button', class: 'calbtn', title: 'Pick from calendar', 'aria-label': 'Open calendar', html: '&#128197;' });
+    const wrap = h('span', { class: 'datewrap' });
+    const show = () => {
+      if (input.disabled) return;
+      if (isOpen() && state && state.anchor === wrap) { close(); return; }
+      const o = get();
+      const cur = D.parseDate(input.value);
+      const S = UI.S, P = S && S.P;
+      const dd = P ? P.meta.dataDate : null;
+      open(wrap, Object.assign({
+        value: cur ? cur.day : null, dataDate: dd, keep: input,
+        quick: [['Clear', null]],
+        onPick: (d) => { input.value = d == null ? '' : D.fmt(d); input.dispatchEvent(new Event('change', { bubbles: true })); input.dispatchEvent(new Event('input', { bubbles: true })); }
+      }, o));
+    };
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
+    btn.addEventListener('click', (e) => { e.stopPropagation(); show(); });
+    input.addEventListener('click', () => { if (!isOpen() || !state || state.anchor !== wrap) show(); });
+    input.addEventListener('keydown', (e) => { if ((e.key === 'ArrowDown' && e.altKey) || e.key === 'F4') { e.preventDefault(); show(); } else if (e.key === 'Escape' || e.key === 'Tab') close(); });
+    input.addEventListener('input', () => { if (isOpen() && state && state.anchor === wrap) { const p = D.parseDate(input.value); if (p) follow(p.day); } });
+    input.addEventListener('blur', () => setTimeout(() => { if (isOpen() && state && state.anchor === wrap && document.activeElement !== input && !pop.contains(document.activeElement)) close(); }, 150));
+    input.classList.add('has-cal');
+    btn.disabled = !!input.disabled;
+    // wrap after the input is in the DOM (or immediately if it already is)
+    const doWrap = () => { if (input.parentNode && input.parentNode !== wrap) { input.parentNode.insertBefore(wrap, input); wrap.append(input, btn); } };
+    if (input.parentNode) doWrap(); else { wrap.append(input, btn); }
+    input._calWrap = wrap;
+    return wrap;
+  }
+
+  /** options for an activity date field (aStart / aFinish / expFinish) */
+  function actOpts(P, a, key) {
+    const dd = P.meta.dataDate;
+    const ref = key === 'aStart' ? P.refStart(a) : P.refFinish(a);
+    const quick = [];
+    if (key === 'expFinish') {
+      const c = P.cal(a);
+      [7, 14, 30].forEach((n) => quick.push(['+' + n + 'd', c.add(c.next(dd), n)]));
+    } else {
+      if (ref != null && ref < dd) quick.push(['Plan ' + D.fmt(ref), ref]);
+      if (key === 'aFinish' && a.aStart != null && a.origDur) { const f = P.cal(a).finishFrom(P.cal(a).next(a.aStart), a.origDur); if (f < dd) quick.push(['As per duration ' + D.fmt(f), f]); }
+      quick.push(['DD-1 ' + D.fmt(dd - 1), dd - 1]);
+      quick.push(['Clear', null]);
+    }
+    return {
+      title: (key === 'aStart' ? 'Actual Start' : key === 'aFinish' ? 'Actual Finish' : 'Expected Finish') + ' · ' + a.code,
+      ref, refLabel: 'Plan', cal: P.cal(a), dataDate: dd,
+      max: key === 'expFinish' ? null : dd - 1, min: key === 'expFinish' ? dd : (key === 'aFinish' && a.aStart != null ? a.aStart : null),
+      quick
+    };
+  }
+
+  UI.cal = { open, close, attach, follow, isOpen, actOpts };
 })();
 
 /* ---- ui/grid.js ---- */
@@ -7571,30 +7804,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     editor = { inp, i, colId, uid: a.uid, hint: null, listId };
     $('#gspacer').append(inp);
     if (c.edit === 'date') {
-      const hint = h('div', { class: 'edhint' });
-      editor.hint = hint;
-      $('#gspacer').append(hint);
-      const upd = () => {
-        const v = inp.value.trim().toLowerCase();
-        let msg = '';
-        if (!v) msg = '<span>Blank = clear the date</span>';
-        else if (v === 'p' || v === 'plan') msg = '<span class="ok">→ planned ' + D.fmt(colId === 'aStart' ? S.P.refStart(a) : S.P.refFinish(a)) + '</span>';
-        else if (v === 'dd') msg = '<span class="ok">→ ' + D.fmt(S.P.meta.dataDate - 1) + ' (day before Data Date)</span>';
-        else if (v === 't') msg = '<span class="ok">→ today ' + D.fmt(D.todayDay()) + '</span>';
-        else { const p = D.parseDate(inp.value); msg = p ? '<span class="ok">→ ' + D.fmtLong(p.day) + ' (' + ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][D.parts(p.day).w] + ')</span>' : '<span class="no">Not a date yet…</span>'; }
-        hint.innerHTML = '<div>' + msg + '</div>';
-        const q = h('div', { class: 'q' });
-        const ref = colId === 'aStart' ? S.P.refStart(a) : S.P.refFinish(a);
-        const opts = [];
-        if (colId !== 'expFinish' && ref != null && ref < S.P.meta.dataDate) opts.push(['Plan ' + D.fmt(ref), D.fmt(ref)]);
-        if (colId !== 'expFinish') opts.push(['DD-1 ' + D.fmt(S.P.meta.dataDate - 1), D.fmt(S.P.meta.dataDate - 1)]);
-        if (colId === 'expFinish') { const c2 = S.P.cal(a); [7, 14, 30].forEach((n) => opts.push(['+' + n + 'd', D.fmt(c2.add(c2.next(S.P.meta.dataDate), n))])); }
-        opts.push(['Clear', '']);
-        opts.forEach(([l, v2]) => q.append(h('button', { type: 'button', text: l, onmousedown: (e) => { e.preventDefault(); inp.value = v2; commit(); } })));
-        hint.append(q);
-      };
-      inp.addEventListener('input', upd);
-      upd();
+      // click-and-select calendar under the cell; typing still works (p = plan, dd = day before DD, t = today)
+      const o = ['aStart', 'aFinish', 'expFinish'].includes(colId) ? UI.cal.actOpts(S.P, a, colId) : { title: c.label, dataDate: S.P.meta.dataDate, quick: [['Clear', null]] };
+      const p0 = D.parseDate(inp.value);
+      editor.cal = true;
+      requestAnimationFrame(() => {
+        if (!editor || editor.inp !== inp) return;
+        UI.cal.open(inp, Object.assign(o, { value: p0 ? p0.day : null, keep: inp, onPick: (d) => { if (!editor || editor.inp !== inp) return; inp.value = d == null ? '' : D.fmt(d); commit(0); } }));
+      });
+      inp.addEventListener('input', () => { const p = D.parseDate(inp.value); if (p) UI.cal.follow(p.day); });
     }
     positionEditor();
     inp.focus({ preventScroll: true });
@@ -7610,7 +7828,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       else if (e.key === 'Escape') { e.preventDefault(); closeEditor(); $('#gbody').focus(); }
       e.stopPropagation();
     });
-    inp.addEventListener('blur', () => { setTimeout(() => { if (editor && editor.inp === inp && document.activeElement !== inp) commit(0); }, 150); });
+    inp.addEventListener('blur', () => { setTimeout(() => { if (editor && editor.inp === inp && document.activeElement !== inp && !(document.activeElement && document.activeElement.closest && document.activeElement.closest('.calpop'))) commit(0); }, 150); });
   }
   function whyLocked(c, a) {
     if (a.status === 'CO' && (c.id === 'pct' || c.id === 'remDur' || c.id === 'expFinish')) return 'Completed activity. Clear the Actual Finish to re-open it.';
@@ -7631,6 +7849,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function closeEditor() {
     if (!editor) return;
     const e = editor; editor = null;
+    if (e.cal) UI.cal.close();
     e.inp.remove(); if (e.hint) e.hint.remove();
     if (e.listId) { const dl = document.getElementById(e.listId); if (dl) dl.remove(); }
   }
@@ -8418,6 +8637,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       const i = h('input', { id: 'det_' + key, value: D.fmt(a[key]), placeholder: 'dd-mmm-yy', autocomplete: 'off' });
       i.addEventListener('change', () => { const r = apply({ [key]: i.value }, (key === 'aStart' ? 'Actual Start' : 'Actual Finish')); if (r.errors.length) i.focus(); });
       i.addEventListener('keydown', (e) => { if (e.key === 'Enter') i.blur(); });
+      UI.cal.attach(i, () => UI.cal.actOpts(P, a, key));
       return i;
     };
     const asIn = dateIn('aStart'), afIn = dateIn('aFinish');
@@ -8430,6 +8650,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     rdIn.onchange = () => apply({ remDur: rdIn.value }, 'Remaining Duration');
     const efIn = h('input', { id: 'det_ef', value: a.status === 'CO' ? '' : D.fmt(a.eFinish), placeholder: 'dd-mmm-yy', disabled: ms || a.status === 'CO' });
     efIn.onchange = () => { if (efIn.value.trim()) apply({ expFinish: efIn.value }, 'Expected Finish'); };
+    UI.cal.attach(efIn, () => UI.cal.actOpts(P, a, 'expFinish'));
     const rs = P.refStart(a), rf = P.refFinish(a), dd = P.meta.dataDate;
     const quick = h('div', { class: 'quick', style: { gridColumn: '1 / -1' } });
     const q = (label, changes, title) => quick.append(h('button', { type: 'button', text: label, title: title || label, onclick: () => apply(changes, label) }));
@@ -8441,11 +8662,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     if (!ms && a.status !== 'CO') quick.append(h('button', { type: 'button', text: 'Qty calculator…', onclick: () => qtyDialog(a.uid) }));
     const form = h('div', { class: 'form' },
       field('Status', h('div', { class: 'ro', html: '<span class="pill ' + a.status + '">' + SE.STATUS[a.status] + '</span>' + (a.crit && a.status !== 'CO' ? ' <b class="crit-t">Critical</b>' : '') })),
-      field('Actual Start', asIn, 'Plan ' + D.fmt(rs) + ' · shortcuts: <b>p</b> plan, <b>dd</b> day before DD'),
-      field('Actual Finish', afIn, a.status === 'CO' ? 'Clear it to re-open the activity' : 'Plan ' + D.fmt(rf)),
+      field('Actual Start', asIn._calWrap, 'Plan ' + D.fmt(rs) + ' · shortcuts: <b>p</b> plan, <b>dd</b> day before DD'),
+      field('Actual Finish', afIn._calWrap, a.status === 'CO' ? 'Clear it to re-open the activity' : 'Plan ' + D.fmt(rf)),
       ms ? null : field('% Complete', h('div', { class: 'inrow', style: { alignItems: 'center' } }, pctRange, pctNum), a.prev ? 'Last update: ' + Math.round(a.prev.status === 'CO' ? 100 : a.prev.pct || 0) + '%' + (a.pctType === 'dur' ? ' · duration % type' : '') : ''),
       ms ? null : field('Remaining Duration (d)', rdIn, 'Original ' + a.origDur + 'd'),
-      ms ? null : field('Expected Finish', efIn, 'Sets remaining duration from the Data Date'),
+      ms ? null : field('Expected Finish', efIn._calWrap, 'Sets remaining duration from the Data Date'),
       quick);
     const cmp = h('div', { class: 'cmp' });
     const row = (l, x, y) => { cmp.append(h('span', { text: l, style: { color: 'var(--ink-3)' } }), h('span', { html: x }), h('span', { html: y })); };
@@ -8531,8 +8752,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       const nq = { unit: unit.value.trim(), scope: scope.value === '' ? null : +scope.value, done: cum.value === '' ? 0 : +cum.value, items: q.items, base: q.base };
       const p = pctOut();
       if (withPct && p != null && p >= 100) {
-        const afIn = h('input', { class: 'inp', value: D.fmt(P.meta.dataDate - 1), id: 'q_af' });
-        return modal('Quantity is 100% - enter the Actual Finish', h('div', null, h('p', { text: 'An activity reaches 100% only with an Actual Finish date (before ' + D.fmtLong(P.meta.dataDate) + ').' }), afIn), [
+        const pv = P.normalize(a, { pct: 100 });
+        const afIn = h('input', { class: 'inp', value: D.fmt(pv.changes.aFinish != null ? pv.changes.aFinish : a.aFinish != null ? a.aFinish : P.meta.dataDate - 1), id: 'q_af' });
+        UI.cal.attach(afIn, { max: P.meta.dataDate - 1 });
+        return modal('Quantity is 100% - confirm the Actual Finish', h('div', null, h('p', { text: 'Proposed as per duration (Actual Start + Original Duration). It must be before the Data Date ' + D.fmtLong(P.meta.dataDate) + '.' }),
+          pv.warnings.filter((w) => /^Concern/.test(w)).map((w) => h('div', { class: 'msg w', text: w })), afIn._calWrap), [
           { label: 'Cancel', value: null },
           { label: 'Complete activity', cls: 'pri', action: () => { const r = UI.applyPatches([{ uid: a.uid, changes: { qty: nq, aFinish: afIn.value } }], 'Qty complete ' + a.code); return r.errors.length ? false : true; } }
         ], 'narrow').then((v) => { if (v && done) done(); });
@@ -8897,6 +9121,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     const wSel = h('select', { class: 'inp', id: 'set_w' }, h('option', { value: 'duration', text: 'Original duration (default)' }), h('option', { value: 'equal', text: 'Equal weight per activity' }));
     wSel.value = P.settings.weight;
     const mf = h('input', { class: 'inp', id: 'set_mf', value: D.fmt(P.meta.mustFinish), placeholder: 'none' });
+    UI.cal.attach(mf, () => ({ title: 'Must finish by', min: P.meta.dataDate, ref: P.meta.projFinish != null ? P.meta.projFinish : null, refLabel: 'Forecast finish' }));
     const cals = Object.values(P.calendars).map((c) => '<tr><td>' + esc(c.name) + (c.id === P.defaultCalId ? ' <b>(default)</b>' : '') + '</td><td>' + ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((x, i) => c.workWeek[i] ? '<b>' + x + '</b>' : '<span style="opacity:.35">' + x + '</span>').join(' ') + '</td><td>' + c.hoursPerDay + 'h</td><td>' + c.holidays.size + '</td><td>' + P.acts.filter((a) => a.calId === c.id).length + '</td></tr>').join('');
     const body = h('div', null,
       h('h3', { style: { marginTop: 0 }, text: 'Area, Building & EPC grouping' }),
@@ -8907,7 +9132,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         cb('set_ul', 'Use relationships', P.settings.useLogic, 'Off = date-driven: keep planned dates, push only what is late to the Data Date (for Excel/PDF schedules without logic).'),
         cb('set_lr', 'Link remaining duration to %', P.settings.linkRemaining, 'Typing % re-calculates remaining duration = original × (1 − %).'),
         cb('set_af', 'Smart auto-fill of actual start', P.settings.smartAutofill, 'Progress without an Actual Start fills it from the plan (shown as a note).'),
-        field('Must finish by', mf, 'Drives late dates & negative float'),
+        field('Must finish by', mf._calWrap, 'Drives late dates & negative float'),
         field('Progress weighting', wSel)),
       h('h3', { text: 'Calendars' }),
       h('table', { class: 't', html: '<thead><tr><th>Calendar</th><th>Work week</th><th>Hours/day</th><th>Holidays</th><th>Activities</th></tr></thead><tbody>' + cals + '</tbody>' }));
@@ -9094,7 +9319,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       });
     });
     const lab = (t, el) => h('div', null, h('label', { text: t }), el);
-    ins.append(lab('Actual start', as), lab('Actual finish', af), lab('% complete', h('div', { class: 'pctin' }, pr, pn)), lab('Rem. days', rd), quick);
+    UI.cal.attach(as, () => UI.cal.actOpts(P, a, 'aStart'));
+    UI.cal.attach(af, () => UI.cal.actOpts(P, a, 'aFinish'));
+    ins.append(lab('Actual start', as._calWrap), lab('Actual finish', af._calWrap), lab('% complete', h('div', { class: 'pctin' }, pr, pn)), lab('Rem. days', rd), quick);
     row.append(who, plan, ins, msg, cline);
     sync();
     return row;
@@ -9684,7 +9911,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       '<div><em>STEP 4</em><b>Schedule F9</b><span>CPM with calendars, lags, constraints, retained logic; health check</span></div>' +
       '<div><em>STEP 5</em><b>Export</b><span>XER back to P6, Excel with Update Sheet, PDF Gantt, HTML report</span></div>' });
     const feat = h('div', { class: 'feat', html:
-      '<div><h4>Mistake-proof updating</h4><p>Actual dates after the Data Date, 100% without a finish, progress without a start, finish before start - blocked with a clear message and a fix.</p></div>' +
+      '<div><h4>Mistake-proof updating</h4><p>Actual dates after the Data Date, progress without a start, finish before start - blocked with a clear message and a fix.</p></div>' +
       '<div><h4>Quantity-based %</h4><p>Scope vs completed quantity, this-month quantities and weighted steps (rules of credit) turn site figures into a defensible % complete.</p></div>' +
       '<div><h4>Ask the engine</h4><p>Type "delayed in Green Pelletizing Building", "pellet-2 progress", "procurement progress" or "critical next 30 days" and the schedule filters itself.</p></div>' +
       '<div><h4>Building-wise & EPC-wise</h4><p>Buildings and Engineering / Procurement / Construction are detected from codes, WBS or activity names - and you can override them.</p></div>' +

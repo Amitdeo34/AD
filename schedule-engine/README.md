@@ -10,7 +10,7 @@ building-wise / WBS-wise / EPC-wise **quantity one-pagers** as PowerPoint, PDF a
 It is **one HTML file** that works fully offline: no install, no P6 licence, no upload.
 
 ```
-dist/ScheduleEngine.html      ← the app. Copy it anywhere and double-click it (Chrome / Edge).
+dist/Schedule 📅.html         ← the app. Copy it anywhere and double-click it (Chrome / Edge).
 samples/                      ← demo XER + example outputs
 ```
 
@@ -20,7 +20,7 @@ If this repository is deployed, the same page is served at **`/schedule-engine`*
 
 ## Quick start (Hinglish)
 
-1. `dist/ScheduleEngine.html` ko Chrome/Edge me kholo (double-click). Internet ki zarurat nahi.
+1. `dist/Schedule 📅.html` ko Chrome/Edge me kholo (double-click). Internet ki zarurat nahi.
 2. **Open…** → pichle mahine ki `.xer` (ya Excel / PDF / MS Project XML) chuno.
    Try karna ho to **Try the demo project** dabao.
 3. Engine naya **Data Date** poochega (default: agle mahine ki 1 tareekh). Set karo.
@@ -35,8 +35,13 @@ If this repository is deployed, the same page is served at **`/schedule-engine`*
 6. **F9** dabao (Schedule). Dates, float aur critical path recalculate ho jaate hain.
 7. **Health Check** dekho, phir **Export** karo: XER (P6 me import), Excel, PDF, HTML, one-pagers.
 
-Galti se bachane ke rules: Actual date Data Date ke baad nahi ho sakti. 100% ke liye Actual Finish
-chahiye. Finish, Start se pehle nahi ho sakta. Complete activity lock rehti hai. Milestone me % nahi
+Har date field (grid cell, Easy Update, details panel) me 📅 calendar hai: click karke date select
+karo. Data Date ke baad ki dates band (grey) rehti hain; Plan, "As per duration", DD-1 aur Clear
+ke quick buttons hain. 100% dalne par Actual Finish = Actual Start + Original Duration apne aap
+lag jata hai; agar woh date Data Date ke baad aati hai to finish DD-1 par rakha jata hai aur
+"Progress data to verify" concern raise hota hai (Concerns register me dikhta hai).
+
+Galti se bachane ke rules: Actual date Data Date ke baad nahi ho sakti. Finish, Start se pehle nahi ho sakta. Complete activity lock rehti hai. Milestone me % nahi
 hota. Out-of-sequence aur logic loops flag hote hain.
 
 ---
@@ -71,7 +76,8 @@ selector (any WBS level with sample names, or an activity code) and an **Area na
 
 **Mistake-proof progress rules.**
 - Actuals must be before the Data Date.
-- 100% needs an Actual Finish.
+- 100% sets the Actual Finish as per duration (Actual Start + Original Duration). If that date is
+  on/after the Data Date, the finish is capped to the day before and a concern is raised.
 - Progress needs an Actual Start (auto-filled from the plan and flagged).
 - Completed work is locked until re-opened.
 - Milestones take dates, not %.
@@ -82,7 +88,7 @@ There is undo/redo and a full change log.
 
 **Quantity-based %.** Enter scope, last-update quantity and this month's quantity to get
 cumulative done and physical %. Weighted steps (rules of credit) cover RCC, steel, MEP and
-engineering. Reaching 100% asks for the Actual Finish.
+engineering. Reaching 100% proposes the Actual Finish as per duration, for you to confirm.
 
 **P6-style scheduling (F9).**
 - CPM with FS/SS/FF/SF relationships, lags and leads.
@@ -234,7 +240,7 @@ The engine then:
 ```bash
 cd schedule-engine
 npm test                 # core engine tests (dates, calendars, CPM, rules, XER, lenses, importers, quantities)
-npm run build            # → dist/ScheduleEngine.html and ../public/schedule-engine/index.html
+npm run build            # → "dist/Schedule 📅.html" and ../public/schedule-engine/index.html
 npm run sample           # regenerate samples/ (needs pptxgenjs installed for the .pptx)
 ```
 

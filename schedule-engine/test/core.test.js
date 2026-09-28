@@ -74,8 +74,6 @@ test('progress rules block impossible updates', () => {
   let r = P.apply([{ uid: 'A', changes: { aStart: '15-Jan-26' } }]);
   assert.equal(r.applied, 0);
   assert.match(r.errors[0].msg, /Data Date/);
-  r = P.apply([{ uid: 'A', changes: { pct: 100 } }]);
-  assert.match(r.errors[0].msg, /Actual Finish/);
   r = P.apply([{ uid: 'A', changes: { pct: 40 } }]);
   assert.equal(r.applied, 1);
   assert.equal(a.status, 'IP');
@@ -89,6 +87,31 @@ test('progress rules block impossible updates', () => {
   assert.ok(r.errors.length);
   P.undo(); P.undo();
   assert.equal(a.status, 'NS');
+});
+
+test('100% takes Actual Finish as per duration and raises a concern when that is after the Data Date', () => {
+  const P = mini();
+  P.meta.dataDate = D.dayOf(2026, 0, 19); // Mon
+  const a = P.act('A'), b = P.act('B');
+  // A: 5d from Mon 5-Jan → Fri 9-Jan, before the Data Date
+  let r = P.apply([{ uid: 'A', changes: { aStart: '05-Jan-26' } }]);
+  r = P.apply([{ uid: 'A', changes: { pct: 100 } }]);
+  assert.equal(r.errors.length, 0);
+  assert.equal(D.fmt(a.aFinish), '09-Jan-26');
+  assert.equal(a.status, 'CO'); assert.equal(a.remDur, 0);
+  assert.ok(!a.concern || !a.concern.text);
+  // B: 3d from Thu 15-Jan → Mon 19-Jan = on the Data Date → capped to Fri 16-Jan + concern
+  P.apply([{ uid: 'B', changes: { aStart: '15-Jan-26' } }]);
+  r = P.apply([{ uid: 'B', changes: { pct: 100 } }]);
+  assert.equal(r.errors.length, 0);
+  assert.equal(D.fmt(b.aFinish), '16-Jan-26');
+  assert.ok(r.warnings.some((w) => /^Concern: As per duration the finish would be 19-Jan-26/.test(w.msg)));
+  assert.equal(b.concern.cat, 'Progress data to verify');
+  assert.ok(b.concern.auto);
+  // entering the real finish date clears the automatic concern
+  P.apply([{ uid: 'B', changes: { aFinish: '16-Jan-26' } }]);
+  r = P.apply([{ uid: 'B', changes: { aFinish: '15-Jan-26' } }]);
+  assert.equal(b.concern, null);
 });
 
 test('XER round trip keeps activities, logic, codes and progress', () => {

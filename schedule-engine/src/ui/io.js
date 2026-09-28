@@ -386,7 +386,7 @@
       '<div><em>STEP 4</em><b>Schedule F9</b><span>CPM with calendars, lags, constraints, retained logic; health check</span></div>' +
       '<div><em>STEP 5</em><b>Export</b><span>XER back to P6, Excel with Update Sheet, PDF Gantt, HTML report</span></div>' });
     const feat = h('div', { class: 'feat', html:
-      '<div><h4>Mistake-proof updating</h4><p>Actual dates after the Data Date, 100% without a finish, progress without a start, finish before start - blocked with a clear message and a fix.</p></div>' +
+      '<div><h4>Mistake-proof updating</h4><p>Actual dates after the Data Date, progress without a start, finish before start - blocked with a clear message and a fix.</p></div>' +
       '<div><h4>Quantity-based %</h4><p>Scope vs completed quantity, this-month quantities and weighted steps (rules of credit) turn site figures into a defensible % complete.</p></div>' +
       '<div><h4>Ask the engine</h4><p>Type "delayed in Green Pelletizing Building", "pellet-2 progress", "procurement progress" or "critical next 30 days" and the schedule filters itself.</p></div>' +
       '<div><h4>Building-wise & EPC-wise</h4><p>Buildings and Engineering / Procurement / Construction are detected from codes, WBS or activity names - and you can override them.</p></div>' +

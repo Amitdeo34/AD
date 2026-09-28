@@ -612,3 +612,33 @@ table.cnt a.lnk { color: var(--accent); text-decoration: none; font-weight: 600;
 .tlsvg .tlms { cursor: pointer; }
 
 .gempty { position: absolute; left: 0; right: 0; top: 30px; text-align: center; color: var(--ink-2); font-family: var(--font); line-height: 2; }
+
+/* ---------- calendar date picker ---------- */
+.datewrap { display: inline-flex; align-items: stretch; position: relative; width: 100%; min-width: 0; }
+.datewrap > input { flex: 1; min-width: 0; padding-right: 30px !important; }
+.calbtn { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); border: 0; background: transparent; cursor: pointer; font-size: 14px; line-height: 1; padding: 4px 5px; border-radius: 4px; opacity: .8; }
+.calbtn:hover { background: var(--hover); opacity: 1; }
+.calbtn:disabled { opacity: .3; cursor: default; }
+.calpop { position: fixed; z-index: 95; width: 268px; background: var(--surface); border: 1px solid var(--line-2); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 10px; font-size: 12.5px; color: var(--ink); user-select: none; }
+.calhd { display: grid; grid-template-columns: 28px 1fr 74px 28px; gap: 4px; align-items: center; margin-bottom: 6px; }
+.calhd select { font: inherit; font-weight: 700; padding: 3px 4px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); color: var(--ink); min-width: 0; }
+.calnav { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 5px; height: 26px; cursor: pointer; font-size: 16px; line-height: 1; }
+.calnav:hover { background: var(--hover); }
+.caltitle { font-size: 11px; color: var(--ink-3); font-weight: 600; margin: 0 2px 4px; }
+.calgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.calw { text-align: center; font-size: 10.5px; font-weight: 700; color: var(--ink-3); padding: 2px 0; }
+.cald { height: 30px; border: 1px solid transparent; background: transparent; color: var(--ink); border-radius: 6px; cursor: pointer; font: inherit; position: relative; }
+.cald:hover:not(:disabled) { background: var(--hover); border-color: var(--line-2); }
+.cald.off { color: var(--ink-3); background: repeating-linear-gradient(135deg, transparent 0 4px, var(--hover) 4px 6px); }
+.cald.today { font-weight: 800; text-decoration: underline; }
+.cald.ref { border-color: #F5A623; }
+.cald.dd { box-shadow: inset 0 -3px 0 #E4002B; font-weight: 700; }
+.cald.sel { background: var(--brand-2, #005EB8); color: #fff; font-weight: 700; }
+.cald.no, .cald:disabled { opacity: .3; cursor: not-allowed; }
+.calft { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.calft .btn { font-size: 11px; padding: 3px 7px; }
+.callg { margin-top: 6px; font-size: 10.5px; color: var(--ink-3); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.callg i { display: inline-block; width: 12px; height: 8px; border-radius: 2px; margin-left: 4px; }
+.callg .lg-dd { background: #E4002B; height: 3px; }
+.callg .lg-ref { border: 1.5px solid #F5A623; }
+.callg .lg-off { background: repeating-linear-gradient(135deg, transparent 0 2px, var(--line-2) 2px 4px); }

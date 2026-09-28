@@ -64,6 +64,7 @@
       const i = h('input', { id: 'det_' + key, value: D.fmt(a[key]), placeholder: 'dd-mmm-yy', autocomplete: 'off' });
       i.addEventListener('change', () => { const r = apply({ [key]: i.value }, (key === 'aStart' ? 'Actual Start' : 'Actual Finish')); if (r.errors.length) i.focus(); });
       i.addEventListener('keydown', (e) => { if (e.key === 'Enter') i.blur(); });
+      UI.cal.attach(i, () => UI.cal.actOpts(P, a, key));
       return i;
     };
     const asIn = dateIn('aStart'), afIn = dateIn('aFinish');
@@ -76,6 +77,7 @@
     rdIn.onchange = () => apply({ remDur: rdIn.value }, 'Remaining Duration');
     const efIn = h('input', { id: 'det_ef', value: a.status === 'CO' ? '' : D.fmt(a.eFinish), placeholder: 'dd-mmm-yy', disabled: ms || a.status === 'CO' });
     efIn.onchange = () => { if (efIn.value.trim()) apply({ expFinish: efIn.value }, 'Expected Finish'); };
+    UI.cal.attach(efIn, () => UI.cal.actOpts(P, a, 'expFinish'));
     const rs = P.refStart(a), rf = P.refFinish(a), dd = P.meta.dataDate;
     const quick = h('div', { class: 'quick', style: { gridColumn: '1 / -1' } });
     const q = (label, changes, title) => quick.append(h('button', { type: 'button', text: label, title: title || label, onclick: () => apply(changes, label) }));
@@ -87,11 +89,11 @@
     if (!ms && a.status !== 'CO') quick.append(h('button', { type: 'button', text: 'Qty calculator…', onclick: () => qtyDialog(a.uid) }));
     const form = h('div', { class: 'form' },
       field('Status', h('div', { class: 'ro', html: '<span class="pill ' + a.status + '">' + SE.STATUS[a.status] + '</span>' + (a.crit && a.status !== 'CO' ? ' <b class="crit-t">Critical</b>' : '') })),
-      field('Actual Start', asIn, 'Plan ' + D.fmt(rs) + ' · shortcuts: <b>p</b> plan, <b>dd</b> day before DD'),
-      field('Actual Finish', afIn, a.status === 'CO' ? 'Clear it to re-open the activity' : 'Plan ' + D.fmt(rf)),
+      field('Actual Start', asIn._calWrap, 'Plan ' + D.fmt(rs) + ' · shortcuts: <b>p</b> plan, <b>dd</b> day before DD'),
+      field('Actual Finish', afIn._calWrap, a.status === 'CO' ? 'Clear it to re-open the activity' : 'Plan ' + D.fmt(rf)),
       ms ? null : field('% Complete', h('div', { class: 'inrow', style: { alignItems: 'center' } }, pctRange, pctNum), a.prev ? 'Last update: ' + Math.round(a.prev.status === 'CO' ? 100 : a.prev.pct || 0) + '%' + (a.pctType === 'dur' ? ' · duration % type' : '') : ''),
       ms ? null : field('Remaining Duration (d)', rdIn, 'Original ' + a.origDur + 'd'),
-      ms ? null : field('Expected Finish', efIn, 'Sets remaining duration from the Data Date'),
+      ms ? null : field('Expected Finish', efIn._calWrap, 'Sets remaining duration from the Data Date'),
       quick);
     const cmp = h('div', { class: 'cmp' });
     const row = (l, x, y) => { cmp.append(h('span', { text: l, style: { color: 'var(--ink-3)' } }), h('span', { html: x }), h('span', { html: y })); };
@@ -177,8 +179,11 @@
       const nq = { unit: unit.value.trim(), scope: scope.value === '' ? null : +scope.value, done: cum.value === '' ? 0 : +cum.value, items: q.items, base: q.base };
       const p = pctOut();
       if (withPct && p != null && p >= 100) {
-        const afIn = h('input', { class: 'inp', value: D.fmt(P.meta.dataDate - 1), id: 'q_af' });
-        return modal('Quantity is 100% - enter the Actual Finish', h('div', null, h('p', { text: 'An activity reaches 100% only with an Actual Finish date (before ' + D.fmtLong(P.meta.dataDate) + ').' }), afIn), [
+        const pv = P.normalize(a, { pct: 100 });
+        const afIn = h('input', { class: 'inp', value: D.fmt(pv.changes.aFinish != null ? pv.changes.aFinish : a.aFinish != null ? a.aFinish : P.meta.dataDate - 1), id: 'q_af' });
+        UI.cal.attach(afIn, { max: P.meta.dataDate - 1 });
+        return modal('Quantity is 100% - confirm the Actual Finish', h('div', null, h('p', { text: 'Proposed as per duration (Actual Start + Original Duration). It must be before the Data Date ' + D.fmtLong(P.meta.dataDate) + '.' }),
+          pv.warnings.filter((w) => /^Concern/.test(w)).map((w) => h('div', { class: 'msg w', text: w })), afIn._calWrap), [
           { label: 'Cancel', value: null },
           { label: 'Complete activity', cls: 'pri', action: () => { const r = UI.applyPatches([{ uid: a.uid, changes: { qty: nq, aFinish: afIn.value } }], 'Qty complete ' + a.code); return r.errors.length ? false : true; } }
         ], 'narrow').then((v) => { if (v && done) done(); });
@@ -543,6 +548,7 @@
     const wSel = h('select', { class: 'inp', id: 'set_w' }, h('option', { value: 'duration', text: 'Original duration (default)' }), h('option', { value: 'equal', text: 'Equal weight per activity' }));
     wSel.value = P.settings.weight;
     const mf = h('input', { class: 'inp', id: 'set_mf', value: D.fmt(P.meta.mustFinish), placeholder: 'none' });
+    UI.cal.attach(mf, () => ({ title: 'Must finish by', min: P.meta.dataDate, ref: P.meta.projFinish != null ? P.meta.projFinish : null, refLabel: 'Forecast finish' }));
     const cals = Object.values(P.calendars).map((c) => '<tr><td>' + esc(c.name) + (c.id === P.defaultCalId ? ' <b>(default)</b>' : '') + '</td><td>' + ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((x, i) => c.workWeek[i] ? '<b>' + x + '</b>' : '<span style="opacity:.35">' + x + '</span>').join(' ') + '</td><td>' + c.hoursPerDay + 'h</td><td>' + c.holidays.size + '</td><td>' + P.acts.filter((a) => a.calId === c.id).length + '</td></tr>').join('');
     const body = h('div', null,
       h('h3', { style: { marginTop: 0 }, text: 'Area, Building & EPC grouping' }),
@@ -553,7 +559,7 @@
         cb('set_ul', 'Use relationships', P.settings.useLogic, 'Off = date-driven: keep planned dates, push only what is late to the Data Date (for Excel/PDF schedules without logic).'),
         cb('set_lr', 'Link remaining duration to %', P.settings.linkRemaining, 'Typing % re-calculates remaining duration = original × (1 − %).'),
         cb('set_af', 'Smart auto-fill of actual start', P.settings.smartAutofill, 'Progress without an Actual Start fills it from the plan (shown as a note).'),
-        field('Must finish by', mf, 'Drives late dates & negative float'),
+        field('Must finish by', mf._calWrap, 'Drives late dates & negative float'),
         field('Progress weighting', wSel)),
       h('h3', { text: 'Calendars' }),
       h('table', { class: 't', html: '<thead><tr><th>Calendar</th><th>Work week</th><th>Hours/day</th><th>Holidays</th><th>Activities</th></tr></thead><tbody>' + cals + '</tbody>' }));
@@ -740,7 +746,9 @@
       });
     });
     const lab = (t, el) => h('div', null, h('label', { text: t }), el);
-    ins.append(lab('Actual start', as), lab('Actual finish', af), lab('% complete', h('div', { class: 'pctin' }, pr, pn)), lab('Rem. days', rd), quick);
+    UI.cal.attach(as, () => UI.cal.actOpts(P, a, 'aStart'));
+    UI.cal.attach(af, () => UI.cal.actOpts(P, a, 'aFinish'));
+    ins.append(lab('Actual start', as._calWrap), lab('Actual finish', af._calWrap), lab('% complete', h('div', { class: 'pctin' }, pr, pn)), lab('Rem. days', rd), quick);
     row.append(who, plan, ins, msg, cline);
     sync();
     return row;

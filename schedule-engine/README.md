@@ -57,8 +57,17 @@ Rows are tinted in the grid and the Gantt. Filters combine building, EPC and sta
 **Building-wise / EPC-wise.** Buildings come from an activity code, a WBS level or automatic
 detection. EPC (Engineering / Procurement / Construction) comes from a code, a WBS level or
 keyword intelligence ("approval of drawings" → E, "supply of cables" → P, "cable laying" → C).
-Both can be overridden per activity. Group the schedule by WBS, Building, Building → EPC,
-EPC → Building, status, update flag or any activity code.
+Both can be overridden per activity. Group the schedule by WBS, Area → Building, Building,
+Building → EPC, EPC → Building, status, update flag or any activity code.
+
+**Area → Building.** For a WBS like *Project › Pellet Plant-1 › Green Pelletizing Building ›
+Engineering / Procurement / Construction*, the engine picks the WBS level that holds the
+building names (Additive Storage Shed, Green Pelletizing Building, Screen House…) as
+**Building**, and the level above it (Pellet Plant-1, Pellet Plant-2, Filtration Plant) as
+**Area / plant**. When the same building exists in two areas the area is added:
+"Additive Storage Shed (Pellet Plant-1)". The Building dropdown has a **Buildings from**
+selector (any WBS level with sample names, or an activity code) and an **Area name** option
+(only when repeated / always / never). Analyze → Setup has the same settings.
 
 **Mistake-proof progress rules.**
 - Actuals must be before the Data Date.
@@ -126,7 +135,8 @@ Themes: **KPMG India** (light), KPMG India dark, and Primavera classic.
     Remaining boxes and between cards.
 
 **Building-wise working.**
-- Building and EPC dropdown filters in the work bar apply to every view: grid, Gantt,
+- Area, Building and EPC dropdown filters in the work bar apply to every view (buildings are
+  listed under their area and narrow to the chosen area): grid, Gantt,
   Easy Update, Dashboard, Timeline, Concerns. Exports can use "current filters".
 - The Data Date has a calendar picker in the work bar and in the Data Date dialog.
 
@@ -149,7 +159,7 @@ Themes: **KPMG India** (light), KPMG India dark, and Primavera classic.
 - Exports (Excel Schedule sheet, PDF schedule table, CSV) follow **your layout columns**.
   The PDF can be table + Gantt or table only.
 
-**Ask the engine.** Type questions like "delayed in Admin Building", "procurement progress",
+**Ask the engine.** Type questions like "delayed in Green Pelletizing Building", "pellet-2 progress", "procurement progress",
 "critical next 30 days", "how many not started in Warehouse" or "when will the project finish".
 The grid filters itself and the engine answers.
 

@@ -520,29 +520,33 @@
       P.codeTypes.forEach((c) => s.append(h('option', { value: 'code:' + c.name, text: 'Activity code: ' + c.name })));
       for (let i = 1; i <= Math.min(P.maxWbsLevel(), 6); i++) s.append(h('option', { value: 'wbs:' + i, text: 'WBS level ' + i }));
       if (key === 'building') s.append(h('option', { value: 'none', text: 'Not used (single area)' }));
-      const cur = d[key];
+      if (key === 'area') s.append(h('option', { value: 'none', text: 'Not used' }));
+      const cur = d[key] || { mode: 'auto' };
       s.value = cur.mode === 'code' ? 'code:' + cur.codeType : cur.mode === 'wbs' ? 'wbs:' + cur.wbsLevel : cur.mode;
       return s;
     };
-    const bS = srcSel('building'), eS = srcSel('epc');
+    const bS = srcSel('building'), eS = srcSel('epc'), aS = srcSel('area');
+    const qS = h('select', { class: 'inp', id: 'set_q' }, h('option', { value: 'dup', text: 'Only when a building name repeats in two areas' }), h('option', { value: 'all', text: 'Always, e.g. "Screen House (Pellet Plant-2)"' }), h('option', { value: 'off', text: 'Never' }));
+    qS.value = d.building.qualify === 'dup' ? 'dup' : d.building.qualify ? 'all' : 'off';
+    const readB = () => Object.assign(readSel(bS), { qualify: qS.value === 'dup' ? 'dup' : qS.value === 'all' });
     const prev = h('div', { class: 'cols2', style: { marginTop: '12px' } });
     const readSel = (s) => { const v = s.value; if (v.startsWith('code:')) return { mode: 'code', codeType: v.slice(5), wbsLevel: null }; if (v.startsWith('wbs:')) return { mode: 'wbs', codeType: null, wbsLevel: +v.slice(4) }; return { mode: v, codeType: null, wbsLevel: null }; };
     const showPrev = () => {
       const save = JSON.stringify(d);
-      d.building = readSel(bS); d.epc = readSel(eS); P.invalidate();
+      d.building = readB(); d.epc = readSel(eS); d.area = readSel(aS); P.invalidate();
       const list = (key) => { const m = new Map(); P.acts.forEach((a) => { const v = P.dim(a, key); m.set(v, (m.get(v) || 0) + 1); }); return Array.from(m).slice(0, 30).map(([k, n]) => esc(k) + ' <span style="color:var(--ink-3)">(' + n + ')</span>').join('<br>'); };
-      prev.innerHTML = '<div><b>Buildings found</b><div class="sub" style="margin-top:4px">' + list('building') + '</div></div><div><b>EPC split</b><div class="sub" style="margin-top:4px">' + list('epc') + '</div></div>';
-      const o = JSON.parse(save); d.building = o.building; d.epc = o.epc; P.invalidate();
+      prev.innerHTML = '<div><b>Areas found</b><div class="sub" style="margin-top:4px">' + list('area') + '</div><b style="display:block;margin-top:10px">EPC split</b><div class="sub" style="margin-top:4px">' + list('epc') + '</div></div><div><b>Buildings found</b><div class="sub" style="margin-top:4px">' + list('building') + '</div></div>';
+      const o = JSON.parse(save); d.building = o.building; d.epc = o.epc; d.area = o.area; P.invalidate();
     };
-    bS.onchange = showPrev; eS.onchange = showPrev; showPrev();
+    bS.onchange = showPrev; eS.onchange = showPrev; aS.onchange = showPrev; qS.onchange = showPrev; showPrev();
     const cb = (id, label, val, sub) => { const i = h('input', { type: 'checkbox', id }); i.checked = !!val; return h('label', { style: { display: 'flex', gap: '8px', alignItems: 'flex-start' } }, i, h('span', null, label, sub ? h('div', { class: 'sub', text: sub }) : null)); };
     const wSel = h('select', { class: 'inp', id: 'set_w' }, h('option', { value: 'duration', text: 'Original duration (default)' }), h('option', { value: 'equal', text: 'Equal weight per activity' }));
     wSel.value = P.settings.weight;
     const mf = h('input', { class: 'inp', id: 'set_mf', value: D.fmt(P.meta.mustFinish), placeholder: 'none' });
     const cals = Object.values(P.calendars).map((c) => '<tr><td>' + esc(c.name) + (c.id === P.defaultCalId ? ' <b>(default)</b>' : '') + '</td><td>' + ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((x, i) => c.workWeek[i] ? '<b>' + x + '</b>' : '<span style="opacity:.35">' + x + '</span>').join(' ') + '</td><td>' + c.hoursPerDay + 'h</td><td>' + c.holidays.size + '</td><td>' + P.acts.filter((a) => a.calId === c.id).length + '</td></tr>').join('');
     const body = h('div', null,
-      h('h3', { style: { marginTop: 0 }, text: 'Building & EPC grouping' }),
-      h('div', { class: 'form' }, field('Building comes from', bS), field('EPC phase comes from', eS)), prev,
+      h('h3', { style: { marginTop: 0 }, text: 'Area, Building & EPC grouping' }),
+      h('div', { class: 'form' }, field('Area / plant comes from', aS, 'e.g. Pellet Plant-1, Pellet Plant-2, Filtration'), field('Building comes from', bS, 'e.g. Additive Storage Shed, Green Pelletizing Building'), field('Add area name to building', qS), field('EPC phase comes from', eS)), prev,
       h('h3', { text: 'Scheduling' }),
       h('div', { class: 'form' },
         cb('set_rl', 'Retained logic', P.settings.retainedLogic, 'Remaining work of out-of-sequence activities waits for predecessors (P6 default). Off = progress override.'),
@@ -556,7 +560,8 @@
     modal('Setup', body, [
       { label: 'Cancel', value: null },
       { label: 'Save', cls: 'pri', action: () => {
-        d.building = readSel(bS); d.epc = readSel(eS);
+        d.building = readB(); d.epc = readSel(eS); d.area = readSel(aS);
+        S.dimSel.area.clear(); S.dimSel.building.clear();
         P.settings.retainedLogic = $('#set_rl').checked; P.settings.useLogic = $('#set_ul').checked;
         P.settings.linkRemaining = $('#set_lr').checked; P.settings.smartAutofill = $('#set_af').checked;
         P.settings.weight = wSel.value;
@@ -604,7 +609,7 @@
     const search = h('input', { class: 'inp', id: 'easy_q', placeholder: 'Filter by ID or name…', value: S.easy.q, style: { maxWidth: '240px' } });
     search.oninput = () => { S.easy.q = search.value.toLowerCase(); clearTimeout(search._t); search._t = setTimeout(() => { renderEasy(); const s2 = $('#easy_q'); s2.focus(); s2.setSelectionRange(s2.value.length, s2.value.length); }, 250); };
     wrap.append(h('div', { class: 'easybar' },
-      h('b', { text: 'Update by' }), seg('group', [['building', 'Building'], ['epc', 'EPC'], ['building,epc', 'Building → EPC'], ['epc,building', 'EPC → Building'], ['wbs:1', 'WBS level 1']]),
+      h('b', { text: 'Update by' }), seg('group', (UI.hasAreas() ? [['area,building', 'Area → Building']] : []).concat([['building', 'Building'], ['epc', 'EPC'], ['building,epc', 'Building → EPC'], ['epc,building', 'EPC → Building'], ['wbs:1', 'WBS level 1']])),
       h('b', { text: 'Show' }), seg('show', [['need', 'Needs update'], ['due', 'Due / late'], ['open', 'All open'], ['all', 'All']]), search,
       h('span', { class: 'sub', style: { color: 'var(--ink-3)' }, text: 'Sidebar filters also apply. Changes save instantly and are validated.' })));
     const dd = P.meta.dataDate;

@@ -313,7 +313,7 @@
       if (Q.items.some((i) => i.building === g.b && i.fromSchedule === g.unit)) continue;
       const stageOf = (e, a) => (e === 'Procurement' || /supply|deliver|dispatch|fabricat/i.test(a.name) ? 'sup' : e === 'Engineering' ? 'dwg' : 'ere');
       const scope = Math.max.apply(null, g.acts.map((x) => x.a.qty.scope));
-      const it = newItem(P, { name: g.b + (g.unit ? ' (' + g.unit + ')' : ''), building: g.b, wbs: P.wbsPathText(g.acts[0].a.wbsId).split(' / ')[0] || '', epc: 'Construction', scope, fromSchedule: g.unit, vendor: '' });
+      const it = newItem(P, { name: g.b + (g.unit ? ' (' + g.unit + ')' : ''), building: g.b, wbs: P.hasAreas() ? P.dim(g.acts[0].a, 'area') : (P.wbsPathText(g.acts[0].a.wbsId).split(' / ')[0] || ''), epc: 'Construction', scope, fromSchedule: g.unit, vendor: '' });
       for (const { a, e } of g.acts) {
         const st = stageOf(e, a);
         it.done[st] = +a.qty.done || 0;
@@ -353,14 +353,14 @@
     };
     const blds = Array.from(new Set(P.acts.map((a) => P.dim(a, 'building')))).filter((b) => !/milestone|general/i.test(b));
     const b = (i, d) => d; void blds;
-    mk({ name: 'Additive Grinding Building', building: b(1, 'Additive Grinding Building'), wbs: 'Building structures', epc: 'Construction', vendor: 'KBL', scope: 2000, scopeNote: '+ TS 160.9 MT (silos 132.3 + liner 28.6)', done: { dwg: 1399, sup: 12, ere: 0 }, last: { sup: 12, ere: 0 } },
+    mk({ name: 'Additive Grinding Building', building: b(1, 'Additive Grinding Building'), wbs: 'Pellet Plant-1', epc: 'Construction', vendor: 'KBL', scope: 2000, scopeNote: '+ TS 160.9 MT (silos 132.3 + liner 28.6)', done: { dwg: 1399, sup: 12, ere: 0 }, last: { sup: 12, ere: 0 } },
       [250, 300, 500, 520, 430], [0, 150, 250, 250, 250, 250, 250, 300, 300],
       [['Drawing / PO closure', 'front', 0, 1], ['Fabrication & supply', 'supply', 0, 4], ['Ground assembly', 'erection', 0, 3], ['Main frame erection', 'erection', 1, 8], ['Silos / liners (TS)', 'ts', 6, 8], ['Alignment / handover', 'handover', 7, 8]]);
-    mk({ name: 'Screen House / Building', building: b(2, 'Screen House / Building'), wbs: 'Building structures', epc: 'Construction', vendor: 'Samal Brothers', scope: 1019, scopeNote: '+ TS: equipment, crane & conveyor supports', done: { dwg: 1019, sup: 0, ere: 0 }, last: { sup: 0, ere: 0 } },
+    mk({ name: 'Screen House', building: b(2, 'Screen House'), wbs: 'Pellet Plant-2', epc: 'Construction', vendor: 'Samal Brothers', scope: 1019, scopeNote: '+ TS: equipment, crane & conveyor supports', done: { dwg: 1019, sup: 0, ere: 0 }, last: { sup: 0, ere: 0 } },
       [250, 250, 250, 269], [50, 180, 200, 166, 168, 160, 95],
       [['Foundation release', 'front', 0, 0], ['Material receipt', 'supply', 0, 3], ['Starter bay / bracing', 'erection', 0, 1], ['Lower tiers', 'erection', 1, 3], ['Screen / crane levels', 'erection', 2, 5], ['Upper tiers / roof', 'erection', 4, 6], ['Handover', 'handover', 6, 6]],
       [{ tag: 'FRONT', sev: 'high', text: 'Erection starts first and needs surveyed starter-bay foundations now.', action: 'Release surveyed starter-bay foundations / anchor bolts.' }]);
-    mk({ name: 'Return Fines Building', building: b(3, 'Return Fines Building'), wbs: 'Building structures', epc: 'Construction', vendor: 'Vrinda Bhillai (site fabrication)', scope: 393, scopeNote: '+ TS 66.3 MT (bins, liner, weighing bins)', done: { dwg: 393, sup: 0, ere: 0 }, last: { sup: 0, ere: 0 } },
+    mk({ name: 'Return Fines Building', building: b(3, 'Return Fines Building'), wbs: 'Filtration Plant', epc: 'Construction', vendor: 'Vrinda Bhillai (site fabrication)', scope: 393, scopeNote: '+ TS 66.3 MT (bins, liner, weighing bins)', done: { dwg: 393, sup: 0, ere: 0 }, last: { sup: 0, ere: 0 } },
       [120, 120, 120, 33], [0, 50, 50, 110, 120, 63],
       [['Foundation release', 'front', 0, 1], ['Fabrication & supply', 'supply', 0, 3], ['Starter frame', 'erection', 1, 2], ['Bin support floors', 'erection', 2, 4], ['Bins / liner (TS)', 'ts', 2, 4], ['Handover', 'handover', 5, 5]],
       [{ tag: 'INTERFACE', sev: 'med', text: 'Bin-support and conveyor interface not yet frozen.', action: 'Freeze bin-support and conveyor interface.' }]);

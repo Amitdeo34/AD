@@ -145,13 +145,17 @@ test('lenses flag late starts, overdue and future progress', () => {
 test('Ask the engine understands buildings, EPC and states', () => {
   const P = SE.demo.build();
   P.meta.dataDate = D.dayOf(2026, 9, 1);
-  let r = SE.analysis.ask(P, 'delayed activities in Main Process Building');
-  assert.deepEqual(r.filter.dims.building, ['Main Process Building']);
+  let r = SE.analysis.ask(P, 'delayed activities in Induration Furnace Building');
+  assert.deepEqual(r.filter.dims.building, ['Induration Furnace Building']);
   assert.deepEqual(r.filter.anyLenses, ['lateStart', 'overdue']);
   r = SE.analysis.ask(P, 'procurement progress');
   assert.match(r.answer, /Procurement: \d+(\.\d)?% actual/);
-  r = SE.analysis.ask(P, 'how many not started in warehouse');
+  r = SE.analysis.ask(P, 'how many not started in screen house');
   assert.equal(r.filter.status, 'NS');
+  assert.deepEqual(r.filter.dims.building, ['Screen House']);
+  r = SE.analysis.ask(P, 'green pelletizing building pellet-2 progress');
+  assert.deepEqual(r.filter.dims.area, ['Pellet Plant-2']);
+  assert.deepEqual(r.filter.dims.building.sort(), ['Green Pelletizing Building (Pellet Plant-1)', 'Green Pelletizing Building (Pellet Plant-2)']);
   r = SE.analysis.ask(P, 'when will project finish');
   assert.match(r.answer, /Forecast finish/);
 });
@@ -161,9 +165,25 @@ test('Building / EPC detection from WBS and keywords', () => {
   assert.equal(SE.classifyEPC('Supply of HT cables'), 'Procurement');
   assert.equal(SE.classifyEPC('Cable laying & termination'), 'Construction');
   const P = SE.demo.build();
-  const a = P.acts.find((x) => x.code === 'WHS-P1060');
-  assert.equal(P.dim(a, 'building'), 'Warehouse Block');
+  const a = P.acts.find((x) => x.code === 'FLT-RFB-P1060');
+  assert.equal(P.dim(a, 'building'), 'Return Fines Building');
+  assert.equal(P.dim(a, 'area'), 'Filtration Plant');
   assert.equal(P.dim(a, 'epc'), 'Procurement');
+  // buildings come from the WBS level under the areas (Pellet Plant-1 / -2 / Filtration), not the areas themselves
+  assert.equal(P.settings.dims.building.wbsLevel, 2);
+  assert.equal(P.settings.dims.area.wbsLevel, 1);
+  const g = P.acts.find((x) => x.code === 'PP2-GPB-C1150');
+  assert.equal(P.dim(g, 'building'), 'Green Pelletizing Building (Pellet Plant-2)');
+  assert.equal(P.dim(P.acts.find((x) => x.code === 'PP1-AGB-E1010'), 'building'), 'Additive Grinding Building');
+  const blds = new Set(P.acts.map((x) => P.dim(x, 'building')));
+  assert.equal(blds.size, 10);
+  // generic schedule: Project > Area > Building, no demo-specific settings
+  const Q = SE.xer.toProject(SE.xer.parse(SE.xer.toXer(P)));
+  Q.autoConfigureDims();
+  assert.equal(Q.dim(Q.acts.find((x) => x.code === 'PP1-ASS-C1150'), 'building'), 'Additive Storage Shed (Pellet Plant-1)');
+  assert.equal(Q.dim(Q.acts.find((x) => x.code === 'PP1-ASS-C1150'), 'area'), 'Pellet Plant-1');
+  Q.settings.dims.building.qualify = false; Q.invalidate();
+  assert.equal(Q.dim(Q.acts.find((x) => x.code === 'PP1-ASS-C1150'), 'building'), 'Additive Storage Shed');
 });
 
 test('importer maps predecessor text without eating hyphenated IDs', () => {
@@ -230,7 +250,7 @@ test('column catalogue, filters, multi-level group & sort, levels', () => {
   const rows = SE.views.buildRows(P, { groupBy: ['building', 'code:Discipline'], sort: [{ key: 'tf', dir: 'asc' }, { key: 'code', dir: 'desc' }] });
   assert.ok(rows.some((r) => r.kind === 'group' && r.level === 1));
   const lv = SE.views.groupLevels(P, { groupBy: ['wbs'] });
-  assert.equal(lv.max, 2);
+  assert.equal(lv.max, 3);
   const bands = SE.views.buildRows(P, { groupBy: ['wbs'], noActs: true });
   assert.ok(bands.every((r) => r.kind === 'group'));
   const tfRows = SE.views.buildRows(P, { groupBy: ['tf'] });

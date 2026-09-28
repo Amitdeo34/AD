@@ -579,6 +579,10 @@ table.qplan input.inp { padding: 2px 4px; text-align: right; }
 .dditem .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dditem small { color: var(--ink-3); white-space: nowrap; }
 .ddfoot { display: flex; gap: 6px; align-items: center; border-top: 1px solid var(--line); padding-top: 8px; }
+.ddsrc { display: grid; gap: 6px; padding: 4px 2px 8px; margin-bottom: 6px; border-bottom: 1px solid var(--line); }
+.ddsrc label { display: grid; grid-template-columns: 96px 1fr; gap: 6px; align-items: center; font-size: 11.5px; color: var(--ink-3); font-weight: 600; }
+.ddsrc select { font-size: 12px; padding: 4px 6px; min-width: 0; }
+.ddhead { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); padding: 8px 6px 2px; }
 .split.pm-grid { grid-template-columns: minmax(0, 1fr) 0 0; }
 .split.pm-grid .splitter, .split.pm-grid .gantt { display: none; }
 .split.pm-gantt { grid-template-columns: 0 0 minmax(0, 1fr); }
@@ -637,7 +641,7 @@ table.cnt a.lnk { color: var(--accent); text-decoration: none; font-weight: 600;
     </div>
     <div class="ask" role="search">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="ask" type="search" placeholder="Ask the engine: delayed in Admin Building, procurement progress…" aria-label="Ask the engine" autocomplete="off">
+      <input id="ask" type="search" placeholder="Ask the engine: delayed in Green Pelletizing Building, pellet-2 progress…" aria-label="Ask the engine" autocomplete="off">
     </div>
     <select id="themeSel" aria-label="Theme">
       <option value="kpmg">KPMG India theme</option>
@@ -1626,9 +1630,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     if (/^c(on\w*)?$|construct|erect|install|civil|commission/.test(t)) return 'Construction';
     return null;
   }
-  const BUILDING_RE = /\b(building|bldg|blg|block|blk|tower|twr|wing|shed|hall|plant|station|substation|sub-station|warehouse|annex|annexe|house|facility|unit|area|zone|pavilion|structure|villa|hostel|school|hospital|canteen|office|podium|basement|parking|stp|wtp|etp|pump ?house|dg|utility|gatehouse|gate house|security|mall|complex|terminal|depot|yard)\b|^\s*(b|t|blk|bldg)[\s\-_.]?\d+/i;
+  // words that name a physical building / structure (strong) vs a plant area / package (area)
+  const BUILDING_RE = /\b(building|bldg|blg|shed|house|hall|warehouse|store|stores|storage|block|blk|tower|twr|wing|bay|gallery|galleries|silo|silos|bunker|hopper|tank|chimney|stack|substation|sub-station|station|room|pump ?house|junction ?house|transfer ?house|tunnel|office|canteen|annex|annexe|workshop|kiln|furnace|shelter|pavilion|villa|hostel|school|hospital|gatehouse|gate house|podium|basement|parking|thickener|clarifier|stp|wtp|etp)\b|^\s*(b|t|blk|bldg|jh|th)[\s\-_.]?\d+/i;
+  const AREA_RE = /\b(plant|unit|area|zone|package|pkg|phase|line|module|circuit|system|section|complex|facility|yard|campus|site|project|pellet|pelletizing plant|beneficiation|filtration|filter plant|concentrator|sinter|coke oven|blast furnace|bof|sms|rolling mill)\b|[-\s#]\d{1,2}$/i;
 
   /* ------------------------------------------------------------------ */
+  const isAreaOnly = (n) => AREA_RE.test(n) && !/\b(building|bldg|shed|house|hall|warehouse|store|storage|block|tower|bay|gallery|silo|bunker|tank|room|tunnel|office|workshop|kiln|furnace|shelter|thickener|clarifier)\b/i.test(n);
   function newAct(o) {
     return Object.assign({
       uid: null, code: '', name: '', wbsId: null, type: 'task', calId: null,
@@ -1660,8 +1667,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       this.redoStack = [];
       this.settings = {
         dims: {
-          building: { mode: 'auto', codeType: null, wbsLevel: null },
-          epc: { mode: 'auto', codeType: null, wbsLevel: null }
+          building: { mode: 'auto', codeType: null, wbsLevel: null, qualify: false },
+          epc: { mode: 'auto', codeType: null, wbsLevel: null },
+          area: { mode: 'auto', codeType: null, wbsLevel: null }
         },
         linkRemaining: true,
         smartAutofill: true,
@@ -1743,7 +1751,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       return v && v.name ? v.name : code;
     }
     dimensionKeys() {
-      const keys = [{ key: 'building', label: 'Building' }, { key: 'epc', label: 'EPC Phase' }];
+      const keys = [{ key: 'area', label: 'Area / Plant' }, { key: 'building', label: 'Building' }, { key: 'epc', label: 'EPC Phase' }];
       for (const c of this.codeTypes) keys.push({ key: 'code:' + c.name, label: c.name });
       const ml = this.maxWbsLevel();
       for (let i = 1; i <= Math.min(ml, 6); i++) keys.push({ key: 'wbs:' + i, label: 'WBS Level ' + i });
@@ -1757,12 +1765,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       return p[Math.min(lv, p.length) - 1];
     }
     dim(a, key) {
-      if (key === 'building' || key === 'epc') {
+      if (key === 'building' || key === 'epc' || key === 'area') {
         if (a.dimOverride && a.dimOverride[key]) return a.dimOverride[key];
         const cache = this.idx.dimCache;
         const ck = key + '|' + a.uid;
         if (cache.has(ck)) return cache.get(ck);
-        const v = key === 'building' ? this._building(a) : this._epc(a);
+        const v = key === 'building' ? this._building(a) : key === 'area' ? this._area(a) : this._epc(a);
         cache.set(ck, v);
         return v;
       }
@@ -1771,20 +1779,66 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (key === 'status') return STATUS[a.status];
       return '';
     }
+    /** WBS node that is the building for this activity (or null) */
+    _buildingNode(a) {
+      const s = this.settings.dims.building;
+      const p = this.wbsPath(a.wbsId);
+      if (s.mode === 'wbs' && s.wbsLevel) return p.length >= s.wbsLevel ? p[s.wbsLevel - 1] : null;
+      if (s.mode !== 'auto') return null;
+      for (let i = p.length - 1; i >= 0; i--) if (BUILDING_RE.test(p[i].name) && !this._isEpcName(p[i].name) && !isAreaOnly(p[i].name)) return p[i];
+      return null;
+    }
     _building(a) {
       const s = this.settings.dims.building;
       if (s.mode === 'code' && s.codeType) return a.codes[s.codeType] ? this.codeLabel(s.codeType, a.codes[s.codeType]) : '(Unassigned)';
-      if (s.mode === 'wbs' && s.wbsLevel) { const w = this.wbsAtLevel(a, s.wbsLevel); return w ? w.name : '(No WBS)'; }
       if (s.mode === 'none') return 'All';
-      // auto
-      const p = this.wbsPath(a.wbsId);
-      for (let i = p.length - 1; i >= 0; i--) if (BUILDING_RE.test(p[i].name) && !this._isEpcName(p[i].name)) return p[i].name;
-      const m = BUILDING_RE.exec(a.name);
-      if (m) {
-        const mm = /\b(building|bldg|block|blk|tower|wing)[\s\-_.]*([A-Z0-9]{1,4})\b/i.exec(a.name);
-        if (mm) return mm[1].charAt(0).toUpperCase() + mm[1].slice(1).toLowerCase() + ' ' + mm[2].toUpperCase();
+      const node = this._buildingNode(a);
+      if (node) {
+        if (s.qualify && (s.qualify !== 'dup' || this._dupBuildings().has(node.name))) { const ar = this._area(a); if (ar && ar !== 'All' && ar !== node.name) return node.name + ' (' + ar + ')'; }
+        return node.name;
       }
-      return p.length ? p[0].name : 'General';
+      if (s.mode === 'wbs') { const p = this.wbsPath(a.wbsId); return p.length ? p[p.length - 1].name : '(No WBS)'; }
+      // auto without a building-like WBS: building named in the activity, else the area / top WBS
+      const mm = /\b(building|bldg|block|blk|tower|wing|shed|house)[\s\-_.]*([A-Z0-9]{1,4})\b/i.exec(a.name);
+      if (mm && /\d|^[A-Z]$/.test(mm[2])) return mm[1].charAt(0).toUpperCase() + mm[1].slice(1).toLowerCase() + ' ' + mm[2].toUpperCase();
+      const p = this.wbsPath(a.wbsId);
+      const nonEpc = p.filter((w) => !this._isEpcName(w.name));
+      return nonEpc.length ? nonEpc[nonEpc.length - 1].name : p.length ? p[0].name : 'General';
+    }
+    /** true when the schedule has an Area / plant level distinct from the buildings (Pellet-1, Pellet-2, Filtration…) */
+    hasAreas() {
+      const s = this.settings.dims.area;
+      if (!s || s.mode === 'none') return false;
+      const ar = new Set();
+      let same = 0, n = 0;
+      for (const a of this.acts) { if (this.isSummaryType(a)) continue; const v = this.dim(a, 'area'); ar.add(v); n++; if (v === this.dim(a, 'building')) same++; }
+      return ar.size > 1 && same < n * 0.5;
+    }
+    /** building names that occur under more than one area (need the area prefix to stay unique) */
+    _dupBuildings() {
+      const idx = this.idx;
+      if (idx.dupBld) return idx.dupBld;
+      const seen = new Map(), dup = new Set();
+      for (const a of this.acts) {
+        const n = this._buildingNode(a);
+        if (!n) continue;
+        const ar = this._area(a);
+        if (seen.has(n.name) && seen.get(n.name) !== ar) dup.add(n.name);
+        seen.set(n.name, ar);
+      }
+      return (idx.dupBld = dup);
+    }
+    /** Area / plant / package above the building (e.g. Pellet-1, Pellet-2, Filtration) */
+    _area(a) {
+      const s = this.settings.dims.area || { mode: 'auto' };
+      if (s.mode === 'none') return 'All';
+      if (s.mode === 'code' && s.codeType) return a.codes[s.codeType] ? this.codeLabel(s.codeType, a.codes[s.codeType]) : '(Unassigned)';
+      const p = this.wbsPath(a.wbsId);
+      if (s.mode === 'wbs' && s.wbsLevel) return p.length >= s.wbsLevel ? p[s.wbsLevel - 1].name : '(No WBS)';
+      const node = this._buildingNode(a);
+      const k = node ? p.indexOf(node) : -1;
+      for (let i = (k >= 0 ? k : p.length) - 1; i >= 0; i--) if (!this._isEpcName(p[i].name)) return p[i].name;
+      return p.length ? p[0].name : 'All';
     }
     _isEpcName(n) { return /^\s*(engineering|design|procurement|supply|construction|execution|civil works?|commissioning)\s*$/i.test(n); }
     _epc(a) {
@@ -1819,27 +1873,38 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     /** pick sensible defaults for Building / EPC sources after import */
     autoConfigureDims() {
       const d = this.settings.dims;
-      const bType = this.codeTypes.find((c) => /build|bldg|block|tower|area|zone|facility|structure|location/i.test(c.name));
-      if (bType) d.building = { mode: 'code', codeType: bType.name, wbsLevel: null };
-      else {
-        // WBS level whose names look most like buildings
-        const idx = this.index();
-        const counts = {};
-        for (const w of Object.values(this.wbs)) {
-          const lv = idx.level.get(w.id);
-          if (!lv) continue;
-          counts[lv] = counts[lv] || { hit: 0, all: 0 };
-          counts[lv].all++;
-          if (BUILDING_RE.test(w.name) && !this._isEpcName(w.name)) counts[lv].hit++;
-        }
-        let best = null, bestRatio = 0;
-        for (const lv in counts) {
-          const r = counts[lv].hit / counts[lv].all;
-          if (counts[lv].hit >= 2 && r > bestRatio) { bestRatio = r; best = +lv; }
-        }
-        if (best && bestRatio >= 0.4) d.building = { mode: 'wbs', codeType: null, wbsLevel: best };
-        else d.building = { mode: 'auto', codeType: null, wbsLevel: null };
+      const idx = this.index();
+      const bType = this.codeTypes.find((c) => /build|bldg|block|tower|facility|structure/i.test(c.name));
+      const aType = this.codeTypes.find((c) => /area|plant|unit|zone|package|location/i.test(c.name) && c !== bType);
+      // score each WBS level: share of names that look like buildings, and like areas
+      const lv = {};
+      for (const w of Object.values(this.wbs)) {
+        const l = idx.level.get(w.id);
+        if (!l) continue;
+        lv[l] = lv[l] || { b: 0, a: 0, all: 0, names: new Map() };
+        lv[l].all++;
+        if (this._isEpcName(w.name)) continue;
+        if (BUILDING_RE.test(w.name) && !isAreaOnly(w.name)) lv[l].b++;
+        else if (AREA_RE.test(w.name)) lv[l].a++;
       }
+      let best = null, bestR = 0;
+      for (const l in lv) {
+        const r = lv[l].b / lv[l].all;
+        if (lv[l].b >= 2 && r >= 0.3 && (r > bestR + 0.05 || (Math.abs(r - bestR) <= 0.05 && +l > best))) { bestR = r; best = +l; }
+      }
+      if (bType) d.building = { mode: 'code', codeType: bType.name, wbsLevel: null, qualify: false };
+      else if (best) d.building = { mode: 'wbs', codeType: null, wbsLevel: best, qualify: false };
+      else d.building = { mode: 'auto', codeType: null, wbsLevel: null, qualify: false };
+      // area: code, or the nearest non-EPC WBS level above the building level
+      if (aType) d.area = { mode: 'code', codeType: aType.name, wbsLevel: null };
+      else if (d.building.mode === 'wbs' && d.building.wbsLevel > 1) {
+        let al = d.building.wbsLevel - 1;
+        while (al > 1 && lv[al] && lv[al].all && Object.values(this.wbs).filter((w) => idx.level.get(w.id) === al).every((w) => this._isEpcName(w.name))) al--;
+        d.area = { mode: 'wbs', codeType: null, wbsLevel: al };
+      } else d.area = { mode: 'auto', codeType: null, wbsLevel: null };
+      this.invalidate();
+      // same building name under two areas (e.g. Additive Storage Shed in Pellet-1 and Pellet-2) → prefix the area on those
+      if (this._dupBuildings().size) d.building.qualify = 'dup';
       const eType = this.codeTypes.find((c) => {
         if (!/epc|phase|stage|discipline/i.test(c.name) || !c.values.length) return false;
         const m = c.values.map((v) => epcFromCodeValue(v.code) || epcFromCodeValue(v.name)).filter(Boolean);
@@ -2078,7 +2143,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         this.redoStack = [];
         const soft = ['concern', 'notes', 'dimOverride', 'codes', 'name', 'qty'];
         if (undo.some((u) => Object.keys(u.before).some((k) => !soft.includes(k)))) this.settings.scheduled = false;
-        if (this._idx) this._idx.dimCache.clear();
+        if (this._idx) { this._idx.dimCache.clear(); this._idx.dupBld = null; }
       }
       return out;
     }
@@ -2093,7 +2158,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       }
       this.redoStack.push(u);
       this.log.push({ t: Date.now(), uid: null, code: '', field: 'undo', from: u.label, to: null });
-      if (this._idx) this._idx.dimCache.clear();
+      if (this._idx) { this._idx.dimCache.clear(); this._idx.dupBld = null; }
       return u;
     }
     redo() {
@@ -2106,7 +2171,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         a.touched = true;
       }
       this.undoStack.push(u);
-      if (this._idx) this._idx.dimCache.clear();
+      if (this._idx) { this._idx.dimCache.clear(); this._idx.dupBld = null; }
       return u;
     }
 
@@ -2216,6 +2281,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   SE.classifyEPC = classifyEPC;
   SE.epcFromCodeValue = epcFromCodeValue;
   SE.BUILDING_RE = BUILDING_RE;
+  SE.AREA_RE = AREA_RE;
   SE.newAct = newAct;
   SE.Project = Project;
 })(typeof module === 'object' && module.exports ? (global.SE = global.SE || {}) : (window.SE = window.SE || {}));
@@ -3490,20 +3556,23 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       filter.window = [D.monthStart(dd), D.monthEnd(dd)]; said.push('in ' + D.monthLabel(dd));
     }
     // dimension values (building / epc / codes / wbs names)
-    const dimKeys = ['building', 'epc'].concat(P.codeTypes.map((c) => 'code:' + c.name));
+    const dimKeys = ['area', 'building', 'epc'].concat(P.codeTypes.map((c) => 'code:' + c.name));
     for (const k of dimKeys) {
       const vals = new Set(P.acts.map((a) => P.dim(a, k)));
       for (const v of vals) {
         if (!v || v.length < 2 || /^(project milestones|general|others|all)$/i.test(v)) continue;
         const lv = v.toLowerCase();
-        const words = lv.split(/\s+/).filter((w) => w.length > 2 && !/^(building|block|and|the|work|works|phase|project|milestones?|general|others?|house|area)$/.test(w));
+        // "Additive Storage Shed (Pellet Plant-1)": match on the building words, the area is its own dimension
+        const core = k === 'building' ? lv.replace(/\s*\([^)]*\)\s*$/, '') : lv;
+        const nums = core.match(/\d+/g);
+        const words = core.split(/\s+/).filter((w) => w.length > 2 && !/^(building|block|and|the|work|works|phase|project|milestones?|general|others?|house|area)$/.test(w));
         let hit = q.indexOf(' ' + lv + ' ') >= 0 || q.indexOf(lv) >= 0;
         if (!hit && k === 'epc') hit = (lv === 'engineering' && /\b(eng|engg|design|drawings?)\b/.test(q)) || (lv === 'procurement' && /\b(proc|procure|supply|purchase|po)\b/.test(q)) || (lv === 'construction' && /\b(const|constn|civil|site|erection|execution)\b/.test(q));
-        if (!hit && words.length) hit = words.some((w) => new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(q) && w.length > 3);
+        if (!hit && words.length) hit = words.some((w) => !/\d/.test(w) && new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(q) && w.length > 3) && (!nums || nums.some((n) => new RegExp('(^|\\D)' + n + '(\\D|$)').test(q)));
         if (hit) { (filter.dims[k] = filter.dims[k] || []).push(v); }
       }
     }
-    for (const k in filter.dims) said.push((k === 'building' ? 'building ' : k === 'epc' ? '' : k.replace('code:', '') + ' ') + filter.dims[k].join(' / '));
+    for (const k in filter.dims) said.push((k === 'building' ? 'building ' : k === 'area' ? 'area ' : k === 'epc' ? '' : k.replace('code:', '') + ' ') + filter.dims[k].join(' / '));
     // question type
     const wantsCount = /how many|count|kitne|number of/.test(q);
     const wantsProgress = /progress|percent|%|kitna|status of|how much/.test(q) && !lensHit;
@@ -3530,7 +3599,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       const t = String(question || '').trim();
       filter.text = t;
       const l2 = applyFilter(P, filter);
-      answer = l2.length ? 'Found ' + l2.length + ' activities matching "' + t + '".' : 'I could not match that. Try: "delayed activities in Admin Building", "procurement progress", "what is critical in next 30 days", "how many not started in Warehouse".';
+      answer = l2.length ? 'Found ' + l2.length + ' activities matching "' + t + '".' : 'I could not match that. Try: "delayed activities in Green Pelletizing Building", "procurement progress", "what is critical in next 30 days", "how many not started in Warehouse".';
     }
     return { filter, answer, count: applyFilter(P, filter).length };
   }
@@ -3684,6 +3753,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     { id: 'nPreds', label: 'Number of Predecessors', short: '# Preds', cat: 'Logic', w: 52, t: 'num', v: (P, a) => P.predsOf(a.uid).length },
     { id: 'nSuccs', label: 'Number of Successors', short: '# Succs', cat: 'Logic', w: 52, t: 'num', v: (P, a) => P.succsOf(a.uid).length },
     // Building & EPC
+    { id: 'area', label: 'Area / Plant', short: 'Area', cat: 'Building & EPC', w: 120, t: 'text', v: (P, a) => P.dim(a, 'area') },
     { id: 'building', label: 'Building', cat: 'Building & EPC', w: 130, t: 'text', v: (P, a) => P.dim(a, 'building'), edit: 'building' },
     { id: 'epc', label: 'EPC Phase', short: 'EPC', cat: 'Building & EPC', w: 100, t: 'text', v: (P, a) => P.dim(a, 'epc'), edit: 'epc' },
     // Quantities
@@ -3992,11 +4062,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         const first = ['invalid', 'overdue', 'lateStart', 'future', 'pending', 'inProgress', 'due', 'updated'].find((k) => f.includes(k));
         return first ? SE.LENS_BY_KEY[first].label : 'No action needed';
       }
-      if (key === 'building' || key === 'epc' || key === 'status' || key.startsWith('code:') || key.startsWith('wbs:')) return P.dim(a, key);
+      if (key === 'building' || key === 'area' || key === 'epc' || key === 'status' || key.startsWith('code:') || key.startsWith('wbs:')) return P.dim(a, key);
       const col = SE.columns && SE.columns.get(P, key);
       return col ? SE.columns.groupValue(P, col, a, { flags: flMap }) : P.dim(a, key);
     };
-    const colKey = (key) => !(key === 'building' || key === 'epc' || key === 'status' || key === 'lens' || key.startsWith('code:') || key.startsWith('wbs:')) && SE.columns && SE.columns.get(P, key);
+    const colKey = (key) => !(key === 'building' || key === 'area' || key === 'epc' || key === 'status' || key === 'lens' || key.startsWith('code:') || key.startsWith('wbs:')) && SE.columns && SE.columns.get(P, key);
     const orderOf = (key, vals) => {
       if (key === 'epc') return vals.sort((a, b) => idxOr(SE.EPC, a) - idxOr(SE.EPC, b));
       if (key === 'status') return vals.sort((a, b) => ['In Progress', 'Not Started', 'Completed'].indexOf(a) - ['In Progress', 'Not Started', 'Completed'].indexOf(b));
@@ -4028,7 +4098,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       for (const v of keys) {
         const g = groups.get(v);
         const id = prefix + '|' + key + '=' + v;
-        rows.push({ kind: 'group', id, label: v, dimKey: key, level: depth, count: g.length, sum: summarize(P, g), collapsed: collapsed.has(id) });
+        // under an Area band, "Screen House (Pellet Plant-2)" reads as "Screen House"
+        const label = key === 'building' && groupBy.slice(0, depth).includes('area') ? String(v).replace(' (' + P.dim(g[0], 'area') + ')', '') : v;
+        rows.push({ kind: 'group', id, label, value: v, dimKey: key, level: depth, count: g.length, sum: summarize(P, g), collapsed: collapsed.has(id) });
         if (collapsed.has(id)) continue;
         if (depth + 1 < groupBy.length) recurse(g, depth + 1, id);
         else if (!opts.noActs) g.slice().sort(cmp).forEach((a) => rows.push({ kind: 'act', a, level: depth + 1 }));
@@ -4744,6 +4816,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         }
         r += 2;
       };
+      if (P.hasAreas()) table('Area-wise progress', 'area');
       table('Building-wise progress', 'building');
       table('EPC-wise progress', 'epc');
       ws.getCell(r, 1).value = 'ENGINE INSIGHTS';
@@ -5402,6 +5475,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }
     ts += '<line x1="' + X(dd) + '" x2="' + X(dd) + '" y1="0" y2="34" class="dd"/></svg>';
     const bld = A().breakdown(P, 'building', fl);
+    const areas = P.hasAreas() ? A().breakdown(P, 'area', fl) : null;
     const epc = A().breakdown(P, 'epc', fl);
     const btab = (list, label) => '<table class="bt"><thead><tr><th>' + label + '</th><th>Acts</th><th>Planned</th><th>Actual</th><th>Var</th><th>Late start</th><th>Overdue</th><th>Finish</th></tr></thead><tbody>' +
       list.map((b) => '<tr><td>' + E(b.name) + '</td><td>' + b.count + '</td><td>' + b.planned.toFixed(1) + '%</td><td><div class="pb"><i style="width:' + b.actual.toFixed(1) + '%"></i><em style="left:' + b.planned.toFixed(1) + '%"></em></div>' + b.actual.toFixed(1) + '%</td><td class="' + (b.variance < -0.5 ? 'neg' : 'pos') + '">' + (b.variance >= 0 ? '+' : '') + b.variance.toFixed(1) + '%</td><td>' + b.lateStart + '</td><td>' + b.overdue + '</td><td>' + D.fmt(b.finish) + '</td></tr>').join('') + '</tbody></table>';
@@ -5435,6 +5509,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       '<section><div class="kpis">' + kp('Planned', pr.planned.toFixed(1) + '%') + kp('Actual', pr.actual.toFixed(1) + '%') + kp('Variance', (pr.actual - pr.planned >= 0 ? '+' : '') + (pr.actual - pr.planned).toFixed(1) + '%', pr.actual < pr.planned - 0.5 ? 'bad' : '') +
       kp('Activities', all.length) + kp('Completed', all.filter((a) => a.status === 'CO').length) + kp('In progress', all.filter((a) => a.status === 'IP').length) + kp('Late start', fl.counts.lateStart, fl.counts.lateStart ? 'bad' : '') + kp('Overdue', fl.counts.overdue, fl.counts.overdue ? 'bad' : '') + kp('Critical', fl.counts.critical) + '</div></section>' +
       '<div class="two"><section><h2>S-curve</h2>' + svgS + '<div class="leg"><span><i style="background:#8a93a6"></i>Planned</span><span><i style="background:#00338D"></i>Actual</span><span><i style="background:#0091DA"></i>Forecast</span></div></section><section><h2>Engine insights</h2><ul class="ins">' + ins + '</ul></section></div>' +
+      (areas ? '<section><h2>Area-wise</h2><div style="overflow:auto">' + btab(areas, 'Area / plant') + '</div></section>' : '') +
       '<div class="two"><section><h2>Building-wise</h2><div style="overflow:auto">' + btab(bld, 'Building') + '</div></section><section><h2>EPC-wise</h2><div style="overflow:auto">' + btab(epc, 'EPC') + '</div></section></div>' +
       '<section><h2>Gantt chart</h2><div class="tools"><input id="q" placeholder="Search activity, building, EPC..." aria-label="Search"><button id="ca">Collapse all</button><button id="ea">Expand all</button></div>' +
       '<div class="gw"><table class="gt"><thead><tr><th style="width:110px">Activity ID</th><th style="width:320px">Activity Name</th><th>%</th><th>Start</th><th>Finish</th><th>TF</th><th class="gc">' + ts + '</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
@@ -5516,7 +5591,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 
 /* ---- core/demo.js ---- */
 /* Schedule Engine - core/demo.js
- * A realistic demo EPC project (industrial plant expansion, 6 buildings) with
+ * A realistic demo EPC project (pellet plant: Pellet Plant-1, Pellet Plant-2 and
+ * Filtration Plant areas, each with its buildings under it in the WBS) with
  * logic, calendars with Indian holidays, codes and last-month progress, so every
  * feature can be tried without a real XER.
  */
@@ -5533,13 +5609,20 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     };
   }
 
-  const BUILDINGS = [
-    { code: 'ADM', name: 'Admin Building', k: 1.2, lag: 0 },
-    { code: 'MPB', name: 'Main Process Building', k: 2.0, lag: 10 },
-    { code: 'WHS', name: 'Warehouse Block', k: 1.4, lag: 40 },
-    { code: 'SUB', name: '33kV Substation', k: 1.2, lag: 60 },
-    { code: 'UTL', name: 'Utility Building', k: 1.4, lag: 90 },
-    { code: 'STP', name: 'STP & Pump House', k: 1.0, lag: 120 }
+  // WBS: Project > Area (plant) > Building > Engineering / Procurement / Construction
+  const AREAS = [
+    { code: 'PP1', name: 'Pellet Plant-1', buildings: [
+      { code: 'ASS', name: 'Additive Storage Shed', k: 1.0, lag: 0 },
+      { code: 'AGB', name: 'Additive Grinding Building', k: 1.6, lag: 10, slip: 3 },
+      { code: 'GPB', name: 'Green Pelletizing Building', k: 2.0, lag: 20 },
+      { code: 'IFB', name: 'Induration Furnace Building', k: 1.8, lag: 40, slip: 6 }] },
+    { code: 'PP2', name: 'Pellet Plant-2', buildings: [
+      { code: 'ASS', name: 'Additive Storage Shed', k: 1.0, lag: 60 },
+      { code: 'GPB', name: 'Green Pelletizing Building', k: 1.8, lag: 80 },
+      { code: 'SCH', name: 'Screen House', k: 1.3, lag: 100 }] },
+    { code: 'FLT', name: 'Filtration Plant', buildings: [
+      { code: 'FLB', name: 'Filtration Building', k: 1.6, lag: 30 },
+      { code: 'RFB', name: 'Return Fines Building', k: 1.2, lag: 70 }] }
   ];
   const TEMPLATE = [
     // [key, EPC, name, dur, discipline, preds [key, type, lag]]
@@ -5568,8 +5651,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     opts = Object.assign({ progressTo: D.dayOf(2026, 8, 1) }, opts || {});
     const R = rng(20260901);
     const P = new SE.Project();
-    P.meta.name = 'Industrial Plant Expansion - Phase 2 (Demo)';
-    P.meta.code = 'IPX-P2';
+    P.meta.name = 'Pellet Plant Complex - Area Schedule (Demo)';
+    P.meta.code = 'PPC-AS';
     P.meta.source = 'demo';
     P.meta.fileName = 'Demo project';
     const hol = [D.dayOf(2026, 0, 26), D.dayOf(2026, 2, 4), D.dayOf(2026, 3, 3), D.dayOf(2026, 7, 15), D.dayOf(2026, 9, 2), D.dayOf(2026, 9, 20), D.dayOf(2026, 10, 9), D.dayOf(2026, 11, 25), D.dayOf(2027, 0, 26), D.dayOf(2027, 2, 22)];
@@ -5590,16 +5673,23 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     let tid = 1000;
     const mk = (o) => { const a = SE.newAct(Object.assign({ uid: String(++tid), calId: '1' }, o)); a.remDur = a.origDur; P.acts.push(a); return a; };
     const M0 = mk({ code: 'MS-1000', name: 'Notice to proceed / Project start', wbsId: gen, type: 'start', origDur: 0, cstr: { type: 'CS_MSOA', date: P.meta.planStart } });
-    const MF = mk({ code: 'MS-9000', name: 'Plant mechanical completion', wbsId: gen, type: 'finish', origDur: 0 });
+    const MF = mk({ code: 'MS-9000', name: 'Pellet plant complex - mechanical completion', wbsId: gen, type: 'finish', origDur: 0 });
     const rels = [];
     let seq = 2;
+    const BUILDINGS = [];
+    for (const ar of AREAS) {
+      const aw = String(++wid);
+      P.wbs[aw] = { id: aw, parentId: root, code: ar.code, name: ar.name, seq: seq++ };
+      ar.buildings.forEach((b, i) => BUILDINGS.push(Object.assign({ parent: aw, area: ar.code, seq: i }, b)));
+    }
     for (const b of BUILDINGS) {
       const bw = String(++wid);
-      P.wbs[bw] = { id: bw, parentId: root, code: b.code, name: b.name, seq: seq++ };
+      P.wbs[bw] = { id: bw, parentId: b.parent, code: b.area + '.' + b.code, name: b.name, seq: b.seq };
+      b.pre = b.area + '-' + b.code;
       const ph = {};
       [['E', 'Engineering'], ['P', 'Procurement'], ['C', 'Construction']].forEach(([k, n], i) => {
         const id = String(++wid);
-        P.wbs[id] = { id, parentId: bw, code: b.code + '.' + k, name: n, seq: i };
+        P.wbs[id] = { id, parentId: bw, code: b.area + '.' + b.code + '.' + k, name: n, seq: i };
         ph[k] = id;
       });
       const map = { M0 };
@@ -5608,7 +5698,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         const dur = t[3] === 0 ? 0 : Math.max(3, Math.round(t[3] * b.k * (0.85 + R() * 0.3)));
         if (!discVals[t[4]]) { discVals[t[4]] = { id: 'dv' + Object.keys(discVals).length, code: t[4], name: t[4] }; disc.values.push(discVals[t[4]]); }
         const a = mk({
-          code: b.code + '-' + t[1] + (n += 10), name: t[2], wbsId: ph[t[1]], origDur: dur, type: t[3] === 0 ? 'finish' : 'task',
+          code: b.pre + '-' + t[1] + (n += 10), name: t[2], wbsId: ph[t[1]], origDur: dur, type: t[3] === 0 ? 'finish' : 'task',
           calId: t[1] === 'E' ? '2' : '1', codes: { Discipline: t[4] }, pctType: t[1] === 'C' ? 'phys' : 'dur'
         });
         map[t[0]] = a;
@@ -5632,6 +5722,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     // simulate progress up to opts.progressTo (previous update), respecting logic
     const dd = opts.progressTo;
     P.meta.dataDate = dd;
+    const slip = {};
+    for (const b of BUILDINGS) slip[b.pre] = b.slip || 0;
     const order = P.acts.slice().sort((x, y) => (x.eStart - y.eStart) || (x.eFinish - y.eFinish));
     for (const a of order) {
       const c = P.cal(a);
@@ -5649,7 +5741,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         }
       }
       if (!ok) continue;
-      const slipBias = a.code.startsWith('SUB') ? 6 : a.code.startsWith('MPB') ? 3 : 0;
+      const slipBias = slip[a.code.slice(0, 7)] || 0;
       const s = c.add(es, Math.max(0, Math.round(R() * 6 - 1 + slipBias)));
       if (s >= dd) continue;
       if (a.type === 'finish') {
@@ -6006,7 +6098,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (Q.items.some((i) => i.building === g.b && i.fromSchedule === g.unit)) continue;
       const stageOf = (e, a) => (e === 'Procurement' || /supply|deliver|dispatch|fabricat/i.test(a.name) ? 'sup' : e === 'Engineering' ? 'dwg' : 'ere');
       const scope = Math.max.apply(null, g.acts.map((x) => x.a.qty.scope));
-      const it = newItem(P, { name: g.b + (g.unit ? ' (' + g.unit + ')' : ''), building: g.b, wbs: P.wbsPathText(g.acts[0].a.wbsId).split(' / ')[0] || '', epc: 'Construction', scope, fromSchedule: g.unit, vendor: '' });
+      const it = newItem(P, { name: g.b + (g.unit ? ' (' + g.unit + ')' : ''), building: g.b, wbs: P.hasAreas() ? P.dim(g.acts[0].a, 'area') : (P.wbsPathText(g.acts[0].a.wbsId).split(' / ')[0] || ''), epc: 'Construction', scope, fromSchedule: g.unit, vendor: '' });
       for (const { a, e } of g.acts) {
         const st = stageOf(e, a);
         it.done[st] = +a.qty.done || 0;
@@ -6046,14 +6138,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     };
     const blds = Array.from(new Set(P.acts.map((a) => P.dim(a, 'building')))).filter((b) => !/milestone|general/i.test(b));
     const b = (i, d) => d; void blds;
-    mk({ name: 'Additive Grinding Building', building: b(1, 'Additive Grinding Building'), wbs: 'Building structures', epc: 'Construction', vendor: 'KBL', scope: 2000, scopeNote: '+ TS 160.9 MT (silos 132.3 + liner 28.6)', done: { dwg: 1399, sup: 12, ere: 0 }, last: { sup: 12, ere: 0 } },
+    mk({ name: 'Additive Grinding Building', building: b(1, 'Additive Grinding Building'), wbs: 'Pellet Plant-1', epc: 'Construction', vendor: 'KBL', scope: 2000, scopeNote: '+ TS 160.9 MT (silos 132.3 + liner 28.6)', done: { dwg: 1399, sup: 12, ere: 0 }, last: { sup: 12, ere: 0 } },
       [250, 300, 500, 520, 430], [0, 150, 250, 250, 250, 250, 250, 300, 300],
       [['Drawing / PO closure', 'front', 0, 1], ['Fabrication & supply', 'supply', 0, 4], ['Ground assembly', 'erection', 0, 3], ['Main frame erection', 'erection', 1, 8], ['Silos / liners (TS)', 'ts', 6, 8], ['Alignment / handover', 'handover', 7, 8]]);
-    mk({ name: 'Screen House / Building', building: b(2, 'Screen House / Building'), wbs: 'Building structures', epc: 'Construction', vendor: 'Samal Brothers', scope: 1019, scopeNote: '+ TS: equipment, crane & conveyor supports', done: { dwg: 1019, sup: 0, ere: 0 }, last: { sup: 0, ere: 0 } },
+    mk({ name: 'Screen House', building: b(2, 'Screen House'), wbs: 'Pellet Plant-2', epc: 'Construction', vendor: 'Samal Brothers', scope: 1019, scopeNote: '+ TS: equipment, crane & conveyor supports', done: { dwg: 1019, sup: 0, ere: 0 }, last: { sup: 0, ere: 0 } },
       [250, 250, 250, 269], [50, 180, 200, 166, 168, 160, 95],
       [['Foundation release', 'front', 0, 0], ['Material receipt', 'supply', 0, 3], ['Starter bay / bracing', 'erection', 0, 1], ['Lower tiers', 'erection', 1, 3], ['Screen / crane levels', 'erection', 2, 5], ['Upper tiers / roof', 'erection', 4, 6], ['Handover', 'handover', 6, 6]],
       [{ tag: 'FRONT', sev: 'high', text: 'Erection starts first and needs surveyed starter-bay foundations now.', action: 'Release surveyed starter-bay foundations / anchor bolts.' }]);
-    mk({ name: 'Return Fines Building', building: b(3, 'Return Fines Building'), wbs: 'Building structures', epc: 'Construction', vendor: 'Vrinda Bhillai (site fabrication)', scope: 393, scopeNote: '+ TS 66.3 MT (bins, liner, weighing bins)', done: { dwg: 393, sup: 0, ere: 0 }, last: { sup: 0, ere: 0 } },
+    mk({ name: 'Return Fines Building', building: b(3, 'Return Fines Building'), wbs: 'Filtration Plant', epc: 'Construction', vendor: 'Vrinda Bhillai (site fabrication)', scope: 393, scopeNote: '+ TS 66.3 MT (bins, liner, weighing bins)', done: { dwg: 393, sup: 0, ere: 0 }, last: { sup: 0, ere: 0 } },
       [120, 120, 120, 33], [0, 50, 50, 110, 120, 63],
       [['Foundation release', 'front', 0, 1], ['Fabrication & supply', 'supply', 0, 3], ['Starter frame', 'erection', 1, 2], ['Bin support floors', 'erection', 2, 4], ['Bins / liner (TS)', 'ts', 2, 4], ['Handover', 'handover', 5, 5]],
       [{ tag: 'INTERFACE', sev: 'med', text: 'Bin-support and conveyor interface not yet frozen.', action: 'Freeze bin-support and conveyor interface.' }]);
@@ -6589,7 +6681,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     sort: { key: 'start', dir: 'asc' },
     collapsed: new Set(),
     lensSel: new Set(),
-    dimSel: { building: new Set(), epc: new Set() },
+    dimSel: { area: new Set(), building: new Set(), epc: new Set() },
     statusSel: new Set(),
     text: '',
     ask: null,           // {question, answer, uids:Set}
@@ -6730,6 +6822,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function passes(a) {
     const P = S.P;
     if (S.lensSel.size) { const f = S.fl.map.get(a.uid) || []; let ok = false; for (const k of S.lensSel) if (f.includes(k)) { ok = true; break; } if (!ok) return false; }
+    if (S.dimSel.area.size && !S.dimSel.area.has(P.dim(a, 'area'))) return false;
     if (S.dimSel.building.size && !S.dimSel.building.has(P.dim(a, 'building'))) return false;
     if (S.dimSel.epc.size && !S.dimSel.epc.has(P.dim(a, 'epc'))) return false;
     if (S.statusSel.size && !S.statusSel.has(a.status)) return false;
@@ -6740,7 +6833,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     if (S.concernsOnly) { const f = S.fl.map.get(a.uid) || []; if (!f.some((k) => k === 'concern' || SE.CONCERN_KEYS.includes(k))) return false; }
     return true;
   }
-  function filtered() { return !!(S.concernsOnly || (S.filtersOn && S.filtersOn.length) || S.lensSel.size || S.dimSel.building.size || S.dimSel.epc.size || S.statusSel.size || S.ask || S.uidFilter || S.text); }
+  function hasAreas() { return !!(S.P && S.P.hasAreas()); }
+  function filtered() { return !!(S.concernsOnly || (S.filtersOn && S.filtersOn.length) || S.lensSel.size || S.dimSel.area.size || S.dimSel.building.size || S.dimSel.epc.size || S.statusSel.size || S.ask || S.uidFilter || S.text); }
   function rowOpts() { return { groupBy: S.groupBy, filter: passes, sort: S.sort, collapsed: S.collapsed, flags: S.fl.map, noActs: S.noActs }; }
   function buildRows() {
     if (!S.P) { S.rows = []; return; }
@@ -6817,10 +6911,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     parts.push('<div><h4>Update spotlight ' + (S.lensSel.size ? '<button data-clear="lens">clear</button>' : '') + '</h4>' + ['pending', 'lateStart', 'overdue', 'future', 'due', 'inProgress', 'updated'].map(lensBtn).join('') + '</div>');
     parts.push('<div><h4>Schedule quality</h4>' + ['critical', 'negFloat', 'outSeq', 'invalid', 'lookahead', 'openEnd'].map(lensBtn).join('') + '</div>');
     const dimBlock = (key, title) => {
-      const rows = SE.analysis.breakdown(P, key, S.fl).filter((b) => b.count);
+      // buildings cascade from the chosen area(s)
+      const acts = key === 'building' && S.dimSel.area.size ? P.acts.filter((a) => S.dimSel.area.has(P.dim(a, 'area'))) : undefined;
+      const rows = SE.analysis.breakdown(P, key, S.fl, acts).filter((b) => b.count);
       return '<div><h4>' + title + ' ' + (S.dimSel[key].size ? '<button data-clear="' + key + '">clear</button>' : '<button data-group="' + key + '">group by</button>') + '</h4>' +
         rows.map((b) => '<button class="dimchip' + (S.dimSel[key].has(b.name) ? ' on' : '') + '" data-dim="' + key + '" data-val="' + esc(b.name) + '" title="' + esc(b.name) + ': actual ' + b.actual.toFixed(1) + '% vs planned ' + b.planned.toFixed(1) + '%"><span>' + esc(b.name) + '</span><small>' + b.actual.toFixed(0) + '%' + (b.lateStart + b.overdue ? ' · <span class="late">' + (b.lateStart + b.overdue) + ' late</span>' : '') + '</small><span class="bar"><i style="width:' + b.actual.toFixed(1) + '%"></i><b style="left:' + b.planned.toFixed(1) + '%"></b></span></button>').join('') + '</div>';
     };
+    if (UI.hasAreas()) parts.push(dimBlock('area', 'Areas / plants'));
     parts.push(dimBlock('building', 'Buildings'));
     parts.push(dimBlock('epc', 'EPC phase'));
     const st = { NS: 0, IP: 0, CO: 0 };
@@ -6854,6 +6951,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     const chips = [];
     const chip = (label, clear) => chips.push({ label, clear });
     S.lensSel.forEach((k) => chip(SE.LENS_BY_KEY[k].short, () => S.lensSel.delete(k)));
+    S.dimSel.area.forEach((v) => chip(v, () => S.dimSel.area.delete(v)));
     S.dimSel.building.forEach((v) => chip(v, () => S.dimSel.building.delete(v)));
     S.dimSel.epc.forEach((v) => chip(v, () => S.dimSel.epc.delete(v)));
     S.statusSel.forEach((v) => chip(SE.STATUS[v], () => S.statusSel.delete(v)));
@@ -6871,7 +6969,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     if (chips.length > 1) fb.append(h('button', { class: 'btn sm', text: 'Clear all', onclick: clearFilters }));
   }
   function clearFilters() {
-    S.lensSel.clear(); S.dimSel.building.clear(); S.dimSel.epc.clear(); S.statusSel.clear(); S.ask = null; S.uidFilter = null; S.text = ''; S.filtersOn = []; S.concernsOnly = false;
+    S.lensSel.clear(); S.dimSel.area.clear(); S.dimSel.building.clear(); S.dimSel.epc.clear(); S.statusSel.clear(); S.ask = null; S.uidFilter = null; S.text = ''; S.filtersOn = []; S.concernsOnly = false;
     $('#ask').value = '';
     refresh({ noSave: true });
   }
@@ -6908,7 +7006,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   }
   function rgroup(label, ...kids) { return h('div', { class: 'rgroup' }, h('div', { class: 'rrow' }, kids), h('label', { text: label })); }
   const GROUPS = [
-    ['wbs', 'WBS (P6 default)'], ['building', 'Building'], ['building,epc', 'Building → EPC'], ['epc', 'EPC phase'], ['epc,building', 'EPC → Building'],
+    ['wbs', 'WBS (P6 default)'], ['building', 'Building'], ['building,epc', 'Building → EPC'], ['area', 'Area / plant'], ['area,building', 'Area → Building'], ['area,building,epc', 'Area → Building → EPC'], ['epc', 'EPC phase'], ['epc,building', 'EPC → Building'],
     ['status', 'Activity status'], ['lens', 'Update flag'], ['none', 'No grouping']
   ];
   function buildRibbon() {
@@ -7010,7 +7108,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     S.groupBy = key === 'none' ? [] : key.split(',');
     S.collapsed.clear();
     const g = $('#groupSel');
-    if (g) { if (!Array.from(g.options).some((o) => o.value === key)) g.append(h('option', { value: key, text: key.split(',').map((k) => { const c = S.P && !/^(building|epc|status|lens|none|wbs)$/.test(k) && !/^(code|wbs):/.test(k) ? SE.columns.get(S.P, k) : null; return c ? c.label : k.replace('code:', 'Code: ').replace('wbs:', 'WBS level ').replace(/^building$/, 'Building').replace(/^epc$/, 'EPC').replace(/^status$/, 'Status').replace(/^lens$/, 'Update flag'); }).join(' → ') })); g.value = key; }
+    if (g) { if (!Array.from(g.options).some((o) => o.value === key)) g.append(h('option', { value: key, text: key.split(',').map((k) => { const c = S.P && !/^(building|area|epc|status|lens|none|wbs)$/.test(k) && !/^(code|wbs):/.test(k) ? SE.columns.get(S.P, k) : null; return c ? c.label : k.replace('code:', 'Code: ').replace('wbs:', 'WBS level ').replace(/^building$/, 'Building').replace(/^area$/, 'Area').replace(/^epc$/, 'EPC').replace(/^status$/, 'Status').replace(/^lens$/, 'Update flag'); }).join(' → ') })); g.value = key; }
     syncToggles();
     if (S.view !== 'gantt') setView('gantt');
     refresh({ noSave: true });
@@ -7119,7 +7217,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       '<h3>Typing dates</h3><p>Any of: <span class="kbd">30-Sep-26</span> <span class="kbd">30/09/2026</span> <span class="kbd">2026-09-30</span> <span class="kbd">30 Sep</span>. Shortcuts: <span class="kbd">p</span> = planned date, <span class="kbd">dd</span> = day before Data Date, <span class="kbd">t</span> = today.</p>' +
       '<h3>Keyboard</h3><div class="helpgrid"><span class="kbd">F9</span><span>Schedule</span><span class="kbd">Ctrl+Z / Ctrl+Y</span><span>Undo / redo</span><span class="kbd">Ctrl+S</span><span>Save project (.sej)</span><span class="kbd">Ctrl+O</span><span>Open file</span><span class="kbd">Ctrl+E</span><span>Export</span><span class="kbd">Ctrl+F</span><span>Ask the engine / search</span><span class="kbd">↑ ↓</span><span>Move between activities</span><span class="kbd">Enter / F2</span><span>Edit the cell</span><span class="kbd">Tab</span><span>Next editable cell</span><span class="kbd">Esc</span><span>Cancel edit / clear selection</span></div>' +
       '<h3>Rules the engine enforces</h3><ul><li>Actual Start and Actual Finish must be before the Data Date; Finish cannot be before Start.</li><li>100% requires an Actual Finish; progress requires an Actual Start (auto-filled from plan, you can edit it).</li><li>Completed activities are locked until the Actual Finish is cleared.</li><li>Milestones take dates, not percentages.</li><li>Out-of-sequence progress, loops and invalid dates are flagged before export.</li></ul>' +
-      '<h3>Ask the engine</h3><p>Examples: <i>delayed in Admin Building</i> · <i>procurement progress</i> · <i>critical next 30 days</i> · <i>how many not started in Warehouse</i> · <i>when will the project finish</i> · <i>"excavation"</i>.</p>' +
+      '<h3>Ask the engine</h3><p>Examples: <i>delayed in Green Pelletizing Building</i> · <i>pellet-2 progress</i> · <i>procurement progress</i> · <i>critical next 30 days</i> · <i>how many not started in Screen House</i> · <i>when will the project finish</i> · <i>"excavation"</i>.</p>' +
       '<h3>Your data</h3><p>Everything runs inside this browser page. Files are never uploaded; the session is autosaved in this browser so you can close and resume.</p>'
     });
     modal('Schedule Engine - help', body, null, 'wide');
@@ -7139,7 +7237,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function doAsk(q) {
     q = String(q || '').trim();
     if (!q) { S.ask = null; refresh({ noSave: true }); return; }
-    S.lensSel.clear(); S.dimSel.building.clear(); S.dimSel.epc.clear(); S.statusSel.clear(); S.uidFilter = null;
+    S.lensSel.clear(); S.dimSel.area.clear(); S.dimSel.building.clear(); S.dimSel.epc.clear(); S.statusSel.clear(); S.uidFilter = null;
     const r = SE.analysis.ask(S.P, q);
     const list = SE.analysis.applyFilter(S.P, r.filter, S.fl.map);
     S.ask = { question: q, answer: r.answer, uids: new Set(list.map((a) => a.uid)) };
@@ -7150,7 +7248,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 
   window.UI = {
     S, h, $, $$, esc, icon, toast, modal, menu, closeMenu, busy, tick, refresh, redrawSoon, buildRibbon, bindSide, setView, setGroup, setTheme,
-    applyPatches, softRefresh, undo, redo, runSchedule, dataDateDialog, help, doAsk, clearFilters, passes, filtered, computeFlags, buildRows, syncToggles, rowOpts
+    applyPatches, softRefresh, undo, redo, runSchedule, dataDateDialog, help, doAsk, clearFilters, passes, filtered, hasAreas, computeFlags, buildRows, syncToggles, rowOpts
   };
 })();
 
@@ -8776,29 +8874,33 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       P.codeTypes.forEach((c) => s.append(h('option', { value: 'code:' + c.name, text: 'Activity code: ' + c.name })));
       for (let i = 1; i <= Math.min(P.maxWbsLevel(), 6); i++) s.append(h('option', { value: 'wbs:' + i, text: 'WBS level ' + i }));
       if (key === 'building') s.append(h('option', { value: 'none', text: 'Not used (single area)' }));
-      const cur = d[key];
+      if (key === 'area') s.append(h('option', { value: 'none', text: 'Not used' }));
+      const cur = d[key] || { mode: 'auto' };
       s.value = cur.mode === 'code' ? 'code:' + cur.codeType : cur.mode === 'wbs' ? 'wbs:' + cur.wbsLevel : cur.mode;
       return s;
     };
-    const bS = srcSel('building'), eS = srcSel('epc');
+    const bS = srcSel('building'), eS = srcSel('epc'), aS = srcSel('area');
+    const qS = h('select', { class: 'inp', id: 'set_q' }, h('option', { value: 'dup', text: 'Only when a building name repeats in two areas' }), h('option', { value: 'all', text: 'Always, e.g. "Screen House (Pellet Plant-2)"' }), h('option', { value: 'off', text: 'Never' }));
+    qS.value = d.building.qualify === 'dup' ? 'dup' : d.building.qualify ? 'all' : 'off';
+    const readB = () => Object.assign(readSel(bS), { qualify: qS.value === 'dup' ? 'dup' : qS.value === 'all' });
     const prev = h('div', { class: 'cols2', style: { marginTop: '12px' } });
     const readSel = (s) => { const v = s.value; if (v.startsWith('code:')) return { mode: 'code', codeType: v.slice(5), wbsLevel: null }; if (v.startsWith('wbs:')) return { mode: 'wbs', codeType: null, wbsLevel: +v.slice(4) }; return { mode: v, codeType: null, wbsLevel: null }; };
     const showPrev = () => {
       const save = JSON.stringify(d);
-      d.building = readSel(bS); d.epc = readSel(eS); P.invalidate();
+      d.building = readB(); d.epc = readSel(eS); d.area = readSel(aS); P.invalidate();
       const list = (key) => { const m = new Map(); P.acts.forEach((a) => { const v = P.dim(a, key); m.set(v, (m.get(v) || 0) + 1); }); return Array.from(m).slice(0, 30).map(([k, n]) => esc(k) + ' <span style="color:var(--ink-3)">(' + n + ')</span>').join('<br>'); };
-      prev.innerHTML = '<div><b>Buildings found</b><div class="sub" style="margin-top:4px">' + list('building') + '</div></div><div><b>EPC split</b><div class="sub" style="margin-top:4px">' + list('epc') + '</div></div>';
-      const o = JSON.parse(save); d.building = o.building; d.epc = o.epc; P.invalidate();
+      prev.innerHTML = '<div><b>Areas found</b><div class="sub" style="margin-top:4px">' + list('area') + '</div><b style="display:block;margin-top:10px">EPC split</b><div class="sub" style="margin-top:4px">' + list('epc') + '</div></div><div><b>Buildings found</b><div class="sub" style="margin-top:4px">' + list('building') + '</div></div>';
+      const o = JSON.parse(save); d.building = o.building; d.epc = o.epc; d.area = o.area; P.invalidate();
     };
-    bS.onchange = showPrev; eS.onchange = showPrev; showPrev();
+    bS.onchange = showPrev; eS.onchange = showPrev; aS.onchange = showPrev; qS.onchange = showPrev; showPrev();
     const cb = (id, label, val, sub) => { const i = h('input', { type: 'checkbox', id }); i.checked = !!val; return h('label', { style: { display: 'flex', gap: '8px', alignItems: 'flex-start' } }, i, h('span', null, label, sub ? h('div', { class: 'sub', text: sub }) : null)); };
     const wSel = h('select', { class: 'inp', id: 'set_w' }, h('option', { value: 'duration', text: 'Original duration (default)' }), h('option', { value: 'equal', text: 'Equal weight per activity' }));
     wSel.value = P.settings.weight;
     const mf = h('input', { class: 'inp', id: 'set_mf', value: D.fmt(P.meta.mustFinish), placeholder: 'none' });
     const cals = Object.values(P.calendars).map((c) => '<tr><td>' + esc(c.name) + (c.id === P.defaultCalId ? ' <b>(default)</b>' : '') + '</td><td>' + ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((x, i) => c.workWeek[i] ? '<b>' + x + '</b>' : '<span style="opacity:.35">' + x + '</span>').join(' ') + '</td><td>' + c.hoursPerDay + 'h</td><td>' + c.holidays.size + '</td><td>' + P.acts.filter((a) => a.calId === c.id).length + '</td></tr>').join('');
     const body = h('div', null,
-      h('h3', { style: { marginTop: 0 }, text: 'Building & EPC grouping' }),
-      h('div', { class: 'form' }, field('Building comes from', bS), field('EPC phase comes from', eS)), prev,
+      h('h3', { style: { marginTop: 0 }, text: 'Area, Building & EPC grouping' }),
+      h('div', { class: 'form' }, field('Area / plant comes from', aS, 'e.g. Pellet Plant-1, Pellet Plant-2, Filtration'), field('Building comes from', bS, 'e.g. Additive Storage Shed, Green Pelletizing Building'), field('Add area name to building', qS), field('EPC phase comes from', eS)), prev,
       h('h3', { text: 'Scheduling' }),
       h('div', { class: 'form' },
         cb('set_rl', 'Retained logic', P.settings.retainedLogic, 'Remaining work of out-of-sequence activities waits for predecessors (P6 default). Off = progress override.'),
@@ -8812,7 +8914,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     modal('Setup', body, [
       { label: 'Cancel', value: null },
       { label: 'Save', cls: 'pri', action: () => {
-        d.building = readSel(bS); d.epc = readSel(eS);
+        d.building = readB(); d.epc = readSel(eS); d.area = readSel(aS);
+        S.dimSel.area.clear(); S.dimSel.building.clear();
         P.settings.retainedLogic = $('#set_rl').checked; P.settings.useLogic = $('#set_ul').checked;
         P.settings.linkRemaining = $('#set_lr').checked; P.settings.smartAutofill = $('#set_af').checked;
         P.settings.weight = wSel.value;
@@ -8860,7 +8963,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     const search = h('input', { class: 'inp', id: 'easy_q', placeholder: 'Filter by ID or name…', value: S.easy.q, style: { maxWidth: '240px' } });
     search.oninput = () => { S.easy.q = search.value.toLowerCase(); clearTimeout(search._t); search._t = setTimeout(() => { renderEasy(); const s2 = $('#easy_q'); s2.focus(); s2.setSelectionRange(s2.value.length, s2.value.length); }, 250); };
     wrap.append(h('div', { class: 'easybar' },
-      h('b', { text: 'Update by' }), seg('group', [['building', 'Building'], ['epc', 'EPC'], ['building,epc', 'Building → EPC'], ['epc,building', 'EPC → Building'], ['wbs:1', 'WBS level 1']]),
+      h('b', { text: 'Update by' }), seg('group', (UI.hasAreas() ? [['area,building', 'Area → Building']] : []).concat([['building', 'Building'], ['epc', 'EPC'], ['building,epc', 'Building → EPC'], ['epc,building', 'EPC → Building'], ['wbs:1', 'WBS level 1']])),
       h('b', { text: 'Show' }), seg('show', [['need', 'Needs update'], ['due', 'Due / late'], ['open', 'All open'], ['all', 'All']]), search,
       h('span', { class: 'sub', style: { color: 'var(--ink-3)' }, text: 'Sidebar filters also apply. Changes save instantly and are validated.' })));
     const dd = P.meta.dataDate;
@@ -9324,7 +9427,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   async function afterLoad(P, askDD) {
     S.P = P;
     S.sel = null; S.multi.clear(); S.collapsed.clear();
-    S.lensSel.clear(); S.dimSel.building.clear(); S.dimSel.epc.clear(); S.statusSel.clear(); S.ask = null; S.uidFilter = null; S.text = '';
+    S.lensSel.clear(); S.dimSel.area.clear(); S.dimSel.building.clear(); S.dimSel.epc.clear(); S.statusSel.clear(); S.ask = null; S.uidFilter = null; S.text = '';
     S.lastHealth = null;
     $('#welcome').hidden = true;
     if (!P.settings.scheduled && P.meta.source !== 'xer') { /* keep file dates */ }
@@ -9583,7 +9686,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     const feat = h('div', { class: 'feat', html:
       '<div><h4>Mistake-proof updating</h4><p>Actual dates after the Data Date, 100% without a finish, progress without a start, finish before start - blocked with a clear message and a fix.</p></div>' +
       '<div><h4>Quantity-based %</h4><p>Scope vs completed quantity, this-month quantities and weighted steps (rules of credit) turn site figures into a defensible % complete.</p></div>' +
-      '<div><h4>Ask the engine</h4><p>Type "delayed in Admin Building", "procurement progress" or "critical next 30 days" and the schedule filters itself.</p></div>' +
+      '<div><h4>Ask the engine</h4><p>Type "delayed in Green Pelletizing Building", "pellet-2 progress", "procurement progress" or "critical next 30 days" and the schedule filters itself.</p></div>' +
       '<div><h4>Building-wise & EPC-wise</h4><p>Buildings and Engineering / Procurement / Construction are detected from codes, WBS or activity names - and you can override them.</p></div>' +
       '<div><h4>Faithful XER round trip</h4><p>Resources, costs, UDFs and codes in your XER are kept; only progress, dates and float are written back.</p></div>' +
       '<div><h4>Works offline</h4><p>One HTML file. No install, no P6 licence, no upload. Autosaves in your browser so you can resume.</p></div>' });
@@ -9696,7 +9799,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         opSel.value = r.op;
         const needs = !['empty', 'nempty', 'true', 'false', 'beforeDD', 'afterDD'].includes(r.op);
         let v1;
-        if (col.t === 'code' || col.id === 'status' || col.id === 'type' || col.id === 'epc' || col.id === 'building') {
+        if (col.t === 'code' || col.id === 'status' || col.id === 'type' || col.id === 'epc' || col.id === 'building' || col.id === 'area') {
           const opts = col.t === 'code' ? (S.P.codeType(col.codeType) || { values: [] }).values.map((x) => x.name || x.code) : Array.from(new Set(S.P.acts.map((a) => String(SE.columns.value(S.P, col, a) || ''))));
           const dl = 'fe_dl_' + i;
           v1 = h('span', null, h('input', { class: 'inp', value: r.value || '', list: dl, placeholder: col.t === 'date' ? 'dd-mmm-yy' : 'value' }), h('datalist', { id: dl }, opts.filter(Boolean).slice(0, 300).map((o) => h('option', { value: o }))));
@@ -9741,7 +9844,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
    * Group & Sort
    * ================================================================== */
   function groupOptions() {
-    const out = [['wbs', 'WBS (hierarchy)'], ['building', 'Building'], ['epc', 'EPC phase'], ['status', 'Activity status'], ['lens', 'Update flag']];
+    const out = [['wbs', 'WBS (hierarchy)'], ['area', 'Area / plant'], ['building', 'Building'], ['epc', 'EPC phase'], ['status', 'Activity status'], ['lens', 'Update flag']];
     for (const ct of S.P.codeTypes) out.push(['code:' + ct.name, 'Code: ' + ct.name]);
     for (let i = 1; i <= Math.min(S.P.maxWbsLevel(), 6); i++) out.push(['wbs:' + i, 'WBS level ' + i]);
     ['type', 'calendar', 'crit', 'longest', 'tf', 'pct', 'start', 'finish', 'cstrType', 'pctType', 'touched'].forEach((id) => { const c = SE.columns.get(S.P, id); if (c) out.push([id, c.label + (c.t === 'date' ? ' (month)' : c.id === 'tf' ? ' (bands)' : '')]); });
@@ -9976,25 +10079,32 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function openDim(anchor, key, label) {
     closePop();
     const P = S.P;
-    const rows = SE.analysis.breakdown(P, key, S.fl).filter((r) => r.count);
+    // buildings cascade from the chosen area(s)
+    const scope = key === 'building' && S.dimSel.area.size ? P.acts.filter((a) => S.dimSel.area.has(P.dim(a, 'area'))) : undefined;
+    const rows = SE.analysis.breakdown(P, key, S.fl, scope).filter((r) => r.count);
+    const areaOf = new Map();
+    if (key === 'building' && UI.hasAreas()) P.acts.forEach((a) => { const b = P.dim(a, 'building'); if (!areaOf.has(b)) areaOf.set(b, P.dim(a, 'area')); });
     const sel = new Set(S.dimSel[key]);
     pop = h('div', { class: 'ddpop', role: 'dialog', 'aria-label': label + ' filter' });
     const q = h('input', { class: 'inp', placeholder: 'Search ' + label.toLowerCase() + '…', 'aria-label': 'Search' });
     const list = h('div', { class: 'ddlist' });
     const draw = () => {
       list.innerHTML = '';
-      rows.filter((r) => !q.value || r.name.toLowerCase().includes(q.value.toLowerCase())).forEach((r) => {
+      let lastArea = null;
+      rows.filter((r) => !q.value || (r.name + ' ' + (areaOf.get(r.name) || '')).toLowerCase().includes(q.value.toLowerCase()))
+        .sort((x, y) => areaOf.size ? String(areaOf.get(x.name)).localeCompare(String(areaOf.get(y.name))) || rows.indexOf(x) - rows.indexOf(y) : 0).forEach((r) => {
+        if (areaOf.size && areaOf.get(r.name) !== lastArea) { lastArea = areaOf.get(r.name); list.append(h('div', { class: 'ddhead', text: lastArea })); }
         const cb = h('input', { type: 'checkbox' });
         cb.checked = sel.has(r.name);
         cb.onchange = () => { if (cb.checked) sel.add(r.name); else sel.delete(r.name); };
         const only = h('button', { class: 'btn sm', type: 'button', text: 'Only', onclick: () => { sel.clear(); sel.add(r.name); apply(); } });
-        list.append(h('label', { class: 'dditem' }, cb, h('span', { class: 'nm', text: r.name }), h('small', { html: r.actual.toFixed(0) + '% · ' + r.count + (r.lateStart + r.overdue ? ' · <b class="crit-t">' + (r.lateStart + r.overdue) + ' late</b>' : '') }), only));
+        list.append(h('label', { class: 'dditem' }, cb, h('span', { class: 'nm', text: areaOf.size ? r.name.replace(' (' + areaOf.get(r.name) + ')', '') : r.name, title: r.name }), h('small', { html: r.actual.toFixed(0) + '% · ' + r.count + (r.lateStart + r.overdue ? ' · <b class="crit-t">' + (r.lateStart + r.overdue) + ' late</b>' : '') }), only));
       });
     };
     const apply = () => { S.dimSel[key] = sel; S.collapsed.clear(); closePop(); UI.refresh({ noSave: true }); };
     q.oninput = draw;
     draw();
-    pop.append(q, list, h('div', { class: 'ddfoot' },
+    pop.append(key === 'building' ? sourceBox(P) : '', q, list, h('div', { class: 'ddfoot' },
       h('button', { class: 'btn sm', type: 'button', text: 'All', onclick: () => { sel.clear(); apply(); } }),
       h('button', { class: 'btn sm', type: 'button', text: 'Invert', onclick: () => { rows.forEach((r) => { if (sel.has(r.name)) sel.delete(r.name); else sel.add(r.name); }); draw(); } }),
       h('span', { style: { flex: 1 } }),
@@ -10005,6 +10115,42 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     pop.style.top = (r.bottom + 4) + 'px';
     q.focus();
     setTimeout(() => document.addEventListener('mousedown', outPop, true), 0);
+  }
+
+  /** "Buildings from": pick the WBS level (or activity code) that holds the building names */
+  function sourceBox(P) {
+    const d = P.settings.dims;
+    const idx = P.idx;
+    const byLv = new Map();
+    Object.values(P.wbs).forEach((w) => { const l = idx.level.get(w.id); if (!l) return; if (!byLv.has(l)) byLv.set(l, []); byLv.get(l).push(w.name); });
+    const src = h('select', { class: 'inp', 'aria-label': 'Buildings from', title: 'Where building names come from' });
+    src.append(h('option', { value: 'auto', text: 'Auto detect (building-like WBS names)' }));
+    Array.from(byLv.keys()).sort((x, y) => x - y).forEach((l) => {
+      const names = Array.from(new Set(byLv.get(l)));
+      src.append(h('option', { value: 'wbs:' + l, text: 'WBS level ' + l + ' - ' + names.slice(0, 3).join(', ') + (names.length > 3 ? ' +' + (names.length - 3) : '') }));
+    });
+    P.codeTypes.forEach((c) => src.append(h('option', { value: 'code:' + c.name, text: 'Activity code: ' + c.name })));
+    src.value = d.building.mode === 'wbs' ? 'wbs:' + d.building.wbsLevel : d.building.mode === 'code' ? 'code:' + d.building.codeType : 'auto';
+    const qual = h('select', { class: 'inp', 'aria-label': 'Area name in building', title: 'Add the area (e.g. Pellet Plant-1) to the building name' });
+    [['dup', 'Area name only when a building repeats'], ['all', 'Always add area name'], ['off', 'Never add area name']].forEach(([v, t]) => qual.append(h('option', { value: v, text: t })));
+    qual.value = d.building.qualify === 'dup' ? 'dup' : d.building.qualify ? 'all' : 'off';
+    const go = () => {
+      const v = src.value, qv = qual.value === 'dup' ? 'dup' : qual.value === 'all';
+      if (v === 'auto') d.building = { mode: 'auto', codeType: null, wbsLevel: null, qualify: qv };
+      else if (v.startsWith('wbs:')) d.building = { mode: 'wbs', codeType: null, wbsLevel: +v.slice(4), qualify: qv };
+      else d.building = { mode: 'code', codeType: v.slice(5), wbsLevel: null, qualify: qv };
+      if (d.area && d.area.mode !== 'code') {
+        const l = d.building.mode === 'wbs' ? d.building.wbsLevel - 1 : 0;
+        d.area = l >= 1 ? { mode: 'wbs', codeType: null, wbsLevel: l } : { mode: 'auto', codeType: null, wbsLevel: null };
+      }
+      P.invalidate();
+      S.dimSel.building.clear(); S.dimSel.area.clear(); S.collapsed.clear();
+      closePop();
+      UI.refresh();
+      UI.toast('Buildings now from ' + src.options[src.selectedIndex].text.replace(/ - .*/, '') + '. ' + new Set(P.acts.map((a) => P.dim(a, 'building'))).size + ' buildings found.', 'g');
+    };
+    src.onchange = go; qual.onchange = go;
+    return h('div', { class: 'ddsrc' }, h('label', null, h('span', { text: 'Buildings from' }), src), h('label', null, h('span', { text: 'Area name' }), qual));
   }
 
   /* ================================================================== *
@@ -10020,7 +10166,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     const ddIn = h('input', { type: 'date', class: 'dd-in', id: 'wbDD', value: D.fmtISO(P.meta.dataDate), title: 'Data Date - status is recorded up to the day before', 'aria-label': 'Data Date' });
     ddIn.onchange = () => { const d = D.parseDay(ddIn.value); if (d != null) setDataDate(d, ddIn); };
     L.append(
-      dimDropdown('building', 'Building'), dimDropdown('epc', 'EPC'),
+      UI.hasAreas() ? dimDropdown('area', 'Area') : '', dimDropdown('building', 'Building'), dimDropdown('epc', 'EPC'),
       h('label', { class: 'ddbtn dd-date', title: 'Data Date' }, h('span', { text: 'Data Date:' }), ddIn),
       h('button', { class: 'ddbtn' + (S.concernsOnly ? ' on' : ''), type: 'button', title: 'Show only activities with a flag (late start, overdue, future progress, out of sequence, invalid) or a raised concern', html: '⚑ Concerns only' + (nConcernFlag ? ' <em class="cnt-badge">' + nConcernFlag + '</em>' : ''), onclick: () => { S.concernsOnly = !S.concernsOnly; S.collapsed.clear(); UI.refresh({ noSave: true }); } }),
       h('button', { class: 'ddbtn', type: 'button', title: 'Record a concern (reason, action, owner) for the selected activities', text: '+ Raise concern', onclick: () => raiseConcern() }));
@@ -10244,7 +10390,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     const pane = h('div', { class: 'pane' });
     v.append(pane);
     const seg = h('div', { class: 'seg', role: 'group' });
-    [['building', 'Building lanes'], ['epc', 'EPC lanes'], ['wbs:1', 'WBS level 1 lanes']].forEach(([k, l]) => seg.append(h('button', { type: 'button', 'aria-pressed': S.tl.by === k ? 'true' : 'false', text: l, onclick: () => { S.tl.by = k; LS.set('se.tlview', S.tl); renderTimeline(); } })));
+    [['area', 'Area lanes'], ['building', 'Building lanes'], ['epc', 'EPC lanes'], ['wbs:1', 'WBS level 1 lanes']].forEach(([k, l]) => seg.append(h('button', { type: 'button', 'aria-pressed': S.tl.by === k ? 'true' : 'false', text: l, onclick: () => { S.tl.by = k; LS.set('se.tlview', S.tl); renderTimeline(); } })));
     const zoom = h('input', { type: 'range', min: 25, max: 220, value: S.tl.ppm, 'aria-label': 'Zoom', style: { width: '140px' } });
     zoom.oninput = () => { S.tl.ppm = +zoom.value; LS.set('se.tlview', S.tl); drawTL(box); };
     pane.append(h('div', { class: 'easybar' }, h('b', { text: 'Timeline' }), seg, h('label', { class: 'sub', style: { display: 'flex', gap: '6px', alignItems: 'center' } }, 'Zoom', zoom),
@@ -10256,7 +10402,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   function drawTL(box) {
     const P = S.P;
     const key = S.tl.by;
-    const sub = key === 'epc' ? 'building' : 'epc';
+    const sub = key === 'epc' || key === 'area' ? 'building' : 'epc';
     const acts = P.acts.filter((a) => !P.isSummaryType(a) && UI.passes(a));
     const lanes = new Map();
     acts.forEach((a) => { const l = P.dim(a, key); if (!lanes.has(l)) lanes.set(l, []); lanes.get(l).push(a); });
@@ -10301,7 +10447,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         const rs = sm2.aStart != null ? actEnd : sm2.start;
         if (sm2.status !== 'CO' && sm2.finish + 1 > rs) parts.push('<rect x="' + X(rs) + '" y="' + (y + 3) + '" width="' + Math.max(2, X(sm2.finish + 1) - X(rs)) + '" height="9" rx="2" class="' + (crit ? 'tl-crit' : 'tl-rem') + '"/>');
         parts.push('<rect x="' + bx + '" y="' + (y + 1) + '" width="' + bw + '" height="14" class="tl-hit" data-lane="' + esc(ln) + '" data-sub="' + esc(s) + '"><title>' + esc(ln + ' · ' + s + '\n' + D.fmt(sm2.start) + ' → ' + D.fmt(sm2.finish) + '\n' + sm2.pct.toFixed(0) + '% done (' + sm2.planned.toFixed(0) + '% planned) · ' + g.length + ' activities') + '</title></rect>');
-        parts.push('<text x="' + (LW - 8) + '" y="' + (y + 12) + '" text-anchor="end" class="tl-sub">' + esc(s) + ' · ' + sm2.pct.toFixed(0) + '%</text>');
+        parts.push('<text x="' + (LW - 8) + '" y="' + (y + 12) + '" text-anchor="end" class="tl-sub">' + esc(key === 'area' ? String(s).replace(' (' + ln + ')', '') : s) + ' · ' + sm2.pct.toFixed(0) + '%</text>');
         parts.push('<text x="' + (bx + bw + 5) + '" y="' + (y + 12) + '" class="tl-date">' + D.fmt(sm2.finish) + '</text>');
         y += rowH;
       }

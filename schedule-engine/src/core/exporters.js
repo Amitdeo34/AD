@@ -125,6 +125,7 @@
         }
         r += 2;
       };
+      if (P.hasAreas()) table('Area-wise progress', 'area');
       table('Building-wise progress', 'building');
       table('EPC-wise progress', 'epc');
       ws.getCell(r, 1).value = 'ENGINE INSIGHTS';
@@ -783,6 +784,7 @@
     }
     ts += '<line x1="' + X(dd) + '" x2="' + X(dd) + '" y1="0" y2="34" class="dd"/></svg>';
     const bld = A().breakdown(P, 'building', fl);
+    const areas = P.hasAreas() ? A().breakdown(P, 'area', fl) : null;
     const epc = A().breakdown(P, 'epc', fl);
     const btab = (list, label) => '<table class="bt"><thead><tr><th>' + label + '</th><th>Acts</th><th>Planned</th><th>Actual</th><th>Var</th><th>Late start</th><th>Overdue</th><th>Finish</th></tr></thead><tbody>' +
       list.map((b) => '<tr><td>' + E(b.name) + '</td><td>' + b.count + '</td><td>' + b.planned.toFixed(1) + '%</td><td><div class="pb"><i style="width:' + b.actual.toFixed(1) + '%"></i><em style="left:' + b.planned.toFixed(1) + '%"></em></div>' + b.actual.toFixed(1) + '%</td><td class="' + (b.variance < -0.5 ? 'neg' : 'pos') + '">' + (b.variance >= 0 ? '+' : '') + b.variance.toFixed(1) + '%</td><td>' + b.lateStart + '</td><td>' + b.overdue + '</td><td>' + D.fmt(b.finish) + '</td></tr>').join('') + '</tbody></table>';
@@ -816,6 +818,7 @@
       '<section><div class="kpis">' + kp('Planned', pr.planned.toFixed(1) + '%') + kp('Actual', pr.actual.toFixed(1) + '%') + kp('Variance', (pr.actual - pr.planned >= 0 ? '+' : '') + (pr.actual - pr.planned).toFixed(1) + '%', pr.actual < pr.planned - 0.5 ? 'bad' : '') +
       kp('Activities', all.length) + kp('Completed', all.filter((a) => a.status === 'CO').length) + kp('In progress', all.filter((a) => a.status === 'IP').length) + kp('Late start', fl.counts.lateStart, fl.counts.lateStart ? 'bad' : '') + kp('Overdue', fl.counts.overdue, fl.counts.overdue ? 'bad' : '') + kp('Critical', fl.counts.critical) + '</div></section>' +
       '<div class="two"><section><h2>S-curve</h2>' + svgS + '<div class="leg"><span><i style="background:#8a93a6"></i>Planned</span><span><i style="background:#00338D"></i>Actual</span><span><i style="background:#0091DA"></i>Forecast</span></div></section><section><h2>Engine insights</h2><ul class="ins">' + ins + '</ul></section></div>' +
+      (areas ? '<section><h2>Area-wise</h2><div style="overflow:auto">' + btab(areas, 'Area / plant') + '</div></section>' : '') +
       '<div class="two"><section><h2>Building-wise</h2><div style="overflow:auto">' + btab(bld, 'Building') + '</div></section><section><h2>EPC-wise</h2><div style="overflow:auto">' + btab(epc, 'EPC') + '</div></section></div>' +
       '<section><h2>Gantt chart</h2><div class="tools"><input id="q" placeholder="Search activity, building, EPC..." aria-label="Search"><button id="ca">Collapse all</button><button id="ea">Expand all</button></div>' +
       '<div class="gw"><table class="gt"><thead><tr><th style="width:110px">Activity ID</th><th style="width:320px">Activity Name</th><th>%</th><th>Start</th><th>Finish</th><th>TF</th><th class="gc">' + ts + '</th></tr></thead><tbody>' + body + '</tbody></table></div>' +

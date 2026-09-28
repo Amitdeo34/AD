@@ -1,5 +1,6 @@
 /* Schedule Engine - core/demo.js
- * A realistic demo EPC project (industrial plant expansion, 6 buildings) with
+ * A realistic demo EPC project (pellet plant: Pellet Plant-1, Pellet Plant-2 and
+ * Filtration Plant areas, each with its buildings under it in the WBS) with
  * logic, calendars with Indian holidays, codes and last-month progress, so every
  * feature can be tried without a real XER.
  */
@@ -16,13 +17,20 @@
     };
   }
 
-  const BUILDINGS = [
-    { code: 'ADM', name: 'Admin Building', k: 1.2, lag: 0 },
-    { code: 'MPB', name: 'Main Process Building', k: 2.0, lag: 10 },
-    { code: 'WHS', name: 'Warehouse Block', k: 1.4, lag: 40 },
-    { code: 'SUB', name: '33kV Substation', k: 1.2, lag: 60 },
-    { code: 'UTL', name: 'Utility Building', k: 1.4, lag: 90 },
-    { code: 'STP', name: 'STP & Pump House', k: 1.0, lag: 120 }
+  // WBS: Project > Area (plant) > Building > Engineering / Procurement / Construction
+  const AREAS = [
+    { code: 'PP1', name: 'Pellet Plant-1', buildings: [
+      { code: 'ASS', name: 'Additive Storage Shed', k: 1.0, lag: 0 },
+      { code: 'AGB', name: 'Additive Grinding Building', k: 1.6, lag: 10, slip: 3 },
+      { code: 'GPB', name: 'Green Pelletizing Building', k: 2.0, lag: 20 },
+      { code: 'IFB', name: 'Induration Furnace Building', k: 1.8, lag: 40, slip: 6 }] },
+    { code: 'PP2', name: 'Pellet Plant-2', buildings: [
+      { code: 'ASS', name: 'Additive Storage Shed', k: 1.0, lag: 60 },
+      { code: 'GPB', name: 'Green Pelletizing Building', k: 1.8, lag: 80 },
+      { code: 'SCH', name: 'Screen House', k: 1.3, lag: 100 }] },
+    { code: 'FLT', name: 'Filtration Plant', buildings: [
+      { code: 'FLB', name: 'Filtration Building', k: 1.6, lag: 30 },
+      { code: 'RFB', name: 'Return Fines Building', k: 1.2, lag: 70 }] }
   ];
   const TEMPLATE = [
     // [key, EPC, name, dur, discipline, preds [key, type, lag]]
@@ -51,8 +59,8 @@
     opts = Object.assign({ progressTo: D.dayOf(2026, 8, 1) }, opts || {});
     const R = rng(20260901);
     const P = new SE.Project();
-    P.meta.name = 'Industrial Plant Expansion - Phase 2 (Demo)';
-    P.meta.code = 'IPX-P2';
+    P.meta.name = 'Pellet Plant Complex - Area Schedule (Demo)';
+    P.meta.code = 'PPC-AS';
     P.meta.source = 'demo';
     P.meta.fileName = 'Demo project';
     const hol = [D.dayOf(2026, 0, 26), D.dayOf(2026, 2, 4), D.dayOf(2026, 3, 3), D.dayOf(2026, 7, 15), D.dayOf(2026, 9, 2), D.dayOf(2026, 9, 20), D.dayOf(2026, 10, 9), D.dayOf(2026, 11, 25), D.dayOf(2027, 0, 26), D.dayOf(2027, 2, 22)];
@@ -73,16 +81,23 @@
     let tid = 1000;
     const mk = (o) => { const a = SE.newAct(Object.assign({ uid: String(++tid), calId: '1' }, o)); a.remDur = a.origDur; P.acts.push(a); return a; };
     const M0 = mk({ code: 'MS-1000', name: 'Notice to proceed / Project start', wbsId: gen, type: 'start', origDur: 0, cstr: { type: 'CS_MSOA', date: P.meta.planStart } });
-    const MF = mk({ code: 'MS-9000', name: 'Plant mechanical completion', wbsId: gen, type: 'finish', origDur: 0 });
+    const MF = mk({ code: 'MS-9000', name: 'Pellet plant complex - mechanical completion', wbsId: gen, type: 'finish', origDur: 0 });
     const rels = [];
     let seq = 2;
+    const BUILDINGS = [];
+    for (const ar of AREAS) {
+      const aw = String(++wid);
+      P.wbs[aw] = { id: aw, parentId: root, code: ar.code, name: ar.name, seq: seq++ };
+      ar.buildings.forEach((b, i) => BUILDINGS.push(Object.assign({ parent: aw, area: ar.code, seq: i }, b)));
+    }
     for (const b of BUILDINGS) {
       const bw = String(++wid);
-      P.wbs[bw] = { id: bw, parentId: root, code: b.code, name: b.name, seq: seq++ };
+      P.wbs[bw] = { id: bw, parentId: b.parent, code: b.area + '.' + b.code, name: b.name, seq: b.seq };
+      b.pre = b.area + '-' + b.code;
       const ph = {};
       [['E', 'Engineering'], ['P', 'Procurement'], ['C', 'Construction']].forEach(([k, n], i) => {
         const id = String(++wid);
-        P.wbs[id] = { id, parentId: bw, code: b.code + '.' + k, name: n, seq: i };
+        P.wbs[id] = { id, parentId: bw, code: b.area + '.' + b.code + '.' + k, name: n, seq: i };
         ph[k] = id;
       });
       const map = { M0 };
@@ -91,7 +106,7 @@
         const dur = t[3] === 0 ? 0 : Math.max(3, Math.round(t[3] * b.k * (0.85 + R() * 0.3)));
         if (!discVals[t[4]]) { discVals[t[4]] = { id: 'dv' + Object.keys(discVals).length, code: t[4], name: t[4] }; disc.values.push(discVals[t[4]]); }
         const a = mk({
-          code: b.code + '-' + t[1] + (n += 10), name: t[2], wbsId: ph[t[1]], origDur: dur, type: t[3] === 0 ? 'finish' : 'task',
+          code: b.pre + '-' + t[1] + (n += 10), name: t[2], wbsId: ph[t[1]], origDur: dur, type: t[3] === 0 ? 'finish' : 'task',
           calId: t[1] === 'E' ? '2' : '1', codes: { Discipline: t[4] }, pctType: t[1] === 'C' ? 'phys' : 'dur'
         });
         map[t[0]] = a;
@@ -115,6 +130,8 @@
     // simulate progress up to opts.progressTo (previous update), respecting logic
     const dd = opts.progressTo;
     P.meta.dataDate = dd;
+    const slip = {};
+    for (const b of BUILDINGS) slip[b.pre] = b.slip || 0;
     const order = P.acts.slice().sort((x, y) => (x.eStart - y.eStart) || (x.eFinish - y.eFinish));
     for (const a of order) {
       const c = P.cal(a);
@@ -132,7 +149,7 @@
         }
       }
       if (!ok) continue;
-      const slipBias = a.code.startsWith('SUB') ? 6 : a.code.startsWith('MPB') ? 3 : 0;
+      const slipBias = slip[a.code.slice(0, 7)] || 0;
       const s = c.add(es, Math.max(0, Math.round(R() * 6 - 1 + slipBias)));
       if (s >= dd) continue;
       if (a.type === 'finish') {

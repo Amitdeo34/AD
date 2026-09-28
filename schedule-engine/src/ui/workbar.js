@@ -30,25 +30,32 @@
   function openDim(anchor, key, label) {
     closePop();
     const P = S.P;
-    const rows = SE.analysis.breakdown(P, key, S.fl).filter((r) => r.count);
+    // buildings cascade from the chosen area(s)
+    const scope = key === 'building' && S.dimSel.area.size ? P.acts.filter((a) => S.dimSel.area.has(P.dim(a, 'area'))) : undefined;
+    const rows = SE.analysis.breakdown(P, key, S.fl, scope).filter((r) => r.count);
+    const areaOf = new Map();
+    if (key === 'building' && UI.hasAreas()) P.acts.forEach((a) => { const b = P.dim(a, 'building'); if (!areaOf.has(b)) areaOf.set(b, P.dim(a, 'area')); });
     const sel = new Set(S.dimSel[key]);
     pop = h('div', { class: 'ddpop', role: 'dialog', 'aria-label': label + ' filter' });
     const q = h('input', { class: 'inp', placeholder: 'Search ' + label.toLowerCase() + '…', 'aria-label': 'Search' });
     const list = h('div', { class: 'ddlist' });
     const draw = () => {
       list.innerHTML = '';
-      rows.filter((r) => !q.value || r.name.toLowerCase().includes(q.value.toLowerCase())).forEach((r) => {
+      let lastArea = null;
+      rows.filter((r) => !q.value || (r.name + ' ' + (areaOf.get(r.name) || '')).toLowerCase().includes(q.value.toLowerCase()))
+        .sort((x, y) => areaOf.size ? String(areaOf.get(x.name)).localeCompare(String(areaOf.get(y.name))) || rows.indexOf(x) - rows.indexOf(y) : 0).forEach((r) => {
+        if (areaOf.size && areaOf.get(r.name) !== lastArea) { lastArea = areaOf.get(r.name); list.append(h('div', { class: 'ddhead', text: lastArea })); }
         const cb = h('input', { type: 'checkbox' });
         cb.checked = sel.has(r.name);
         cb.onchange = () => { if (cb.checked) sel.add(r.name); else sel.delete(r.name); };
         const only = h('button', { class: 'btn sm', type: 'button', text: 'Only', onclick: () => { sel.clear(); sel.add(r.name); apply(); } });
-        list.append(h('label', { class: 'dditem' }, cb, h('span', { class: 'nm', text: r.name }), h('small', { html: r.actual.toFixed(0) + '% · ' + r.count + (r.lateStart + r.overdue ? ' · <b class="crit-t">' + (r.lateStart + r.overdue) + ' late</b>' : '') }), only));
+        list.append(h('label', { class: 'dditem' }, cb, h('span', { class: 'nm', text: areaOf.size ? r.name.replace(' (' + areaOf.get(r.name) + ')', '') : r.name, title: r.name }), h('small', { html: r.actual.toFixed(0) + '% · ' + r.count + (r.lateStart + r.overdue ? ' · <b class="crit-t">' + (r.lateStart + r.overdue) + ' late</b>' : '') }), only));
       });
     };
     const apply = () => { S.dimSel[key] = sel; S.collapsed.clear(); closePop(); UI.refresh({ noSave: true }); };
     q.oninput = draw;
     draw();
-    pop.append(q, list, h('div', { class: 'ddfoot' },
+    pop.append(key === 'building' ? sourceBox(P) : '', q, list, h('div', { class: 'ddfoot' },
       h('button', { class: 'btn sm', type: 'button', text: 'All', onclick: () => { sel.clear(); apply(); } }),
       h('button', { class: 'btn sm', type: 'button', text: 'Invert', onclick: () => { rows.forEach((r) => { if (sel.has(r.name)) sel.delete(r.name); else sel.add(r.name); }); draw(); } }),
       h('span', { style: { flex: 1 } }),
@@ -59,6 +66,42 @@
     pop.style.top = (r.bottom + 4) + 'px';
     q.focus();
     setTimeout(() => document.addEventListener('mousedown', outPop, true), 0);
+  }
+
+  /** "Buildings from": pick the WBS level (or activity code) that holds the building names */
+  function sourceBox(P) {
+    const d = P.settings.dims;
+    const idx = P.idx;
+    const byLv = new Map();
+    Object.values(P.wbs).forEach((w) => { const l = idx.level.get(w.id); if (!l) return; if (!byLv.has(l)) byLv.set(l, []); byLv.get(l).push(w.name); });
+    const src = h('select', { class: 'inp', 'aria-label': 'Buildings from', title: 'Where building names come from' });
+    src.append(h('option', { value: 'auto', text: 'Auto detect (building-like WBS names)' }));
+    Array.from(byLv.keys()).sort((x, y) => x - y).forEach((l) => {
+      const names = Array.from(new Set(byLv.get(l)));
+      src.append(h('option', { value: 'wbs:' + l, text: 'WBS level ' + l + ' - ' + names.slice(0, 3).join(', ') + (names.length > 3 ? ' +' + (names.length - 3) : '') }));
+    });
+    P.codeTypes.forEach((c) => src.append(h('option', { value: 'code:' + c.name, text: 'Activity code: ' + c.name })));
+    src.value = d.building.mode === 'wbs' ? 'wbs:' + d.building.wbsLevel : d.building.mode === 'code' ? 'code:' + d.building.codeType : 'auto';
+    const qual = h('select', { class: 'inp', 'aria-label': 'Area name in building', title: 'Add the area (e.g. Pellet Plant-1) to the building name' });
+    [['dup', 'Area name only when a building repeats'], ['all', 'Always add area name'], ['off', 'Never add area name']].forEach(([v, t]) => qual.append(h('option', { value: v, text: t })));
+    qual.value = d.building.qualify === 'dup' ? 'dup' : d.building.qualify ? 'all' : 'off';
+    const go = () => {
+      const v = src.value, qv = qual.value === 'dup' ? 'dup' : qual.value === 'all';
+      if (v === 'auto') d.building = { mode: 'auto', codeType: null, wbsLevel: null, qualify: qv };
+      else if (v.startsWith('wbs:')) d.building = { mode: 'wbs', codeType: null, wbsLevel: +v.slice(4), qualify: qv };
+      else d.building = { mode: 'code', codeType: v.slice(5), wbsLevel: null, qualify: qv };
+      if (d.area && d.area.mode !== 'code') {
+        const l = d.building.mode === 'wbs' ? d.building.wbsLevel - 1 : 0;
+        d.area = l >= 1 ? { mode: 'wbs', codeType: null, wbsLevel: l } : { mode: 'auto', codeType: null, wbsLevel: null };
+      }
+      P.invalidate();
+      S.dimSel.building.clear(); S.dimSel.area.clear(); S.collapsed.clear();
+      closePop();
+      UI.refresh();
+      UI.toast('Buildings now from ' + src.options[src.selectedIndex].text.replace(/ - .*/, '') + '. ' + new Set(P.acts.map((a) => P.dim(a, 'building'))).size + ' buildings found.', 'g');
+    };
+    src.onchange = go; qual.onchange = go;
+    return h('div', { class: 'ddsrc' }, h('label', null, h('span', { text: 'Buildings from' }), src), h('label', null, h('span', { text: 'Area name' }), qual));
   }
 
   /* ================================================================== *
@@ -74,7 +117,7 @@
     const ddIn = h('input', { type: 'date', class: 'dd-in', id: 'wbDD', value: D.fmtISO(P.meta.dataDate), title: 'Data Date - status is recorded up to the day before', 'aria-label': 'Data Date' });
     ddIn.onchange = () => { const d = D.parseDay(ddIn.value); if (d != null) setDataDate(d, ddIn); };
     L.append(
-      dimDropdown('building', 'Building'), dimDropdown('epc', 'EPC'),
+      UI.hasAreas() ? dimDropdown('area', 'Area') : '', dimDropdown('building', 'Building'), dimDropdown('epc', 'EPC'),
       h('label', { class: 'ddbtn dd-date', title: 'Data Date' }, h('span', { text: 'Data Date:' }), ddIn),
       h('button', { class: 'ddbtn' + (S.concernsOnly ? ' on' : ''), type: 'button', title: 'Show only activities with a flag (late start, overdue, future progress, out of sequence, invalid) or a raised concern', html: '⚑ Concerns only' + (nConcernFlag ? ' <em class="cnt-badge">' + nConcernFlag + '</em>' : ''), onclick: () => { S.concernsOnly = !S.concernsOnly; S.collapsed.clear(); UI.refresh({ noSave: true }); } }),
       h('button', { class: 'ddbtn', type: 'button', title: 'Record a concern (reason, action, owner) for the selected activities', text: '+ Raise concern', onclick: () => raiseConcern() }));
@@ -298,7 +341,7 @@
     const pane = h('div', { class: 'pane' });
     v.append(pane);
     const seg = h('div', { class: 'seg', role: 'group' });
-    [['building', 'Building lanes'], ['epc', 'EPC lanes'], ['wbs:1', 'WBS level 1 lanes']].forEach(([k, l]) => seg.append(h('button', { type: 'button', 'aria-pressed': S.tl.by === k ? 'true' : 'false', text: l, onclick: () => { S.tl.by = k; LS.set('se.tlview', S.tl); renderTimeline(); } })));
+    [['area', 'Area lanes'], ['building', 'Building lanes'], ['epc', 'EPC lanes'], ['wbs:1', 'WBS level 1 lanes']].forEach(([k, l]) => seg.append(h('button', { type: 'button', 'aria-pressed': S.tl.by === k ? 'true' : 'false', text: l, onclick: () => { S.tl.by = k; LS.set('se.tlview', S.tl); renderTimeline(); } })));
     const zoom = h('input', { type: 'range', min: 25, max: 220, value: S.tl.ppm, 'aria-label': 'Zoom', style: { width: '140px' } });
     zoom.oninput = () => { S.tl.ppm = +zoom.value; LS.set('se.tlview', S.tl); drawTL(box); };
     pane.append(h('div', { class: 'easybar' }, h('b', { text: 'Timeline' }), seg, h('label', { class: 'sub', style: { display: 'flex', gap: '6px', alignItems: 'center' } }, 'Zoom', zoom),
@@ -310,7 +353,7 @@
   function drawTL(box) {
     const P = S.P;
     const key = S.tl.by;
-    const sub = key === 'epc' ? 'building' : 'epc';
+    const sub = key === 'epc' || key === 'area' ? 'building' : 'epc';
     const acts = P.acts.filter((a) => !P.isSummaryType(a) && UI.passes(a));
     const lanes = new Map();
     acts.forEach((a) => { const l = P.dim(a, key); if (!lanes.has(l)) lanes.set(l, []); lanes.get(l).push(a); });
@@ -355,7 +398,7 @@
         const rs = sm2.aStart != null ? actEnd : sm2.start;
         if (sm2.status !== 'CO' && sm2.finish + 1 > rs) parts.push('<rect x="' + X(rs) + '" y="' + (y + 3) + '" width="' + Math.max(2, X(sm2.finish + 1) - X(rs)) + '" height="9" rx="2" class="' + (crit ? 'tl-crit' : 'tl-rem') + '"/>');
         parts.push('<rect x="' + bx + '" y="' + (y + 1) + '" width="' + bw + '" height="14" class="tl-hit" data-lane="' + esc(ln) + '" data-sub="' + esc(s) + '"><title>' + esc(ln + ' · ' + s + '\n' + D.fmt(sm2.start) + ' → ' + D.fmt(sm2.finish) + '\n' + sm2.pct.toFixed(0) + '% done (' + sm2.planned.toFixed(0) + '% planned) · ' + g.length + ' activities') + '</title></rect>');
-        parts.push('<text x="' + (LW - 8) + '" y="' + (y + 12) + '" text-anchor="end" class="tl-sub">' + esc(s) + ' · ' + sm2.pct.toFixed(0) + '%</text>');
+        parts.push('<text x="' + (LW - 8) + '" y="' + (y + 12) + '" text-anchor="end" class="tl-sub">' + esc(key === 'area' ? String(s).replace(' (' + ln + ')', '') : s) + ' · ' + sm2.pct.toFixed(0) + '%</text>');
         parts.push('<text x="' + (bx + bw + 5) + '" y="' + (y + 12) + '" class="tl-date">' + D.fmt(sm2.finish) + '</text>');
         y += rowH;
       }

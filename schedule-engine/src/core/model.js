@@ -63,9 +63,12 @@
     if (/^c(on\w*)?$|construct|erect|install|civil|commission/.test(t)) return 'Construction';
     return null;
   }
-  const BUILDING_RE = /\b(building|bldg|blg|block|blk|tower|twr|wing|shed|hall|plant|station|substation|sub-station|warehouse|annex|annexe|house|facility|unit|area|zone|pavilion|structure|villa|hostel|school|hospital|canteen|office|podium|basement|parking|stp|wtp|etp|pump ?house|dg|utility|gatehouse|gate house|security|mall|complex|terminal|depot|yard)\b|^\s*(b|t|blk|bldg)[\s\-_.]?\d+/i;
+  // words that name a physical building / structure (strong) vs a plant area / package (area)
+  const BUILDING_RE = /\b(building|bldg|blg|shed|house|hall|warehouse|store|stores|storage|block|blk|tower|twr|wing|bay|gallery|galleries|silo|silos|bunker|hopper|tank|chimney|stack|substation|sub-station|station|room|pump ?house|junction ?house|transfer ?house|tunnel|office|canteen|annex|annexe|workshop|kiln|furnace|shelter|pavilion|villa|hostel|school|hospital|gatehouse|gate house|podium|basement|parking|thickener|clarifier|stp|wtp|etp)\b|^\s*(b|t|blk|bldg|jh|th)[\s\-_.]?\d+/i;
+  const AREA_RE = /\b(plant|unit|area|zone|package|pkg|phase|line|module|circuit|system|section|complex|facility|yard|campus|site|project|pellet|pelletizing plant|beneficiation|filtration|filter plant|concentrator|sinter|coke oven|blast furnace|bof|sms|rolling mill)\b|[-\s#]\d{1,2}$/i;
 
   /* ------------------------------------------------------------------ */
+  const isAreaOnly = (n) => AREA_RE.test(n) && !/\b(building|bldg|shed|house|hall|warehouse|store|storage|block|tower|bay|gallery|silo|bunker|tank|room|tunnel|office|workshop|kiln|furnace|shelter|thickener|clarifier)\b/i.test(n);
   function newAct(o) {
     return Object.assign({
       uid: null, code: '', name: '', wbsId: null, type: 'task', calId: null,
@@ -97,8 +100,9 @@
       this.redoStack = [];
       this.settings = {
         dims: {
-          building: { mode: 'auto', codeType: null, wbsLevel: null },
-          epc: { mode: 'auto', codeType: null, wbsLevel: null }
+          building: { mode: 'auto', codeType: null, wbsLevel: null, qualify: false },
+          epc: { mode: 'auto', codeType: null, wbsLevel: null },
+          area: { mode: 'auto', codeType: null, wbsLevel: null }
         },
         linkRemaining: true,
         smartAutofill: true,
@@ -180,7 +184,7 @@
       return v && v.name ? v.name : code;
     }
     dimensionKeys() {
-      const keys = [{ key: 'building', label: 'Building' }, { key: 'epc', label: 'EPC Phase' }];
+      const keys = [{ key: 'area', label: 'Area / Plant' }, { key: 'building', label: 'Building' }, { key: 'epc', label: 'EPC Phase' }];
       for (const c of this.codeTypes) keys.push({ key: 'code:' + c.name, label: c.name });
       const ml = this.maxWbsLevel();
       for (let i = 1; i <= Math.min(ml, 6); i++) keys.push({ key: 'wbs:' + i, label: 'WBS Level ' + i });
@@ -194,12 +198,12 @@
       return p[Math.min(lv, p.length) - 1];
     }
     dim(a, key) {
-      if (key === 'building' || key === 'epc') {
+      if (key === 'building' || key === 'epc' || key === 'area') {
         if (a.dimOverride && a.dimOverride[key]) return a.dimOverride[key];
         const cache = this.idx.dimCache;
         const ck = key + '|' + a.uid;
         if (cache.has(ck)) return cache.get(ck);
-        const v = key === 'building' ? this._building(a) : this._epc(a);
+        const v = key === 'building' ? this._building(a) : key === 'area' ? this._area(a) : this._epc(a);
         cache.set(ck, v);
         return v;
       }
@@ -208,20 +212,66 @@
       if (key === 'status') return STATUS[a.status];
       return '';
     }
+    /** WBS node that is the building for this activity (or null) */
+    _buildingNode(a) {
+      const s = this.settings.dims.building;
+      const p = this.wbsPath(a.wbsId);
+      if (s.mode === 'wbs' && s.wbsLevel) return p.length >= s.wbsLevel ? p[s.wbsLevel - 1] : null;
+      if (s.mode !== 'auto') return null;
+      for (let i = p.length - 1; i >= 0; i--) if (BUILDING_RE.test(p[i].name) && !this._isEpcName(p[i].name) && !isAreaOnly(p[i].name)) return p[i];
+      return null;
+    }
     _building(a) {
       const s = this.settings.dims.building;
       if (s.mode === 'code' && s.codeType) return a.codes[s.codeType] ? this.codeLabel(s.codeType, a.codes[s.codeType]) : '(Unassigned)';
-      if (s.mode === 'wbs' && s.wbsLevel) { const w = this.wbsAtLevel(a, s.wbsLevel); return w ? w.name : '(No WBS)'; }
       if (s.mode === 'none') return 'All';
-      // auto
-      const p = this.wbsPath(a.wbsId);
-      for (let i = p.length - 1; i >= 0; i--) if (BUILDING_RE.test(p[i].name) && !this._isEpcName(p[i].name)) return p[i].name;
-      const m = BUILDING_RE.exec(a.name);
-      if (m) {
-        const mm = /\b(building|bldg|block|blk|tower|wing)[\s\-_.]*([A-Z0-9]{1,4})\b/i.exec(a.name);
-        if (mm) return mm[1].charAt(0).toUpperCase() + mm[1].slice(1).toLowerCase() + ' ' + mm[2].toUpperCase();
+      const node = this._buildingNode(a);
+      if (node) {
+        if (s.qualify && (s.qualify !== 'dup' || this._dupBuildings().has(node.name))) { const ar = this._area(a); if (ar && ar !== 'All' && ar !== node.name) return node.name + ' (' + ar + ')'; }
+        return node.name;
       }
-      return p.length ? p[0].name : 'General';
+      if (s.mode === 'wbs') { const p = this.wbsPath(a.wbsId); return p.length ? p[p.length - 1].name : '(No WBS)'; }
+      // auto without a building-like WBS: building named in the activity, else the area / top WBS
+      const mm = /\b(building|bldg|block|blk|tower|wing|shed|house)[\s\-_.]*([A-Z0-9]{1,4})\b/i.exec(a.name);
+      if (mm && /\d|^[A-Z]$/.test(mm[2])) return mm[1].charAt(0).toUpperCase() + mm[1].slice(1).toLowerCase() + ' ' + mm[2].toUpperCase();
+      const p = this.wbsPath(a.wbsId);
+      const nonEpc = p.filter((w) => !this._isEpcName(w.name));
+      return nonEpc.length ? nonEpc[nonEpc.length - 1].name : p.length ? p[0].name : 'General';
+    }
+    /** true when the schedule has an Area / plant level distinct from the buildings (Pellet-1, Pellet-2, Filtration…) */
+    hasAreas() {
+      const s = this.settings.dims.area;
+      if (!s || s.mode === 'none') return false;
+      const ar = new Set();
+      let same = 0, n = 0;
+      for (const a of this.acts) { if (this.isSummaryType(a)) continue; const v = this.dim(a, 'area'); ar.add(v); n++; if (v === this.dim(a, 'building')) same++; }
+      return ar.size > 1 && same < n * 0.5;
+    }
+    /** building names that occur under more than one area (need the area prefix to stay unique) */
+    _dupBuildings() {
+      const idx = this.idx;
+      if (idx.dupBld) return idx.dupBld;
+      const seen = new Map(), dup = new Set();
+      for (const a of this.acts) {
+        const n = this._buildingNode(a);
+        if (!n) continue;
+        const ar = this._area(a);
+        if (seen.has(n.name) && seen.get(n.name) !== ar) dup.add(n.name);
+        seen.set(n.name, ar);
+      }
+      return (idx.dupBld = dup);
+    }
+    /** Area / plant / package above the building (e.g. Pellet-1, Pellet-2, Filtration) */
+    _area(a) {
+      const s = this.settings.dims.area || { mode: 'auto' };
+      if (s.mode === 'none') return 'All';
+      if (s.mode === 'code' && s.codeType) return a.codes[s.codeType] ? this.codeLabel(s.codeType, a.codes[s.codeType]) : '(Unassigned)';
+      const p = this.wbsPath(a.wbsId);
+      if (s.mode === 'wbs' && s.wbsLevel) return p.length >= s.wbsLevel ? p[s.wbsLevel - 1].name : '(No WBS)';
+      const node = this._buildingNode(a);
+      const k = node ? p.indexOf(node) : -1;
+      for (let i = (k >= 0 ? k : p.length) - 1; i >= 0; i--) if (!this._isEpcName(p[i].name)) return p[i].name;
+      return p.length ? p[0].name : 'All';
     }
     _isEpcName(n) { return /^\s*(engineering|design|procurement|supply|construction|execution|civil works?|commissioning)\s*$/i.test(n); }
     _epc(a) {
@@ -256,27 +306,38 @@
     /** pick sensible defaults for Building / EPC sources after import */
     autoConfigureDims() {
       const d = this.settings.dims;
-      const bType = this.codeTypes.find((c) => /build|bldg|block|tower|area|zone|facility|structure|location/i.test(c.name));
-      if (bType) d.building = { mode: 'code', codeType: bType.name, wbsLevel: null };
-      else {
-        // WBS level whose names look most like buildings
-        const idx = this.index();
-        const counts = {};
-        for (const w of Object.values(this.wbs)) {
-          const lv = idx.level.get(w.id);
-          if (!lv) continue;
-          counts[lv] = counts[lv] || { hit: 0, all: 0 };
-          counts[lv].all++;
-          if (BUILDING_RE.test(w.name) && !this._isEpcName(w.name)) counts[lv].hit++;
-        }
-        let best = null, bestRatio = 0;
-        for (const lv in counts) {
-          const r = counts[lv].hit / counts[lv].all;
-          if (counts[lv].hit >= 2 && r > bestRatio) { bestRatio = r; best = +lv; }
-        }
-        if (best && bestRatio >= 0.4) d.building = { mode: 'wbs', codeType: null, wbsLevel: best };
-        else d.building = { mode: 'auto', codeType: null, wbsLevel: null };
+      const idx = this.index();
+      const bType = this.codeTypes.find((c) => /build|bldg|block|tower|facility|structure/i.test(c.name));
+      const aType = this.codeTypes.find((c) => /area|plant|unit|zone|package|location/i.test(c.name) && c !== bType);
+      // score each WBS level: share of names that look like buildings, and like areas
+      const lv = {};
+      for (const w of Object.values(this.wbs)) {
+        const l = idx.level.get(w.id);
+        if (!l) continue;
+        lv[l] = lv[l] || { b: 0, a: 0, all: 0, names: new Map() };
+        lv[l].all++;
+        if (this._isEpcName(w.name)) continue;
+        if (BUILDING_RE.test(w.name) && !isAreaOnly(w.name)) lv[l].b++;
+        else if (AREA_RE.test(w.name)) lv[l].a++;
       }
+      let best = null, bestR = 0;
+      for (const l in lv) {
+        const r = lv[l].b / lv[l].all;
+        if (lv[l].b >= 2 && r >= 0.3 && (r > bestR + 0.05 || (Math.abs(r - bestR) <= 0.05 && +l > best))) { bestR = r; best = +l; }
+      }
+      if (bType) d.building = { mode: 'code', codeType: bType.name, wbsLevel: null, qualify: false };
+      else if (best) d.building = { mode: 'wbs', codeType: null, wbsLevel: best, qualify: false };
+      else d.building = { mode: 'auto', codeType: null, wbsLevel: null, qualify: false };
+      // area: code, or the nearest non-EPC WBS level above the building level
+      if (aType) d.area = { mode: 'code', codeType: aType.name, wbsLevel: null };
+      else if (d.building.mode === 'wbs' && d.building.wbsLevel > 1) {
+        let al = d.building.wbsLevel - 1;
+        while (al > 1 && lv[al] && lv[al].all && Object.values(this.wbs).filter((w) => idx.level.get(w.id) === al).every((w) => this._isEpcName(w.name))) al--;
+        d.area = { mode: 'wbs', codeType: null, wbsLevel: al };
+      } else d.area = { mode: 'auto', codeType: null, wbsLevel: null };
+      this.invalidate();
+      // same building name under two areas (e.g. Additive Storage Shed in Pellet-1 and Pellet-2) → prefix the area on those
+      if (this._dupBuildings().size) d.building.qualify = 'dup';
       const eType = this.codeTypes.find((c) => {
         if (!/epc|phase|stage|discipline/i.test(c.name) || !c.values.length) return false;
         const m = c.values.map((v) => epcFromCodeValue(v.code) || epcFromCodeValue(v.name)).filter(Boolean);
@@ -515,7 +576,7 @@
         this.redoStack = [];
         const soft = ['concern', 'notes', 'dimOverride', 'codes', 'name', 'qty'];
         if (undo.some((u) => Object.keys(u.before).some((k) => !soft.includes(k)))) this.settings.scheduled = false;
-        if (this._idx) this._idx.dimCache.clear();
+        if (this._idx) { this._idx.dimCache.clear(); this._idx.dupBld = null; }
       }
       return out;
     }
@@ -530,7 +591,7 @@
       }
       this.redoStack.push(u);
       this.log.push({ t: Date.now(), uid: null, code: '', field: 'undo', from: u.label, to: null });
-      if (this._idx) this._idx.dimCache.clear();
+      if (this._idx) { this._idx.dimCache.clear(); this._idx.dupBld = null; }
       return u;
     }
     redo() {
@@ -543,7 +604,7 @@
         a.touched = true;
       }
       this.undoStack.push(u);
-      if (this._idx) this._idx.dimCache.clear();
+      if (this._idx) { this._idx.dimCache.clear(); this._idx.dupBld = null; }
       return u;
     }
 
@@ -653,6 +714,7 @@
   SE.classifyEPC = classifyEPC;
   SE.epcFromCodeValue = epcFromCodeValue;
   SE.BUILDING_RE = BUILDING_RE;
+  SE.AREA_RE = AREA_RE;
   SE.newAct = newAct;
   SE.Project = Project;
 })(typeof module === 'object' && module.exports ? (global.SE = global.SE || {}) : (window.SE = window.SE || {}));

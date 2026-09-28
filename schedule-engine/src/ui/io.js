@@ -129,7 +129,7 @@
   async function afterLoad(P, askDD) {
     S.P = P;
     S.sel = null; S.multi.clear(); S.collapsed.clear();
-    S.lensSel.clear(); S.dimSel.building.clear(); S.dimSel.epc.clear(); S.statusSel.clear(); S.ask = null; S.uidFilter = null; S.text = '';
+    S.lensSel.clear(); S.dimSel.area.clear(); S.dimSel.building.clear(); S.dimSel.epc.clear(); S.statusSel.clear(); S.ask = null; S.uidFilter = null; S.text = '';
     S.lastHealth = null;
     $('#welcome').hidden = true;
     if (!P.settings.scheduled && P.meta.source !== 'xer') { /* keep file dates */ }
@@ -388,7 +388,7 @@
     const feat = h('div', { class: 'feat', html:
       '<div><h4>Mistake-proof updating</h4><p>Actual dates after the Data Date, 100% without a finish, progress without a start, finish before start - blocked with a clear message and a fix.</p></div>' +
       '<div><h4>Quantity-based %</h4><p>Scope vs completed quantity, this-month quantities and weighted steps (rules of credit) turn site figures into a defensible % complete.</p></div>' +
-      '<div><h4>Ask the engine</h4><p>Type "delayed in Admin Building", "procurement progress" or "critical next 30 days" and the schedule filters itself.</p></div>' +
+      '<div><h4>Ask the engine</h4><p>Type "delayed in Green Pelletizing Building", "pellet-2 progress", "procurement progress" or "critical next 30 days" and the schedule filters itself.</p></div>' +
       '<div><h4>Building-wise & EPC-wise</h4><p>Buildings and Engineering / Procurement / Construction are detected from codes, WBS or activity names - and you can override them.</p></div>' +
       '<div><h4>Faithful XER round trip</h4><p>Resources, costs, UDFs and codes in your XER are kept; only progress, dates and float are written back.</p></div>' +
       '<div><h4>Works offline</h4><p>One HTML file. No install, no P6 licence, no upload. Autosaves in your browser so you can resume.</p></div>' });

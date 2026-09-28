@@ -358,20 +358,23 @@
       filter.window = [D.monthStart(dd), D.monthEnd(dd)]; said.push('in ' + D.monthLabel(dd));
     }
     // dimension values (building / epc / codes / wbs names)
-    const dimKeys = ['building', 'epc'].concat(P.codeTypes.map((c) => 'code:' + c.name));
+    const dimKeys = ['area', 'building', 'epc'].concat(P.codeTypes.map((c) => 'code:' + c.name));
     for (const k of dimKeys) {
       const vals = new Set(P.acts.map((a) => P.dim(a, k)));
       for (const v of vals) {
         if (!v || v.length < 2 || /^(project milestones|general|others|all)$/i.test(v)) continue;
         const lv = v.toLowerCase();
-        const words = lv.split(/\s+/).filter((w) => w.length > 2 && !/^(building|block|and|the|work|works|phase|project|milestones?|general|others?|house|area)$/.test(w));
+        // "Additive Storage Shed (Pellet Plant-1)": match on the building words, the area is its own dimension
+        const core = k === 'building' ? lv.replace(/\s*\([^)]*\)\s*$/, '') : lv;
+        const nums = core.match(/\d+/g);
+        const words = core.split(/\s+/).filter((w) => w.length > 2 && !/^(building|block|and|the|work|works|phase|project|milestones?|general|others?|house|area)$/.test(w));
         let hit = q.indexOf(' ' + lv + ' ') >= 0 || q.indexOf(lv) >= 0;
         if (!hit && k === 'epc') hit = (lv === 'engineering' && /\b(eng|engg|design|drawings?)\b/.test(q)) || (lv === 'procurement' && /\b(proc|procure|supply|purchase|po)\b/.test(q)) || (lv === 'construction' && /\b(const|constn|civil|site|erection|execution)\b/.test(q));
-        if (!hit && words.length) hit = words.some((w) => new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(q) && w.length > 3);
+        if (!hit && words.length) hit = words.some((w) => !/\d/.test(w) && new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(q) && w.length > 3) && (!nums || nums.some((n) => new RegExp('(^|\\D)' + n + '(\\D|$)').test(q)));
         if (hit) { (filter.dims[k] = filter.dims[k] || []).push(v); }
       }
     }
-    for (const k in filter.dims) said.push((k === 'building' ? 'building ' : k === 'epc' ? '' : k.replace('code:', '') + ' ') + filter.dims[k].join(' / '));
+    for (const k in filter.dims) said.push((k === 'building' ? 'building ' : k === 'area' ? 'area ' : k === 'epc' ? '' : k.replace('code:', '') + ' ') + filter.dims[k].join(' / '));
     // question type
     const wantsCount = /how many|count|kitne|number of/.test(q);
     const wantsProgress = /progress|percent|%|kitna|status of|how much/.test(q) && !lensHit;
@@ -398,7 +401,7 @@
       const t = String(question || '').trim();
       filter.text = t;
       const l2 = applyFilter(P, filter);
-      answer = l2.length ? 'Found ' + l2.length + ' activities matching "' + t + '".' : 'I could not match that. Try: "delayed activities in Admin Building", "procurement progress", "what is critical in next 30 days", "how many not started in Warehouse".';
+      answer = l2.length ? 'Found ' + l2.length + ' activities matching "' + t + '".' : 'I could not match that. Try: "delayed activities in Green Pelletizing Building", "procurement progress", "what is critical in next 30 days", "how many not started in Warehouse".';
     }
     return { filter, answer, count: applyFilter(P, filter).length };
   }

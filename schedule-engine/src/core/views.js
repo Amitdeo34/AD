@@ -131,11 +131,11 @@
         const first = ['invalid', 'overdue', 'lateStart', 'future', 'pending', 'inProgress', 'due', 'updated'].find((k) => f.includes(k));
         return first ? SE.LENS_BY_KEY[first].label : 'No action needed';
       }
-      if (key === 'building' || key === 'epc' || key === 'status' || key.startsWith('code:') || key.startsWith('wbs:')) return P.dim(a, key);
+      if (key === 'building' || key === 'area' || key === 'epc' || key === 'status' || key.startsWith('code:') || key.startsWith('wbs:')) return P.dim(a, key);
       const col = SE.columns && SE.columns.get(P, key);
       return col ? SE.columns.groupValue(P, col, a, { flags: flMap }) : P.dim(a, key);
     };
-    const colKey = (key) => !(key === 'building' || key === 'epc' || key === 'status' || key === 'lens' || key.startsWith('code:') || key.startsWith('wbs:')) && SE.columns && SE.columns.get(P, key);
+    const colKey = (key) => !(key === 'building' || key === 'area' || key === 'epc' || key === 'status' || key === 'lens' || key.startsWith('code:') || key.startsWith('wbs:')) && SE.columns && SE.columns.get(P, key);
     const orderOf = (key, vals) => {
       if (key === 'epc') return vals.sort((a, b) => idxOr(SE.EPC, a) - idxOr(SE.EPC, b));
       if (key === 'status') return vals.sort((a, b) => ['In Progress', 'Not Started', 'Completed'].indexOf(a) - ['In Progress', 'Not Started', 'Completed'].indexOf(b));
@@ -167,7 +167,9 @@
       for (const v of keys) {
         const g = groups.get(v);
         const id = prefix + '|' + key + '=' + v;
-        rows.push({ kind: 'group', id, label: v, dimKey: key, level: depth, count: g.length, sum: summarize(P, g), collapsed: collapsed.has(id) });
+        // under an Area band, "Screen House (Pellet Plant-2)" reads as "Screen House"
+        const label = key === 'building' && groupBy.slice(0, depth).includes('area') ? String(v).replace(' (' + P.dim(g[0], 'area') + ')', '') : v;
+        rows.push({ kind: 'group', id, label, value: v, dimKey: key, level: depth, count: g.length, sum: summarize(P, g), collapsed: collapsed.has(id) });
         if (collapsed.has(id)) continue;
         if (depth + 1 < groupBy.length) recurse(g, depth + 1, id);
         else if (!opts.noActs) g.slice().sort(cmp).forEach((a) => rows.push({ kind: 'act', a, level: depth + 1 }));

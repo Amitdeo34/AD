@@ -19,7 +19,7 @@
     sort: { key: 'start', dir: 'asc' },
     collapsed: new Set(),
     lensSel: new Set(),
-    dimSel: { building: new Set(), epc: new Set() },
+    dimSel: { area: new Set(), building: new Set(), epc: new Set() },
     statusSel: new Set(),
     text: '',
     ask: null,           // {question, answer, uids:Set}
@@ -160,6 +160,7 @@
   function passes(a) {
     const P = S.P;
     if (S.lensSel.size) { const f = S.fl.map.get(a.uid) || []; let ok = false; for (const k of S.lensSel) if (f.includes(k)) { ok = true; break; } if (!ok) return false; }
+    if (S.dimSel.area.size && !S.dimSel.area.has(P.dim(a, 'area'))) return false;
     if (S.dimSel.building.size && !S.dimSel.building.has(P.dim(a, 'building'))) return false;
     if (S.dimSel.epc.size && !S.dimSel.epc.has(P.dim(a, 'epc'))) return false;
     if (S.statusSel.size && !S.statusSel.has(a.status)) return false;
@@ -170,7 +171,8 @@
     if (S.concernsOnly) { const f = S.fl.map.get(a.uid) || []; if (!f.some((k) => k === 'concern' || SE.CONCERN_KEYS.includes(k))) return false; }
     return true;
   }
-  function filtered() { return !!(S.concernsOnly || (S.filtersOn && S.filtersOn.length) || S.lensSel.size || S.dimSel.building.size || S.dimSel.epc.size || S.statusSel.size || S.ask || S.uidFilter || S.text); }
+  function hasAreas() { return !!(S.P && S.P.hasAreas()); }
+  function filtered() { return !!(S.concernsOnly || (S.filtersOn && S.filtersOn.length) || S.lensSel.size || S.dimSel.area.size || S.dimSel.building.size || S.dimSel.epc.size || S.statusSel.size || S.ask || S.uidFilter || S.text); }
   function rowOpts() { return { groupBy: S.groupBy, filter: passes, sort: S.sort, collapsed: S.collapsed, flags: S.fl.map, noActs: S.noActs }; }
   function buildRows() {
     if (!S.P) { S.rows = []; return; }
@@ -247,10 +249,13 @@
     parts.push('<div><h4>Update spotlight ' + (S.lensSel.size ? '<button data-clear="lens">clear</button>' : '') + '</h4>' + ['pending', 'lateStart', 'overdue', 'future', 'due', 'inProgress', 'updated'].map(lensBtn).join('') + '</div>');
     parts.push('<div><h4>Schedule quality</h4>' + ['critical', 'negFloat', 'outSeq', 'invalid', 'lookahead', 'openEnd'].map(lensBtn).join('') + '</div>');
     const dimBlock = (key, title) => {
-      const rows = SE.analysis.breakdown(P, key, S.fl).filter((b) => b.count);
+      // buildings cascade from the chosen area(s)
+      const acts = key === 'building' && S.dimSel.area.size ? P.acts.filter((a) => S.dimSel.area.has(P.dim(a, 'area'))) : undefined;
+      const rows = SE.analysis.breakdown(P, key, S.fl, acts).filter((b) => b.count);
       return '<div><h4>' + title + ' ' + (S.dimSel[key].size ? '<button data-clear="' + key + '">clear</button>' : '<button data-group="' + key + '">group by</button>') + '</h4>' +
         rows.map((b) => '<button class="dimchip' + (S.dimSel[key].has(b.name) ? ' on' : '') + '" data-dim="' + key + '" data-val="' + esc(b.name) + '" title="' + esc(b.name) + ': actual ' + b.actual.toFixed(1) + '% vs planned ' + b.planned.toFixed(1) + '%"><span>' + esc(b.name) + '</span><small>' + b.actual.toFixed(0) + '%' + (b.lateStart + b.overdue ? ' · <span class="late">' + (b.lateStart + b.overdue) + ' late</span>' : '') + '</small><span class="bar"><i style="width:' + b.actual.toFixed(1) + '%"></i><b style="left:' + b.planned.toFixed(1) + '%"></b></span></button>').join('') + '</div>';
     };
+    if (UI.hasAreas()) parts.push(dimBlock('area', 'Areas / plants'));
     parts.push(dimBlock('building', 'Buildings'));
     parts.push(dimBlock('epc', 'EPC phase'));
     const st = { NS: 0, IP: 0, CO: 0 };
@@ -284,6 +289,7 @@
     const chips = [];
     const chip = (label, clear) => chips.push({ label, clear });
     S.lensSel.forEach((k) => chip(SE.LENS_BY_KEY[k].short, () => S.lensSel.delete(k)));
+    S.dimSel.area.forEach((v) => chip(v, () => S.dimSel.area.delete(v)));
     S.dimSel.building.forEach((v) => chip(v, () => S.dimSel.building.delete(v)));
     S.dimSel.epc.forEach((v) => chip(v, () => S.dimSel.epc.delete(v)));
     S.statusSel.forEach((v) => chip(SE.STATUS[v], () => S.statusSel.delete(v)));
@@ -301,7 +307,7 @@
     if (chips.length > 1) fb.append(h('button', { class: 'btn sm', text: 'Clear all', onclick: clearFilters }));
   }
   function clearFilters() {
-    S.lensSel.clear(); S.dimSel.building.clear(); S.dimSel.epc.clear(); S.statusSel.clear(); S.ask = null; S.uidFilter = null; S.text = ''; S.filtersOn = []; S.concernsOnly = false;
+    S.lensSel.clear(); S.dimSel.area.clear(); S.dimSel.building.clear(); S.dimSel.epc.clear(); S.statusSel.clear(); S.ask = null; S.uidFilter = null; S.text = ''; S.filtersOn = []; S.concernsOnly = false;
     $('#ask').value = '';
     refresh({ noSave: true });
   }
@@ -338,7 +344,7 @@
   }
   function rgroup(label, ...kids) { return h('div', { class: 'rgroup' }, h('div', { class: 'rrow' }, kids), h('label', { text: label })); }
   const GROUPS = [
-    ['wbs', 'WBS (P6 default)'], ['building', 'Building'], ['building,epc', 'Building → EPC'], ['epc', 'EPC phase'], ['epc,building', 'EPC → Building'],
+    ['wbs', 'WBS (P6 default)'], ['building', 'Building'], ['building,epc', 'Building → EPC'], ['area', 'Area / plant'], ['area,building', 'Area → Building'], ['area,building,epc', 'Area → Building → EPC'], ['epc', 'EPC phase'], ['epc,building', 'EPC → Building'],
     ['status', 'Activity status'], ['lens', 'Update flag'], ['none', 'No grouping']
   ];
   function buildRibbon() {
@@ -440,7 +446,7 @@
     S.groupBy = key === 'none' ? [] : key.split(',');
     S.collapsed.clear();
     const g = $('#groupSel');
-    if (g) { if (!Array.from(g.options).some((o) => o.value === key)) g.append(h('option', { value: key, text: key.split(',').map((k) => { const c = S.P && !/^(building|epc|status|lens|none|wbs)$/.test(k) && !/^(code|wbs):/.test(k) ? SE.columns.get(S.P, k) : null; return c ? c.label : k.replace('code:', 'Code: ').replace('wbs:', 'WBS level ').replace(/^building$/, 'Building').replace(/^epc$/, 'EPC').replace(/^status$/, 'Status').replace(/^lens$/, 'Update flag'); }).join(' → ') })); g.value = key; }
+    if (g) { if (!Array.from(g.options).some((o) => o.value === key)) g.append(h('option', { value: key, text: key.split(',').map((k) => { const c = S.P && !/^(building|area|epc|status|lens|none|wbs)$/.test(k) && !/^(code|wbs):/.test(k) ? SE.columns.get(S.P, k) : null; return c ? c.label : k.replace('code:', 'Code: ').replace('wbs:', 'WBS level ').replace(/^building$/, 'Building').replace(/^area$/, 'Area').replace(/^epc$/, 'EPC').replace(/^status$/, 'Status').replace(/^lens$/, 'Update flag'); }).join(' → ') })); g.value = key; }
     syncToggles();
     if (S.view !== 'gantt') setView('gantt');
     refresh({ noSave: true });
@@ -549,7 +555,7 @@
       '<h3>Typing dates</h3><p>Any of: <span class="kbd">30-Sep-26</span> <span class="kbd">30/09/2026</span> <span class="kbd">2026-09-30</span> <span class="kbd">30 Sep</span>. Shortcuts: <span class="kbd">p</span> = planned date, <span class="kbd">dd</span> = day before Data Date, <span class="kbd">t</span> = today.</p>' +
       '<h3>Keyboard</h3><div class="helpgrid"><span class="kbd">F9</span><span>Schedule</span><span class="kbd">Ctrl+Z / Ctrl+Y</span><span>Undo / redo</span><span class="kbd">Ctrl+S</span><span>Save project (.sej)</span><span class="kbd">Ctrl+O</span><span>Open file</span><span class="kbd">Ctrl+E</span><span>Export</span><span class="kbd">Ctrl+F</span><span>Ask the engine / search</span><span class="kbd">↑ ↓</span><span>Move between activities</span><span class="kbd">Enter / F2</span><span>Edit the cell</span><span class="kbd">Tab</span><span>Next editable cell</span><span class="kbd">Esc</span><span>Cancel edit / clear selection</span></div>' +
       '<h3>Rules the engine enforces</h3><ul><li>Actual Start and Actual Finish must be before the Data Date; Finish cannot be before Start.</li><li>100% requires an Actual Finish; progress requires an Actual Start (auto-filled from plan, you can edit it).</li><li>Completed activities are locked until the Actual Finish is cleared.</li><li>Milestones take dates, not percentages.</li><li>Out-of-sequence progress, loops and invalid dates are flagged before export.</li></ul>' +
-      '<h3>Ask the engine</h3><p>Examples: <i>delayed in Admin Building</i> · <i>procurement progress</i> · <i>critical next 30 days</i> · <i>how many not started in Warehouse</i> · <i>when will the project finish</i> · <i>"excavation"</i>.</p>' +
+      '<h3>Ask the engine</h3><p>Examples: <i>delayed in Green Pelletizing Building</i> · <i>pellet-2 progress</i> · <i>procurement progress</i> · <i>critical next 30 days</i> · <i>how many not started in Screen House</i> · <i>when will the project finish</i> · <i>"excavation"</i>.</p>' +
       '<h3>Your data</h3><p>Everything runs inside this browser page. Files are never uploaded; the session is autosaved in this browser so you can close and resume.</p>'
     });
     modal('Schedule Engine - help', body, null, 'wide');
@@ -569,7 +575,7 @@
   function doAsk(q) {
     q = String(q || '').trim();
     if (!q) { S.ask = null; refresh({ noSave: true }); return; }
-    S.lensSel.clear(); S.dimSel.building.clear(); S.dimSel.epc.clear(); S.statusSel.clear(); S.uidFilter = null;
+    S.lensSel.clear(); S.dimSel.area.clear(); S.dimSel.building.clear(); S.dimSel.epc.clear(); S.statusSel.clear(); S.uidFilter = null;
     const r = SE.analysis.ask(S.P, q);
     const list = SE.analysis.applyFilter(S.P, r.filter, S.fl.map);
     S.ask = { question: q, answer: r.answer, uids: new Set(list.map((a) => a.uid)) };
@@ -580,6 +586,6 @@
 
   window.UI = {
     S, h, $, $$, esc, icon, toast, modal, menu, closeMenu, busy, tick, refresh, redrawSoon, buildRibbon, bindSide, setView, setGroup, setTheme,
-    applyPatches, softRefresh, undo, redo, runSchedule, dataDateDialog, help, doAsk, clearFilters, passes, filtered, computeFlags, buildRows, syncToggles, rowOpts
+    applyPatches, softRefresh, undo, redo, runSchedule, dataDateDialog, help, doAsk, clearFilters, passes, filtered, hasAreas, computeFlags, buildRows, syncToggles, rowOpts
   };
 })();

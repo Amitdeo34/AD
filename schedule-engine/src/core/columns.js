@@ -87,6 +87,7 @@
     { id: 'nPreds', label: 'Number of Predecessors', short: '# Preds', cat: 'Logic', w: 52, t: 'num', v: (P, a) => P.predsOf(a.uid).length },
     { id: 'nSuccs', label: 'Number of Successors', short: '# Succs', cat: 'Logic', w: 52, t: 'num', v: (P, a) => P.succsOf(a.uid).length },
     // Building & EPC
+    { id: 'area', label: 'Area / Plant', short: 'Area', cat: 'Building & EPC', w: 120, t: 'text', v: (P, a) => P.dim(a, 'area') },
     { id: 'building', label: 'Building', cat: 'Building & EPC', w: 130, t: 'text', v: (P, a) => P.dim(a, 'building'), edit: 'building' },
     { id: 'epc', label: 'EPC Phase', short: 'EPC', cat: 'Building & EPC', w: 100, t: 'text', v: (P, a) => P.dim(a, 'epc'), edit: 'epc' },
     // Quantities

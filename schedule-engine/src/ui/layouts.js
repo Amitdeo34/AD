@@ -87,7 +87,7 @@
         opSel.value = r.op;
         const needs = !['empty', 'nempty', 'true', 'false', 'beforeDD', 'afterDD'].includes(r.op);
         let v1;
-        if (col.t === 'code' || col.id === 'status' || col.id === 'type' || col.id === 'epc' || col.id === 'building') {
+        if (col.t === 'code' || col.id === 'status' || col.id === 'type' || col.id === 'epc' || col.id === 'building' || col.id === 'area') {
           const opts = col.t === 'code' ? (S.P.codeType(col.codeType) || { values: [] }).values.map((x) => x.name || x.code) : Array.from(new Set(S.P.acts.map((a) => String(SE.columns.value(S.P, col, a) || ''))));
           const dl = 'fe_dl_' + i;
           v1 = h('span', null, h('input', { class: 'inp', value: r.value || '', list: dl, placeholder: col.t === 'date' ? 'dd-mmm-yy' : 'value' }), h('datalist', { id: dl }, opts.filter(Boolean).slice(0, 300).map((o) => h('option', { value: o }))));
@@ -132,7 +132,7 @@
    * Group & Sort
    * ================================================================== */
   function groupOptions() {
-    const out = [['wbs', 'WBS (hierarchy)'], ['building', 'Building'], ['epc', 'EPC phase'], ['status', 'Activity status'], ['lens', 'Update flag']];
+    const out = [['wbs', 'WBS (hierarchy)'], ['area', 'Area / plant'], ['building', 'Building'], ['epc', 'EPC phase'], ['status', 'Activity status'], ['lens', 'Update flag']];
     for (const ct of S.P.codeTypes) out.push(['code:' + ct.name, 'Code: ' + ct.name]);
     for (let i = 1; i <= Math.min(S.P.maxWbsLevel(), 6); i++) out.push(['wbs:' + i, 'WBS level ' + i]);
     ['type', 'calendar', 'crit', 'longest', 'tf', 'pct', 'start', 'finish', 'cstrType', 'pctType', 'touched'].forEach((id) => { const c = SE.columns.get(S.P, id); if (c) out.push([id, c.label + (c.t === 'date' ? ' (month)' : c.id === 'tf' ? ' (bands)' : '')]); });

@@ -88,7 +88,7 @@ code.cols { display: block; background: #0c1119; border: 1px solid var(--line); 
 .save.saving { color: #93c5fd; }
 .save.dirty { color: #fcd34d; }
 .save.error { color: #fca5a5; }
-#workspace { display: grid; grid-template-columns: 340px minmax(0, 1fr) 340px; min-height: 0; min-width: 0; }
+#workspace { display: grid; grid-template-columns: 362px minmax(0, 1fr) 340px; min-height: 0; min-width: 0; }
 #left, #right { background: var(--panel); min-height: 0; display: flex; flex-direction: column; }
 #left { border-right: 1px solid var(--line); }
 #right { border-left: 1px solid var(--line); }
@@ -130,9 +130,9 @@ code.cols { display: block; background: #0c1119; border: 1px solid var(--line); 
 
 /* ------------------------------------------------------------------ left panel */
 .tabs { display: flex; border-bottom: 1px solid var(--line); padding: 0 4px; flex: none; overflow-x: auto; }
-.tabs button { background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 11px 7px 9px; color: var(--muted); font-weight: 600; font-size: 12px; }
+.tabs button { background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 11px 6px 9px; color: var(--muted); font-weight: 600; font-size: 11.5px; }
 .tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
-.tabs .count { margin-left: 5px; background: var(--panel3); border-radius: 9px; padding: 0 6px; font-size: 10px; color: var(--muted); }
+.tabs .count { margin-left: 3px; background: var(--panel3); border-radius: 9px; padding: 0 6px; font-size: 10px; color: var(--muted); }
 .panel-body { flex: 1; overflow-y: auto; padding: 12px; }
 .folder { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin-bottom: 10px; }
 .folder-path { font-size: 12px; margin-bottom: 8px; word-break: break-all; color: #b9c3d4; }
@@ -274,7 +274,8 @@ code.cols { display: block; background: #0c1119; border: 1px solid var(--line); 
 .toast.out { opacity: 0; transform: translateY(8px); }
 
 @media (max-width: 1280px) {
-  #workspace { grid-template-columns: 290px minmax(0, 1fr) 300px; }
+  #workspace { grid-template-columns: 330px minmax(0, 1fr) 300px; }
+  .tabs .count { display: none; }
   .tool .lbl { display: none; }
 }
 @media (max-width: 900px) {

@@ -1,0 +1,5 @@
+# Projects, caches, proxies and exports live here (can be large) - never commit them
+workspace/
+.venv/
+__pycache__/
+*.pyc

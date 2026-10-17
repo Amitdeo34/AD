@@ -169,9 +169,10 @@ details[open] > summary { margin-bottom: 10px; }
       </div>
       <div class="card">
         <h3>Drawings</h3>
-        <p class="muted small">ZIP (folders and sub-folders are fine), or PDF, DXF and image files. Add more files any time. DWG cannot be read in a browser – include the PDF of those drawings.</p>
+        <p class="muted small">Pick the drawings folder on your computer (all sub-folders are included, no ZIP needed), or add a ZIP / PDF / DXF / image files. The files are read here in your browser, not uploaded to a server. DWG cannot be read in a browser – keep the PDF of those drawings in the folder.</p>
         <div class="actions">
-          <span class="file"><button class="primary" type="button">Upload drawings (ZIP / PDF / DXF)</button><input id="dwgFile" type="file" multiple accept=".zip,.pdf,.dxf,.dwg,.png,.jpg,.jpeg,.webp" aria-label="Upload drawings"></span>
+          <span class="file"><button class="primary" type="button">Choose drawings folder</button><input id="dwgDir" type="file" webkitdirectory multiple aria-label="Choose drawings folder"></span>
+          <span class="file"><button type="button">Add ZIP or files</button><input id="dwgFile" type="file" multiple accept=".zip,.pdf,.dxf,.dwg,.png,.jpg,.jpeg,.webp" aria-label="Add drawings ZIP or files"></span>
           <button class="ghost" id="clrDwg" type="button" hidden>Remove all drawings</button>
         </div>
         <div class="bar" id="bar1" hidden><span></span></div>
@@ -1468,16 +1469,20 @@ async function collectFiles(blob, path, out, depth) {
   if (ext === 'zip' && depth < 3) {
     if (typeof zip === 'undefined') throw new Error('the ZIP reader did not load');
     const reader = new zip.ZipReader(new zip.BlobReader(blob)); const entries = await reader.getEntries();
-    const base = depth === 0 ? '' : path.replace(/\.zip$/i, '') + '/';
+    const base = depth === 0 && !path.includes('/') ? '' : path.replace(/\.zip$/i, '') + '/';
     for (const en of entries) {
       if (en.directory) continue; const p = base + en.filename; if (SKIP_RE.test(p)) continue;
       const ex = (p.split('.').pop() || '').toLowerCase();
       if (ex === 'zip') { const b = await en.getData(new zip.BlobWriter('application/zip')); await collectFiles(b, p, out, depth + 1); continue; }
-      out.push({ path: p, name: p.split('/').pop(), ext: ex, kind: EXT_KIND[ex] || 'other', size: en.uncompressedSize, get: () => en.getData(new zip.BlobWriter()) });
+      out.push(fileRec(p, ex, en.uncompressedSize, () => en.getData(new zip.BlobWriter())));
     }
     return;
   }
-  out.push({ path, name: path.split('/').pop(), ext, kind: EXT_KIND[ext] || 'other', size: blob.size, get: async () => blob });
+  out.push(fileRec(path, ext, blob.size, async () => blob));
+}
+function fileRec(path, ext, size, get) {
+  let kind = EXT_KIND[ext] || 'other'; const small = kind === 'img' && size < 150000; if (small) kind = 'other';
+  return { path, name: path.split('/').pop(), ext, kind, small, size, get };
 }
 const PDFC = [];
 async function pdfOpen(fi) {
@@ -1492,7 +1497,8 @@ function setProg(msg, pct) { D.prog = msg; D.pct = pct; const p = $('#dwgProg');
 async function addDrawingFiles(list) {
   if (D.busy) { toast('Wait for the current step to finish, or press Stop.'); return; }
   D.busy = 'scan'; renderDwgBusy(); const found = [];
-  try { for (const f of list) await collectFiles(f, f.name, found, 0); }
+  setProg(`Listing ${list.length} files…`, 0);
+  try { for (const f of list) await collectFiles(f, f.webkitRelativePath || f.name, found, 0); }
   catch (e) { console.error(e); toast('Could not open a file: ' + (e.message || e)); }
   const have = new Set(D.files.map(f => f.path + '|' + f.size));
   const fresh = found.filter(f => !have.has(f.path + '|' + f.size));
@@ -1530,7 +1536,7 @@ async function scanFile(fi) {
     s.off = offInfo(x.text, f.name); if (x.no) s.off.no = x.no; if (x.title) s.off.title = x.title; if (x.rev) s.off.rev = x.rev;
   } else if (f.kind === 'img') newSheet(fi, 1, 1, {});
   else if (f.kind === 'dwg') f.note = 'DWG cannot be read in a browser – add the PDF (or save as DXF) of this drawing';
-  else f.note = 'Not a drawing format – ignored';
+  else f.note = f.small ? 'Small image (logo or xref?) – ignored' : 'Not a drawing format – ignored';
 }
 const effNo = s => (s.edit && s.edit.no) || (s.ai1 && s.ai1.drawing_number) || s.off.no || '';
 const effRev = s => (s.ai1 && s.ai1.revision) || s.off.rev || '';
@@ -1915,7 +1921,7 @@ function aiNoteText() {
 }
 function renderDwgBusy() {
   const b = !!D.busy;
-  for (const id of ['btnRead1', 'btnRead2', 'btnRead2All', 'btnText2', 'dwgFile']) { const el = $('#' + id); if (el) el.disabled = b || el.dataset.none === '1'; }
+  for (const id of ['btnRead1', 'btnRead2', 'btnRead2All', 'btnText2', 'dwgFile', 'dwgDir']) { const el = $('#' + id); if (el) el.disabled = b || el.dataset.none === '1'; }
   for (const id of ['btnStop1', 'btnStop2']) { const el = $('#' + id); if (el) el.hidden = !(b && D.busy !== 'scan'); }
   for (const id of ['bar1', 'bar2']) { const el = $('#' + id); if (el) el.hidden = !b; }
   const p2 = $('#prog2'); if (p2) p2.textContent = D.busy === 'r2' ? D.prog : '';
@@ -2087,6 +2093,7 @@ $('#xerFile').addEventListener('change', async e => {
 });
 $('#weekSel').addEventListener('change', e => { S.xlsWeek = e.target.value.split(',').map(Number); if (S.xer && S.xer.kind === 'xlsx' && S.wbsId) selectWbsXlsx(S.wbsId); });
 $('#dwgFile').addEventListener('change', async e => { const fs = [...e.target.files]; e.target.value = ''; if (fs.length) await addDrawingFiles(fs); });
+$('#dwgDir').addEventListener('change', async e => { const fs = [...e.target.files]; e.target.value = ''; if (fs.length) await addDrawingFiles(fs); });
 $('#clrDwg').addEventListener('click', () => { if (D.busy) { toast('Stop the current reading first.'); return; } for (const c of PDFC.splice(0)) { try { c.doc.destroy(); } catch (err) { /* ignore */ } } D.files = []; D.sheets = []; D.curArea = null; D.prog = ''; renderDrawings(); renderDetail(); toast('Drawings removed (results already read stay saved in this browser).'); });
 $('#btnRead1').addEventListener('click', () => runReading('r1', regFilter().filter(s => !s.ai1)));
 for (const id of ['#btnStop1', '#btnStop2']) $(id).addEventListener('click', () => { if (D.ctl) D.ctl.abort(); });

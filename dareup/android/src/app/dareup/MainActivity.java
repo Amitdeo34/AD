@@ -52,7 +52,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        barColor = getResources().getColor(R.color.brand_dark);
+        barColor = getResources().getColor(R.color.window_bg);
         channel = readChannel();
 
         Window w = getWindow();
@@ -97,7 +97,7 @@ public class MainActivity extends Activity {
         root.addView(web, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         setContentView(root);
-        applyBarIcons(true);
+        applyBarIcons(getResources().getBoolean(R.bool.window_is_dark));
         registerPredictiveBack();
 
         if (savedInstanceState != null) {

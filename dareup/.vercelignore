@@ -1,0 +1,10 @@
+# Not part of the DareUp website deployment
+android/
+store-listing/
+test/
+scripts/
+dev-server.mjs
+.env
+.env.*
+!.env.example
+node_modules/

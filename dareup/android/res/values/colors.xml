@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Keep in step with the web app's dark background and accent. -->
-    <color name="brand_dark">#1A1033</color>
-    <color name="brand_accent">#FF3D7F</color>
-    <color name="ic_launcher_background">#1A1033</color>
+    <!-- Match the web game's backgrounds (index.html); values-night has the dark ones. -->
+    <color name="window_bg">#FFF7F0</color>
+    <color name="brand_accent">#7C3AED</color>
+    <bool name="window_is_dark">false</bool>
 </resources>

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- DareUp app icon: a Truth card (?) and a Dare card (!) on the brand gradient.
+       Shapes only (no text), so it converts cleanly to PNG or an Android vector. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7C3AED"/>
+      <stop offset="0.55" stop-color="#DB2777"/>
+      <stop offset="1" stop-color="#F97316"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <g transform="rotate(-14 186 243)">
+    <rect x="96" y="118" width="180" height="250" rx="30" fill="#FFFFFF"/>
+    <path d="M136 205A34 34 0 1 1 196 227C178 239 170 245 170 264" fill="none" stroke="#4F46E5" stroke-width="25" stroke-linecap="round"/>
+    <circle cx="170" cy="305" r="15" fill="#4F46E5"/>
+  </g>
+  <g transform="rotate(12 326 265)">
+    <rect x="236" y="140" width="180" height="250" rx="30" fill="#FDE047"/>
+    <rect x="313" y="182" width="26" height="114" rx="13" fill="#E11D48"/>
+    <circle cx="326" cy="334" r="16" fill="#E11D48"/>
+  </g>
+</svg>

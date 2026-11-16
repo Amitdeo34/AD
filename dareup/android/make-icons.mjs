@@ -23,6 +23,7 @@ const densities = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
 const jobs = [];
 for (const [d, k] of Object.entries(densities)) {
   jobs.push([`res/mipmap-${d}/ic_launcher.png`, legacy, 48 * k]);
+  jobs.push([`res/mipmap-${d}/ic_launcher_background.png`, bg, 108 * k]);
   jobs.push([`res/mipmap-${d}/ic_launcher_foreground.png`, fg, 108 * k]);
   jobs.push([`res/mipmap-${d}/ic_launcher_monochrome.png`, mono, 108 * k]);
 }

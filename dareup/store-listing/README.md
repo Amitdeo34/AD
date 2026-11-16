@@ -10,7 +10,7 @@ Files here:
 | --- | --- |
 | `../android/store/play-icon-512.png` | App icon, 512×512 (Google Play, Indus, Samsung) |
 | `feature-graphic-1024x500.png` | Google Play feature graphic |
-| `screenshots/phone-*.png` | Phone screenshots, 1080×1920 |
+| `screenshots/phone-*.png` | Phone screenshots, 1080×1920, free packs only (fine for every store) |
 | `feature-graphic.html`, `make-graphics.mjs`, `screenshots.mjs` | Sources; `node make-graphics.mjs --shots` re-renders all images |
 
 Which build goes where:
@@ -54,13 +54,14 @@ HOW IT WORKS
 • Optional dare timer: 30, 60 or 90 seconds
 • Scoreboard and a winner at the end of the game
 
-PACKS INCLUDED
+PACKS INCLUDED (190 cards)
 • Classic: the questions and dares everyone knows, with a twist
 • Friends: inside jokes, confessions and silly challenges
 • Family & Kids: clean, safe fun for all ages
 
 MADE FOR REAL GROUPS
 • No card repeats until the pack runs out
+• Swap a card that doesn't suit the room, no penalty
 • Plays fully offline, no sign-up, no ads
 • Light and dark themes, sound and vibration you can switch off
 • Every dare is safe: no alcohol, no dangerous stunts, no pranks on strangers
@@ -116,7 +117,7 @@ Truth or Dare with 500+ cards, a Hinglish pack, dare timers and premium packs.
 DareUp is the Truth or Dare game for parties, sleepovers, road trips and date nights. Add your players, pick a pack, and pass the phone around.
 
 FREE PACKS
-• Classic, Friends, and Family & Kids: [free card count] cards in all
+• Classic, Friends, and Family & Kids: 190 cards in all
 
 PREMIUM PACKS
 • Party Animals: loud, silly, made for big groups

@@ -1,0 +1,2235 @@
+<!doctype html>
+<html lang="en" data-dark="0" data-theme="classic">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fff7f0">
+<meta name="description" content="DareUp: a Truth or Dare party game for friends, family and couples. Free packs play offline.">
+<title>DareUp</title>
+<link rel="icon" href="data:,">
+<script>
+/* Applies light/dark and the colour theme before first paint. The main script re-applies it. */
+(function () {
+  try {
+    var d = document.documentElement, s = {}, p = null;
+    try { s = JSON.parse(localStorage.getItem('dareup.settings') || '{}') || {}; p = JSON.parse(localStorage.getItem('dareup.pass') || 'null'); } catch (e) {}
+    var m = s.mode || 'auto';
+    var dark = m === 'dark' || (m === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    d.setAttribute('data-dark', dark ? '1' : '0');
+    var prem = p && p.token && (p.exp === null || p.exp * 1000 > Date.now());
+    d.setAttribute('data-theme', prem && /^(neon|mango|ocean)$/.test(s.theme) ? s.theme : 'classic');
+  } catch (e) {}
+})();
+</script>
+<style>
+:root{
+  --bg:#fff7f0;--surface:#ffffff;--surface-2:#f6f0ff;--text:#1f1535;--muted:#625879;--line:#e9dff6;
+  --brand:#7c3aed;--brand-2:#db2777;--brand-ink:#6d28d9;
+  --truth-1:#4f46e5;--truth-2:#0284c7;--dare-1:#e11d48;--dare-2:#ea580c;--rand-1:#9333ea;--rand-2:#d97706;
+  --ok:#15803d;--bad:#b91c1c;
+  --note-bg:#fff3d6;--note-text:#5f3b00;--info-bg:#efeaff;--info-text:#4c1d95;
+  --glow-1:rgba(124,58,237,.16);--glow-2:rgba(219,39,119,.13);
+  --shadow:0 14px 30px -14px rgba(60,20,120,.38);--shadow-sm:0 4px 14px -6px rgba(60,20,120,.22);
+  color-scheme:light;
+}
+:root[data-dark="1"]{
+  --bg:#120c24;--surface:#1c1436;--surface-2:#271d49;--text:#f6f1ff;--muted:#b9aed8;--line:#352a61;
+  --brand-ink:#c4b5fd;--note-bg:#3a2a07;--note-text:#fcd58a;--info-bg:#251c4d;--info-text:#d8ccff;
+  --glow-1:rgba(124,58,237,.32);--glow-2:rgba(219,39,119,.2);
+  --shadow:0 16px 34px -16px rgba(0,0,0,.8);--shadow-sm:0 4px 14px -6px rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+:root[data-theme="neon"]{--bg:#fdf4ff;--brand:#a21caf;--brand-2:#0e7490;--brand-ink:#86198f;--truth-1:#0e7490;--truth-2:#2563eb;--dare-1:#a21caf;--dare-2:#db2777;--rand-1:#7c3aed;--rand-2:#0e7490;--glow-1:rgba(192,38,211,.16);--glow-2:rgba(6,182,212,.16)}
+:root[data-theme="neon"][data-dark="1"]{--bg:#0c0619;--surface:#170c2c;--surface-2:#22113f;--line:#3a1f5e;--brand-ink:#f0abfc;--glow-1:rgba(192,38,211,.36);--glow-2:rgba(6,182,212,.26)}
+:root[data-theme="mango"]{--bg:#fffaeb;--brand:#c2410c;--brand-2:#b45309;--brand-ink:#c2410c;--truth-1:#0f766e;--truth-2:#0369a1;--dare-1:#dc2626;--dare-2:#c2410c;--rand-1:#b45309;--rand-2:#be123c;--glow-1:rgba(245,158,11,.22);--glow-2:rgba(234,88,12,.14)}
+:root[data-theme="mango"][data-dark="1"]{--bg:#1a1206;--surface:#261b0b;--surface-2:#33240f;--line:#4a3517;--brand-ink:#fdba74;--glow-1:rgba(245,158,11,.22);--glow-2:rgba(234,88,12,.2)}
+:root[data-theme="ocean"]{--bg:#f0f9ff;--brand:#0369a1;--brand-2:#0f766e;--brand-ink:#075985;--truth-1:#1d4ed8;--truth-2:#0e7490;--dare-1:#be185d;--dare-2:#e11d48;--rand-1:#0f766e;--rand-2:#1d4ed8;--glow-1:rgba(14,165,233,.18);--glow-2:rgba(20,184,166,.16)}
+:root[data-theme="ocean"][data-dark="1"]{--bg:#06141f;--surface:#0c2030;--surface-2:#112b40;--line:#1b3d57;--brand-ink:#7dd3fc;--glow-1:rgba(14,165,233,.28);--glow-2:rgba(20,184,166,.22)}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;min-height:100vh;min-height:100dvh;background:var(--bg);color:var(--text);
+  font-family:ui-rounded,"SF Pro Rounded",system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",Ubuntu,Arial,sans-serif;
+  font-size:16px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(520px 380px at -10% -5%,var(--glow-1),transparent 70%),radial-gradient(520px 420px at 110% 105%,var(--glow-2),transparent 70%)}
+h1,h2,h3,p{margin:0}
+button,input,textarea{font:inherit;color:inherit}
+a{color:var(--brand-ink)}
+[hidden]{display:none!important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* top bar */
+.bar{position:sticky;top:0;z-index:20;background:var(--bg);padding-top:env(safe-area-inset-top)}
+.bar-in{max-width:560px;margin:0 auto;display:flex;align-items:center;gap:4px;height:56px;
+  padding:0 max(8px,env(safe-area-inset-right)) 0 max(8px,env(safe-area-inset-left))}
+.bar-side{width:96px;display:flex;align-items:center;gap:2px}
+.bar-side.end{justify-content:flex-end}
+.bar-title{flex:1;min-width:0;text-align:center;font-weight:800;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.view{max-width:560px;margin:0 auto;padding:4px max(16px,env(safe-area-inset-right)) calc(28px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+.view>section{animation:enter .28s ease-out}
+@keyframes enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* icons + buttons */
+.i{display:inline-flex;flex:none}
+.icon{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.icon-btn{width:44px;height:44px;border:0;border-radius:14px;background:transparent;display:grid;place-items:center;cursor:pointer;color:var(--text)}
+.icon-btn:active{background:var(--surface-2)}
+.btn{appearance:none;border:0;border-radius:16px;min-height:52px;padding:10px 20px;font-weight:800;font-size:17px;
+  display:inline-flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;text-decoration:none;text-align:center;
+  background:var(--surface);color:var(--text);box-shadow:inset 0 0 0 2px var(--line);transition:transform .12s,filter .12s}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-primary{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;box-shadow:var(--shadow)}
+.btn-ok{background:linear-gradient(135deg,#15803d,#0f766e);color:#fff;box-shadow:var(--shadow)}
+.btn-ghost{background:transparent;box-shadow:none;color:var(--brand-ink);min-height:44px}
+.btn-danger{color:var(--bad)}
+.btn-block{width:100%}
+.btn-lg{min-height:60px;font-size:19px;border-radius:18px}
+.btn-sm{min-height:40px;padding:6px 14px;font-size:15px;border-radius:12px}
+.btn small{font-weight:600;opacity:.85;font-size:13px}
+:focus-visible{outline:3px solid var(--brand-2);outline-offset:2px}
+
+/* layout */
+.stack{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;align-items:center;gap:10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card{background:var(--surface);border-radius:20px;padding:16px;box-shadow:var(--shadow-sm)}
+.sec{margin-top:22px}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:10px}
+.sec-h h2{font-size:18px;font-weight:900}
+.muted{color:var(--muted)}
+.fine{font-size:13px;color:var(--muted);text-align:center;margin-top:18px}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:800;padding:3px 10px;border-radius:999px;background:var(--surface-2);color:var(--brand-ink)}
+.note{border-radius:16px;padding:12px 14px;font-size:15px;background:var(--note-bg);color:var(--note-text);display:flex;gap:10px;align-items:flex-start}
+.note.info{background:var(--info-bg);color:var(--info-text)}
+.note .icon{width:20px;height:20px;margin-top:1px}
+
+/* home */
+.hero{text-align:center;padding:18px 0 22px}
+.logo{width:112px;height:112px;margin:0 auto 12px;filter:drop-shadow(0 16px 24px rgba(124,58,237,.35));animation:bob 4s ease-in-out infinite}
+.logo svg{width:100%;height:100%}
+@keyframes bob{50%{transform:translateY(-6px) rotate(-2deg)}}
+.brand-name{font-size:46px;font-weight:900;letter-spacing:-.02em;line-height:1.05;background:linear-gradient(120deg,var(--brand),var(--brand-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.tagline{color:var(--muted);margin-top:8px;font-size:17px}
+.tile{border:0;border-radius:18px;background:var(--surface);box-shadow:var(--shadow-sm);min-height:84px;padding:12px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:8px;font-weight:800;text-align:left}
+.tile .i{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:var(--surface-2);color:var(--brand-ink)}
+.tile:active{transform:scale(.97)}
+.tile.hot .i{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff}
+
+/* players */
+.add-row{display:flex;gap:8px}
+.input{width:100%;min-height:52px;border-radius:14px;border:2px solid var(--line);background:var(--surface);padding:10px 14px;font-size:17px}
+.input:focus{border-color:var(--brand);outline:none}
+textarea.input{min-height:160px;resize:vertical;line-height:1.5}
+.players{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.player{display:flex;align-items:center;gap:10px;background:var(--surface);border-radius:16px;padding:6px 6px 6px 8px;box-shadow:var(--shadow-sm)}
+.player .nm{flex:1;min-width:0;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.player .icon-btn{width:40px;height:40px}
+.avatar{width:38px;height:38px;border-radius:50%;flex:none;display:grid;place-items:center;color:#fff;font-weight:900;font-size:17px;background:var(--av,#7c3aed)}
+.avatar.big{width:76px;height:76px;font-size:34px;box-shadow:var(--shadow);margin:0 auto}
+.field-err{color:var(--bad);font-size:14px;font-weight:700;margin-top:6px}
+
+/* packs */
+.packs{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.pack{position:relative;border:0;text-align:left;cursor:pointer;border-radius:18px;padding:12px 12px 12px 16px;min-height:118px;background:var(--surface);
+  box-shadow:var(--shadow-sm),inset 0 0 0 2px transparent;display:flex;flex-direction:column;gap:6px;overflow:hidden}
+.pack::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--pc)}
+.pack.on{box-shadow:var(--shadow-sm),inset 0 0 0 3px var(--pc)}
+.pack.locked{opacity:.78}
+.pack-top{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.pack-name{font-weight:900;font-size:16px;line-height:1.2}
+.pack-desc{font-size:13px;color:var(--muted);line-height:1.3}
+.pack-meta{margin-top:auto;display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:12px;font-weight:700;color:var(--muted)}
+.tick{width:26px;height:26px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--pc);color:#fff}
+.tick .icon{width:16px;height:16px;stroke-width:3}
+.badge{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:900;padding:2px 7px;border-radius:999px;background:var(--surface-2);color:var(--brand-ink);text-transform:uppercase;letter-spacing:.03em}
+.badge .icon{width:12px;height:12px;stroke-width:3}
+.badge.adult{background:#e11d48;color:#fff}
+.badge.lock{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff}
+.group-label{font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 0 8px}
+
+/* segmented + switches */
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{flex:1 1 0;min-width:56px;min-height:46px;border:0;border-radius:12px;background:var(--surface);box-shadow:inset 0 0 0 2px var(--line);font-weight:800;cursor:pointer;padding:6px 10px}
+.seg button[aria-pressed="true"]{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;box-shadow:none}
+.set-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px;padding:6px 0;border-bottom:1px solid var(--line)}
+.set-row:last-child{border-bottom:0}
+.set-row .lbl{font-weight:800}
+.set-row .sub{font-size:13px;color:var(--muted);font-weight:500}
+.switch{width:58px;height:34px;border-radius:999px;border:0;background:var(--line);position:relative;cursor:pointer;flex:none;transition:background .2s}
+.switch::after{content:"";position:absolute;top:4px;left:4px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.25);transition:transform .2s}
+.switch[aria-checked="true"]{background:linear-gradient(135deg,var(--brand),var(--brand-2))}
+.switch[aria-checked="true"]::after{transform:translateX(24px)}
+.swatches{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.swatch{border:0;border-radius:16px;padding:8px 4px;background:var(--surface);box-shadow:inset 0 0 0 2px var(--line);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:13px;font-weight:800;position:relative}
+.swatch .dot{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--a),var(--b))}
+.swatch[aria-pressed="true"]{box-shadow:inset 0 0 0 3px var(--brand)}
+.swatch .badge{position:absolute;top:4px;right:4px;padding:2px 4px}
+
+/* sticky start */
+.dock{position:sticky;bottom:0;margin:18px calc(-1 * max(16px,env(safe-area-inset-left))) 0;padding:12px max(16px,env(safe-area-inset-left)) calc(12px + env(safe-area-inset-bottom));
+  background:linear-gradient(to bottom,transparent,var(--bg) 30%)}
+
+/* play */
+.turn{text-align:center;padding:10px 0 4px}
+.turn h2{font-size:28px;font-weight:900;margin-top:10px;line-height:1.15;overflow-wrap:anywhere}
+.turn .stats{margin-top:6px;color:var(--muted);font-weight:700}
+.ask{text-align:center;font-weight:800;color:var(--muted);margin-top:14px;text-transform:uppercase;letter-spacing:.08em;font-size:13px}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+.choice{border:0;border-radius:24px;color:#fff;min-height:156px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  font-weight:900;font-size:22px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;box-shadow:var(--shadow);transition:transform .12s}
+.choice:active{transform:scale(.96)}
+.choice .glyph{font-size:62px;line-height:1;font-weight:900;text-shadow:0 6px 18px rgba(0,0,0,.18)}
+.choice.truth{background:linear-gradient(150deg,var(--truth-1),var(--truth-2))}
+.choice.dare{background:linear-gradient(150deg,var(--dare-1),var(--dare-2))}
+.choice.random{grid-column:1/-1;min-height:64px;flex-direction:row;gap:10px;font-size:19px;background:linear-gradient(120deg,var(--rand-1),var(--rand-2))}
+.choice.random.spin{animation:wobble .18s linear infinite}
+@keyframes wobble{50%{transform:rotate(-1.2deg) scale(1.02)}}
+.next-up{text-align:center;color:var(--muted);font-weight:700;margin-top:6px}
+
+.flip{perspective:1400px;margin:6px 0 14px}
+.flip-inner{display:grid;transform-style:preserve-3d;transition:transform .7s cubic-bezier(.2,.9,.25,1.06)}
+.flip.revealed .flip-inner{transform:rotateY(180deg)}
+.face{grid-area:1/1;-webkit-backface-visibility:hidden;backface-visibility:hidden;border-radius:28px;min-height:330px}
+.face-cover{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:#fff;box-shadow:var(--shadow);
+  background:repeating-linear-gradient(45deg,rgba(255,255,255,.07) 0 14px,transparent 14px 28px),linear-gradient(150deg,var(--c1),var(--c2))}
+.face-cover .glyph{font-size:120px;font-weight:900;line-height:1}
+.face-cover .lbl{font-weight:900;letter-spacing:.2em;text-transform:uppercase}
+.face-content{transform:rotateY(180deg);background:var(--surface);box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+.card-band{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 18px;color:#fff;background:linear-gradient(120deg,var(--c1),var(--c2))}
+.card-band .type{font-weight:900;letter-spacing:.18em;text-transform:uppercase}
+.card-band .pk{font-size:13px;font-weight:800;opacity:.92;text-align:right}
+.card-text{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;padding:22px 20px;font-size:clamp(22px,6.4vw,28px);font-weight:800;line-height:1.3;overflow-wrap:anywhere}
+.card-for{padding:0 18px 16px;text-align:center;color:var(--muted);font-weight:700;font-size:14px}
+.truth-c{--c1:var(--truth-1);--c2:var(--truth-2)}
+.dare-c{--c1:var(--dare-1);--c2:var(--dare-2)}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.actions .btn{min-height:58px}
+
+.timer{display:flex;align-items:center;gap:14px;background:var(--surface);border-radius:20px;padding:12px 14px;box-shadow:var(--shadow-sm);margin-bottom:14px}
+.ring{width:76px;height:76px;flex:none;position:relative}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:8}
+.ring .bg{stroke:var(--line)}
+.ring .fg{stroke:var(--dare-1);stroke-linecap:round;transition:stroke-dashoffset .2s linear}
+.ring .num{position:absolute;inset:0;display:grid;place-items:center;font-weight:900;font-size:22px;font-variant-numeric:tabular-nums}
+.timer.done .ring .fg{stroke:var(--bad)}
+.timer.done .num{color:var(--bad)}
+.timer-side{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
+.timer-side .seg button{min-height:38px;min-width:0}
+
+/* summary */
+.trophy{width:96px;height:96px;margin:6px auto 8px;border-radius:30px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#f59e0b,#db2777);box-shadow:var(--shadow)}
+.trophy .icon{width:54px;height:54px;stroke-width:2}
+.win h2{font-size:30px;font-weight:900;text-align:center;line-height:1.15;overflow-wrap:anywhere}
+.board{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.board li{display:flex;align-items:center;gap:10px;background:var(--surface);border-radius:16px;padding:10px 12px;box-shadow:var(--shadow-sm)}
+.board .rk{width:26px;text-align:center;font-weight:900;color:var(--muted)}
+.board .nm{flex:1;min-width:0;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.board .nm small{display:block;font-weight:600;color:var(--muted);font-size:12px}
+.board .pts{font-weight:900;font-size:20px}
+.board li.cur{box-shadow:var(--shadow-sm),inset 0 0 0 2px var(--brand)}
+.awards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.award{background:var(--surface-2);border-radius:16px;padding:12px}
+.award b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--brand-ink)}
+.award span{font-weight:800;overflow-wrap:anywhere}
+
+/* premium */
+.prem-hero{text-align:center;padding:8px 0 4px}
+.crown{width:72px;height:72px;margin:0 auto 10px;border-radius:24px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#f59e0b,var(--brand-2));box-shadow:var(--shadow)}
+.crown .icon{width:40px;height:40px}
+.prem-hero h2{font-size:28px;font-weight:900}
+.perks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.perks li{display:flex;gap:10px;align-items:flex-start;font-weight:700}
+.perks .i{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:var(--surface-2);color:var(--brand-ink)}
+.perks .icon{width:18px;height:18px}
+.plans{display:flex;flex-direction:column;gap:10px}
+.plan{display:flex;align-items:center;gap:12px;background:var(--surface);border-radius:20px;padding:14px;box-shadow:var(--shadow-sm);position:relative}
+.plan.best{box-shadow:var(--shadow-sm),inset 0 0 0 3px var(--brand)}
+.plan .pi{flex:1;min-width:0}
+.plan .pn{font-weight:900;font-size:17px}
+.plan .pd{font-size:13px;color:var(--muted);font-weight:600}
+.plan .pp{font-size:26px;font-weight:900;white-space:nowrap}
+.plan .ribbon{position:absolute;top:-9px;left:14px;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:999px;color:#fff;background:linear-gradient(135deg,var(--brand),var(--brand-2))}
+.status{display:flex;gap:12px;align-items:center}
+.status .i{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;flex:none;background:var(--surface-2);color:var(--brand-ink)}
+.status.on .i{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff}
+.status b{display:block;font-size:17px}
+.status span{color:var(--muted);font-size:14px;font-weight:600;overflow-wrap:anywhere}
+details.card summary{cursor:pointer;font-weight:900;list-style:none;display:flex;justify-content:space-between;align-items:center;min-height:32px}
+details.card summary::-webkit-details-marker{display:none}
+details.card[open] summary .icon{transform:rotate(180deg)}
+.links{display:flex;justify-content:center;gap:18px;margin-top:20px;font-weight:700;font-size:14px}
+.links a{min-height:44px;display:inline-flex;align-items:center}
+.lbl-sm{display:block;font-size:14px;font-weight:800;margin:10px 0 6px}
+
+/* custom packs */
+.cp{display:flex;align-items:center;gap:10px;background:var(--surface);border-radius:16px;padding:10px 8px 10px 14px;box-shadow:var(--shadow-sm)}
+.cp .nm{flex:1;min-width:0}
+.cp .nm b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cp .nm span{font-size:13px;color:var(--muted);font-weight:600}
+.counter{font-size:13px;font-weight:700;color:var(--muted);text-align:right;margin-top:4px}
+
+/* dialog + toast */
+dialog{border:0;padding:0;background:transparent;max-width:min(440px,calc(100vw - 32px));width:100%;color:var(--text)}
+dialog::backdrop{background:rgba(10,5,25,.55);backdrop-filter:blur(3px)}
+.dlg{background:var(--surface);border-radius:24px;padding:22px 20px 18px;box-shadow:0 30px 60px -20px rgba(0,0,0,.5);max-height:calc(100dvh - 48px);overflow:auto}
+.dlg h2{font-size:22px;font-weight:900;margin-bottom:10px}
+.dlg p{color:var(--muted)}
+.dlg p+p{margin-top:8px}
+.dlg ol{padding-left:22px;margin:8px 0;display:flex;flex-direction:column;gap:6px}
+.dlg-actions{display:flex;flex-direction:column-reverse;gap:8px;margin-top:18px}
+dialog[open] .dlg{animation:pop .22s ease-out}
+@keyframes pop{from{transform:scale(.94);opacity:0}}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translate(-50%,20px);opacity:0;pointer-events:none;z-index:60;
+  background:#1f1535;color:#fff;padding:12px 18px;border-radius:14px;font-weight:700;max-width:calc(100vw - 32px);width:max-content;text-align:center;box-shadow:0 12px 30px -8px rgba(0,0,0,.5);transition:all .25s}
+:root[data-dark="1"] .toast{background:#f6f1ff;color:#1f1535}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:50}
+.confetti i{position:absolute;top:-20px;width:10px;height:14px;border-radius:3px;animation:fall linear forwards}
+@keyframes fall{from{transform:translateY(-20px) rotate(var(--r,0deg))}to{transform:translateY(110vh) rotate(calc(var(--r,0deg) + 720deg))}}
+.spinner{width:20px;height:20px;border-radius:50%;border:3px solid currentColor;border-right-color:transparent;animation:rot .8s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+@media (min-width:600px){.choice{min-height:180px}.face{min-height:360px}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="bar-in">
+    <div class="bar-side"><button class="icon-btn" id="bar-back" type="button" aria-label="Back" data-t="back" hidden></button></div>
+    <div class="bar-title" id="bar-title" aria-live="polite"></div>
+    <div class="bar-side end" id="bar-actions"></div>
+  </div>
+</header>
+<main class="view" id="view"></main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<dialog id="dlg" aria-labelledby="dlg-title"></dialog>
+<noscript><p style="padding:24px;text-align:center">DareUp needs JavaScript to play.</p></noscript>
+
+<!-- Free packs: playable offline. Card rules: no alcohol/drugs, no dangerous stunts, nothing
+     illegal, no self-harm, no pranks on strangers, no posting private info, nothing sexual.
+     "{other}" becomes another player's name. -->
+<script type="application/json" id="dareup-free-packs">
+[
+  {"id":"classic","name":"Classic","desc":"The all-rounder. Good for any group.","color":"#7c3aed",
+   "truths":[
+    "What's the most embarrassing thing that happened to you at school?",
+    "What's a secret talent nobody here knows about?",
+    "Who here would you call first in an emergency?",
+    "What's the silliest thing you've ever cried about?",
+    "What's the last lie you told?",
+    "What's your most irrational fear?",
+    "What weird food combination do you secretly love?",
+    "If you could swap lives with someone here for a day, who would it be?",
+    "What's the most childish thing you still do?",
+    "What's the worst gift you've ever received?",
+    "Have you ever pretended to be sick to skip something? What was it?",
+    "Which song do you know every word of but would never admit to liking?",
+    "What's the most trouble you've ever been in at home?",
+    "What's your biggest pet peeve?",
+    "What's a harmless secret you kept from your parents as a kid?",
+    "If you had to delete every app but three, which would you keep?",
+    "What's the strangest dream you remember?",
+    "What's the funniest thing you've searched for online recently?",
+    "If you could change one thing about your daily routine, what would it be?",
+    "Who was your first celebrity crush?",
+    "What's the longest you've gone without having a bath?",
+    "What's the worst haircut you've ever had?",
+    "What's something you're secretly proud of?",
+    "What's the most awkward moment you've had with a teacher or boss?",
+    "If you were invisible for a day, what's the first harmless thing you'd do?",
+    "What's the most money you've spent on something useless?",
+    "Which fictional character are you most like?",
+    "What's the worst thing you've ever cooked?",
+    "Which of your habits annoys other people the most?",
+    "What's the most embarrassing nickname you've ever had?",
+    "Have you ever walked straight into a glass door? Tell the story.",
+    "What's one thing you'd never do, even for ₹1 lakh?",
+    "What's the best excuse you've ever used to get out of plans?",
+    "Which movie made you cry the most?",
+    "Who here would survive longest on a desert island?",
+    "What's something you pretend to understand but don't?",
+    "What's your guilty-pleasure TV show?",
+    "What was your most embarrassing phase?",
+    "What's the most spontaneous thing you've ever done?",
+    "If you could eat only one dish for the rest of your life, what would it be?"
+   ],
+   "dares":[
+    "Do an impression of someone in this room until they guess who it is.",
+    "Talk in a robot voice until your next turn.",
+    "Sing the chorus of the last song you listened to.",
+    "Do 10 squats while saying the alphabet.",
+    "Let {other} give you a new hairstyle using only their hands.",
+    "Speak only in questions until your next turn.",
+    "Narrate what {other} is doing like a wildlife documentary for 30 seconds.",
+    "Dance with no music for 20 seconds.",
+    "Try to touch your nose with your tongue.",
+    "Balance a spoon on your nose for 10 seconds.",
+    "Say \"red lorry, yellow lorry\" five times fast.",
+    "Give a 30-second speech on why socks are important.",
+    "Make the funniest face you can and hold it for 10 seconds.",
+    "Let the group pick a word you can't say until your next turn.",
+    "Act out your morning routine in fast-forward.",
+    "Walk like a supermodel across the room and back.",
+    "Be a news reporter and announce what's happening in this room.",
+    "Give every player a one-sentence compliment.",
+    "Do your best evil-villain laugh.",
+    "Show the group your best dance move.",
+    "Whisper everything you say until your next turn.",
+    "Act like a cat for 30 seconds.",
+    "Draw a portrait of {other} in 30 seconds and show it off.",
+    "Hum a song and let the group guess it.",
+    "Do an impression of your favourite cartoon character.",
+    "Stand on one leg for 30 seconds.",
+    "Juggle three soft things, like socks, for 15 seconds.",
+    "Act like a chicken until someone laughs.",
+    "Let {other} pick an emoji, then act it out.",
+    "Say \"I love broccoli\" in five different voices.",
+    "Act out scoring the winning goal of a final, in slow motion.",
+    "Pretend to be a waiter and take everyone's order.",
+    "Mime brushing a lion's teeth.",
+    "Make up a short rap about the player on your left.",
+    "Keep a straight face for 30 seconds while everyone tries to make you laugh.",
+    "Act out a famous movie scene without words until someone guesses it.",
+    "Say the alphabet in one breath.",
+    "Wear your socks on your hands until your next turn.",
+    "Give {other} an emotional thank-you speech, as if they just won an award.",
+    "Sell a random object near you like a TV shopping host."
+   ]},
+  {"id":"friends","name":"Friends","desc":"Inside jokes, kind roasts and memories.","color":"#0284c7",
+   "truths":[
+    "What was your first impression of {other}?",
+    "Which friend here would you trust with your unlocked phone?",
+    "What's your funniest memory with this group?",
+    "Who here is most likely to become famous, and for what?",
+    "Which friend here gives the best advice?",
+    "What's something nice you've always wanted to tell {other}?",
+    "Who here is the worst at replying to messages?",
+    "What's the most embarrassing thing you've done in front of a friend?",
+    "Have you ever cancelled plans just to stay home? What did you do instead?",
+    "Who here would you want on your team in a zombie movie?",
+    "Without naming names, what's the hardest secret you've ever had to keep?",
+    "Which friend here has the best taste in music?",
+    "When did you last laugh until you cried with friends? What happened?",
+    "Who here is most likely to be late to their own wedding?",
+    "What's a habit of {other}'s that you secretly love?",
+    "If this group were a sitcom, who would play which role?",
+    "Who here would be the best travel buddy?",
+    "What's the worst advice a friend has ever given you?",
+    "What's one trip you want to take with this group?",
+    "Who here do you message the most?",
+    "Have you ever fallen out with a friend over something tiny? What was it?",
+    "Who here would survive longest without their phone?",
+    "What's the most memorable gift a friend has given you?",
+    "What do you admire most about {other}?",
+    "What's the biggest thing a friendship has taught you?",
+    "Who here is the biggest drama queen or king?",
+    "Which friend here is most likely to adopt ten pets?",
+    "What's your favourite inside joke with this group?",
+    "Describe the perfect day out for this group.",
+    "Who here would you pick to help plan a surprise party?"
+   ],
+   "dares":[
+    "Let {other} style your hair however they like.",
+    "Give {other} a made-up award and a 20-second speech about why they won.",
+    "Imitate {other} until they laugh.",
+    "Send a friend who isn't here a message saying you miss them.",
+    "Swap one piece of clothing, like a cap or jacket, with {other} until your next turn.",
+    "Show the group your most-used emoji and act it out.",
+    "Invent a secret handshake with {other}.",
+    "Perform a dramatic soap-opera scene with {other}.",
+    "Let {other} give you a nickname that everyone must use for the rest of the game.",
+    "Recreate a famous movie-poster pose with {other}.",
+    "Tell a joke. If nobody laughs, tell another one.",
+    "Mirror {other}'s every move for 30 seconds.",
+    "Sing \"Happy Birthday\" to {other} like an opera singer.",
+    "Lip-sync to a song the group picks.",
+    "Describe {other} in exactly three words.",
+    "Act out how {other} behaves when they're hungry.",
+    "Be a tour guide and describe this room like a famous monument.",
+    "Do a 20-second advert for friendship.",
+    "Talk like {other} until your next turn.",
+    "Make up a four-line poem about the group.",
+    "Compliment {other} for 30 seconds without repeating yourself.",
+    "Take a funny group selfie with everyone pulling faces. Only share it if everyone agrees.",
+    "Play rock-paper-scissors with {other}. The loser does five jumping jacks.",
+    "Act out this group's group chat on a busy day.",
+    "Pretend you and {other} are long-lost twins meeting for the first time.",
+    "Teach the group a dance move in 30 seconds.",
+    "Let {other} draw something on paper and stick it to your back until your next turn.",
+    "Act out a group plan falling apart, playing every role yourself.",
+    "Speak in rhymes until your next turn.",
+    "High-five everyone, with a different style each time."
+   ]},
+  {"id":"family","name":"Family & Kids","desc":"Totally clean. Great with kids and elders.","color":"#16a34a",
+   "truths":[
+    "What's your favourite family tradition?",
+    "What's the funniest thing that happened on a family trip?",
+    "If you could have any animal as a pet, what would it be?",
+    "What's your favourite food at a family function?",
+    "Which superpower would you choose, and why?",
+    "Who in the family tells the best stories?",
+    "What's the best birthday you've ever had?",
+    "If you could be a cartoon character, who would you be?",
+    "What always makes you laugh?",
+    "What's your favourite game to play together?",
+    "If you were in charge of the house for a day, what's the first rule you'd make?",
+    "What's your favourite festival, and why?",
+    "What job did you want when you were little?",
+    "What's a food you used to dislike but now love?",
+    "If you could visit any place in the world, where would you go?",
+    "What's the nicest thing someone in this room has done for you?",
+    "Which song do you love singing along to?",
+    "Which family member are you most like?",
+    "What's the silliest thing you've ever done?",
+    "If you could invent anything, what would it be?",
+    "What's your favourite memory with a grandparent or elder?",
+    "What's one thing you're really good at?",
+    "If animals could talk, which one would be the funniest?",
+    "What's your favourite movie to watch together?",
+    "What makes you feel better on a bad day?"
+   ],
+   "dares":[
+    "Do your best impression of a favourite animal.",
+    "Sing a nursery rhyme in a superhero voice.",
+    "Make everyone laugh in 30 seconds without touching anyone.",
+    "Act like a monkey for 20 seconds.",
+    "Give everyone in the room a compliment.",
+    "Do a silly walk across the room.",
+    "Pretend to be a robot making tea.",
+    "Hop on one foot five times, then switch feet.",
+    "Tell a joke. Bonus point if everyone groans!",
+    "Make your funniest face and hold it for 10 seconds.",
+    "Act out your favourite animal and let others guess it.",
+    "Say the alphabet backwards as fast as you can.",
+    "Be a teacher and teach everyone a fun fact.",
+    "Hum a song and let the family guess it.",
+    "Do a dance step from an old Bollywood song.",
+    "Talk like a cartoon character until your next turn.",
+    "Balance a cushion on your head for 15 seconds.",
+    "Draw a family portrait in 30 seconds.",
+    "Be a news anchor announcing tonight's dinner.",
+    "Give everyone an elbow high-five.",
+    "Clap a rhythm and get everyone to copy it.",
+    "Be a statue for 30 seconds while others try to make you laugh.",
+    "Act out brushing your teeth in slow motion.",
+    "Say a tongue twister three times without a mistake.",
+    "Thank {other} for something nice they did this week."
+   ]}
+]
+</script>
+<!-- Premium pack list for the picker (names and counts only; the cards come from /api/packs). -->
+<script type="application/json" id="dareup-premium-catalog">
+[
+  {"id":"party","name":"Party Animals","desc":"High-energy dares. No drinks needed.","color":"#db2777","truths":40,"dares":40},
+  {"id":"couples","name":"Couples 18+","desc":"Flirty, sweet fun for couples.","color":"#e11d48","truths":30,"dares":30,"adult":true},
+  {"id":"desi","name":"Desi Masti","desc":"Hinglish: Bollywood, rishtedaar, chai.","color":"#ea580c","truths":40,"dares":40},
+  {"id":"office","name":"Office Safe","desc":"Clean, inclusive team fun.","color":"#0d9488","truths":25,"dares":25},
+  {"id":"deep","name":"Deep Talk","desc":"Big questions, real talk.","color":"#4338ca","truths":40,"dares":10},
+  {"id":"challenge","name":"Challenge Mode","desc":"Silly physical challenges.","color":"#ca8a04","truths":30,"dares":30}
+]
+</script>
+
+<script>
+(() => {
+'use strict';
+
+/* ============================== CONFIG ============================== */
+const APP_NAME = 'DareUp';                               // the game's display name, used everywhere in the UI
+const API_BASE_REMOTE = 'https://[your-app].vercel.app'; // hosted API, used from file:// and inside the Android app
+const ANDROID_ASSET_HOST = 'appassets.androidplatform.net';
+const API_BASE = resolveApiBase();                       // '' means same origin (the hosted website)
+const STORE_CHANNEL = detectStoreChannel();              // 'web' | 'direct' | 'play' (set by the Android app)
+const SHARE_URL = '';                                    // optional link added to shared results ('' = this site when hosted)
+const STORAGE_PREFIX = 'dareup.';                        // keep stable even if APP_NAME changes
+const FREE_MAX_PLAYERS = 6;
+const PREMIUM_MAX_PLAYERS = 20;
+const MIN_PLAYERS = 2;
+const RAZORPAY_SRC = 'https://checkout.razorpay.com/v1/checkout.js';
+const FALLBACK_PLANS = [ // display copy only; real prices come from the server (api/_lib/plans.js)
+  { id: 'monthly', label: 'Monthly pass', price: 49, days: 30 },
+  { id: 'yearly', label: 'Yearly pass', price: 199, days: 365 },
+  { id: 'lifetime', label: 'Lifetime pass', price: 499, days: null },
+];
+const VERSION = '1.0.0';
+
+// API base: same origin on the hosted site; the remote API from file:// or the Android app.
+// ?api=<url> overrides it for testing. On a public website the override is only honoured for
+// localhost, so a crafted link cannot send someone's pass to another server.
+function resolveApiBase() {
+  const loc = window.location;
+  const web = (loc.protocol === 'http:' || loc.protocol === 'https:') && loc.hostname !== ANDROID_ASSET_HOST;
+  let override = null;
+  try { override = new URLSearchParams(loc.search).get('api'); } catch (e) { override = null; }
+  if (override) {
+    try {
+      const u = new URL(override);
+      const loopback = /^(localhost|127\.0\.0\.1|\[::1\]|10\.0\.2\.2)$/.test(u.hostname);
+      const devPage = !web || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(loc.hostname);
+      if ((u.protocol === 'http:' || u.protocol === 'https:') && (loopback || devPage)) {
+        return (u.origin + u.pathname).replace(/\/+$/, '');
+      }
+    } catch (e) { /* ignore a bad override */ }
+  }
+  const remote = API_BASE_REMOTE.replace(/\/+$/, '');
+  if (!web) return remote;
+  // Hosted copies on other sites (itch.io, a mirror) call the configured API; the API's own
+  // site, localhost, and an unconfigured placeholder stay same-origin.
+  const configured = !/\[your-app\]/.test(remote);
+  const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(loc.hostname);
+  let own = false;
+  try { own = configured && new URL(remote).origin === loc.origin; } catch (e) { own = false; }
+  return configured && !local && !own ? remote : '';
+}
+
+function detectStoreChannel() {
+  try {
+    const b = window.AndroidBridge;
+    const v = b && typeof b.storeChannel === 'function' ? String(b.storeChannel()) : 'web';
+    return v === 'play' || v === 'direct' ? v : 'web';
+  } catch (e) { return 'web'; }
+}
+
+// How premium is sold in this build. The Play Store build must not use Razorpay for digital
+// goods, so it sells nothing for now. Swap the 'play' branch for Google Play Billing later.
+function storeRules() {
+  if (STORE_CHANNEL === 'play') {
+    return { canBuy: false, canRestore: false, lockedNote: 'Premium packs are coming soon to this version.' };
+  }
+  return { canBuy: true, canRestore: true, lockedNote: '' };
+}
+
+/* ============================== STORAGE ============================== */
+const store = {
+  get(key, fallback) {
+    try { const v = window.localStorage.getItem(STORAGE_PREFIX + key); return v == null ? fallback : JSON.parse(v); } catch (e) { return fallback; }
+  },
+  set(key, value) {
+    try { window.localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value)); return true; } catch (e) { return false; }
+  },
+  del(key) {
+    try { window.localStorage.removeItem(STORAGE_PREFIX + key); } catch (e) { /* storage unavailable */ }
+  },
+};
+
+/* ============================== DATA ============================== */
+function readJsonBlock(id, fallback) {
+  try { return JSON.parse(document.getElementById(id).textContent); } catch (e) { return fallback; }
+}
+const FREE_PACKS = readJsonBlock('dareup-free-packs', []);
+const PREMIUM_CATALOG = readJsonBlock('dareup-premium-catalog', []);
+const CUSTOM_COLOR = '#64748b';
+const THEMES = {
+  classic: { label: 'Classic', premium: false, a: '#7c3aed', b: '#db2777' },
+  neon: { label: 'Neon', premium: true, a: '#a21caf', b: '#06b6d4' },
+  mango: { label: 'Mango', premium: true, a: '#f59e0b', b: '#c2410c' },
+  ocean: { label: 'Ocean', premium: true, a: '#0369a1', b: '#14b8a6' },
+};
+const DEFAULT_SETTINGS = { mode: 'auto', theme: 'classic', sound: true, vibrate: true, timer: 60, skipLimit: 3 };
+const ROUND_OPTIONS = [3, 5, 10, 0]; // 0 = endless
+const LIMITS = { customPacks: 30, cardsPerType: 200, cardLength: 200, packName: 30, playerName: 20 };
+
+const S = {
+  settings: loadSettings(),
+  players: loadPlayers(),
+  setup: loadSetup(),
+  game: loadGame(),
+  pass: loadPass(),
+  premiumPacks: store.get('premiumPacks', null),
+  custom: loadCustom(),
+  decks: (() => { const d = store.get('decks', {}); return d && typeof d === 'object' ? d : {}; })(),
+};
+
+function loadSettings() {
+  const s = store.get('settings', {}) || {};
+  const o = Object.assign({}, DEFAULT_SETTINGS);
+  if (['auto', 'light', 'dark'].includes(s.mode)) o.mode = s.mode;
+  if (Object.prototype.hasOwnProperty.call(THEMES, s.theme)) o.theme = s.theme;
+  if (typeof s.sound === 'boolean') o.sound = s.sound;
+  if (typeof s.vibrate === 'boolean') o.vibrate = s.vibrate;
+  if ([0, 30, 60, 90].includes(s.timer)) o.timer = s.timer;
+  if ([0, 1, 2, 3, 5, -1].includes(s.skipLimit)) o.skipLimit = s.skipLimit;
+  return o;
+}
+function loadPlayers() {
+  const p = store.get('players', []);
+  return Array.isArray(p) ? p.filter((n) => typeof n === 'string' && n.trim()).map(cleanName).slice(0, PREMIUM_MAX_PLAYERS) : [];
+}
+function loadSetup() {
+  const s = store.get('setup', {}) || {};
+  return {
+    packs: Array.isArray(s.packs) ? s.packs.filter((x) => typeof x === 'string').slice(0, 60) : ['classic'],
+    rounds: ROUND_OPTIONS.includes(s.rounds) ? s.rounds : 5,
+  };
+}
+function loadGame() {
+  const g = store.get('game', null);
+  if (!g || !Array.isArray(g.players) || !Array.isArray(g.packs) || typeof g.turn !== 'number') return null;
+  return g;
+}
+function loadPass() {
+  const p = store.get('pass', null);
+  return p && typeof p.token === 'string' ? p : null;
+}
+function loadCustom() {
+  const c = store.get('custom', []);
+  return Array.isArray(c) ? c.filter((p) => p && typeof p.id === 'string' && Array.isArray(p.truths) && Array.isArray(p.dares)) : [];
+}
+const saveSettings = () => store.set('settings', S.settings);
+const savePlayers = () => store.set('players', S.players);
+const saveSetup = () => store.set('setup', S.setup);
+const saveGame = () => (S.game ? store.set('game', S.game) : store.del('game'));
+const saveCustom = () => store.set('custom', S.custom);
+const saveDecks = () => store.set('decks', S.decks);
+
+/* ============================== HELPERS ============================== */
+const $view = document.getElementById('view');
+const $title = document.getElementById('bar-title');
+const $back = document.getElementById('bar-back');
+const $actions = document.getElementById('bar-actions');
+const $toast = document.getElementById('toast');
+const $dlg = document.getElementById('dlg');
+
+const ICONS = {
+  back: '<path d="M15 18l-6-6 6-6"/>',
+  sliders: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
+  crown: '<path d="M3 18h18l-1.5-10-4.5 4-3-7-3 7-4.5-4z"/>',
+  users: '<circle cx="9" cy="8" r="4"/><path d="M2 21c0-3.9 3.1-6 7-6s7 2.1 7 6M16 4.2a4 4 0 010 7.6M22 21c0-3-1.7-5-4.5-5.8"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  x: '<path d="M18 6L6 18M6 6l12 12"/>',
+  up: '<path d="M18 15l-6-6-6 6"/>',
+  down: '<path d="M6 9l6 6 6-6"/>',
+  trash: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"/>',
+  edit: '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/>',
+  share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/>',
+  check: '<path d="M20 6L9 17l-5-5"/>',
+  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/>',
+  trophy: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 01-10 0zM7 6H3v1a4 4 0 004 4M17 6h4v1a4 4 0 01-4 4"/>',
+  timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/>',
+  shuffle: '<path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/>',
+  chart: '<path d="M6 20V11M12 20V4M18 20v-6"/>',
+  help: '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3M12 17h.01"/>',
+  home: '<path d="M3 11l9-8 9 8M5 10v10h14V10"/>',
+  copy: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>',
+  sparkle: '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/>',
+  layers: '<path d="M12 2l10 5-10 5L2 7zM2 17l10 5 10-5M2 12l10 5 10-5"/>',
+  flag: '<path d="M5 22V4M5 4h12l-2 4 2 4H5"/>',
+  play: '<path d="M7 4l13 8-13 8z"/>',
+  refresh: '<path d="M21 12a9 9 0 11-3-6.7L21 8M21 3v5h-5"/>',
+  wifi: '<path d="M2 8.8a15 15 0 0120 0M5 12.5a10 10 0 0114 0M8.5 16a5 5 0 017 0M12 20h.01"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+  download: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
+};
+const LOGO_SVG = '<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="du-lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7C3AED"/><stop offset=".55" stop-color="#DB2777"/><stop offset="1" stop-color="#F97316"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#du-lg)"/><g transform="rotate(-14 186 243)"><rect x="96" y="118" width="180" height="250" rx="30" fill="#fff"/><path d="M136 205A34 34 0 1 1 196 227C178 239 170 245 170 264" fill="none" stroke="#4F46E5" stroke-width="25" stroke-linecap="round"/><circle cx="170" cy="305" r="15" fill="#4F46E5"/></g><g transform="rotate(12 326 265)"><rect x="236" y="140" width="180" height="250" rx="30" fill="#FDE047"/><rect x="313" y="182" width="26" height="114" rx="13" fill="#E11D48"/><circle cx="326" cy="334" r="16" fill="#E11D48"/></g></svg>';
+
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  if (props) {
+    for (const k of Object.keys(props)) {
+      const v = props[k];
+      if (v == null || v === false) continue;
+      if (k === 'class') el.className = v;
+      else if (k === 'text') el.textContent = v;
+      else if (k === 'html') el.innerHTML = v; // trusted static markup only (icons, logo)
+      else if (k.slice(0, 2) === 'on' && typeof v === 'function') el.addEventListener(k.slice(2), v);
+      else if (k === 'value') el.value = v;
+      else if (k === 'style') el.style.cssText = v;
+      else el.setAttribute(k, v === true ? '' : String(v));
+    }
+  }
+  for (const kid of kids.flat(Infinity)) {
+    if (kid == null || kid === false || kid === '') continue;
+    el.append(kid instanceof Node ? kid : String(kid));
+  }
+  return el;
+}
+function icon(name) {
+  return h('span', { class: 'i', 'aria-hidden': 'true', html: '<svg class="icon" viewBox="0 0 24 24">' + (ICONS[name] || '') + '</svg>' });
+}
+function iconBtn(name, label, onclick, t) {
+  return h('button', { type: 'button', class: 'icon-btn', 'aria-label': label, title: label, 'data-t': t || null, onclick }, icon(name));
+}
+function rand() {
+  try { const a = new Uint32Array(1); window.crypto.getRandomValues(a); return a[0] / 4294967296; } catch (e) { return Math.random(); }
+}
+function randId(n) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let s = '';
+  for (let i = 0; i < n; i++) s += chars[Math.floor(rand() * chars.length)];
+  return s;
+}
+function cleanName(s) {
+  return String(s || '').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, LIMITS.playerName);
+}
+function avatarColor(name) {
+  const colors = ['#7c3aed', '#db2777', '#0284c7', '#16a34a', '#ea580c', '#0d9488', '#4338ca', '#be123c', '#a16207', '#9333ea'];
+  let x = 0;
+  for (let i = 0; i < name.length; i++) x = (x * 31 + name.charCodeAt(i)) >>> 0;
+  return colors[x % colors.length];
+}
+function avatar(name, big) {
+  const first = Array.from(name.trim())[0] || '?';
+  return h('span', { class: 'avatar' + (big ? ' big' : ''), style: '--av:' + avatarColor(name), 'aria-hidden': 'true', text: first.toUpperCase() });
+}
+const inr = (rupees) => {
+  try { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(rupees); } catch (e) { return '₹' + rupees; }
+};
+const fmtDate = (sec) => {
+  try { return new Date(sec * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); } catch (e) { return new Date(sec * 1000).toDateString(); }
+};
+const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many || one + 's');
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const reducedMotion = () => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+const isPlaceholder = (url) => !url || url.indexOf('[') !== -1;
+
+let toastTimer = null;
+let toastAt = 0;
+function toast(msg) {
+  toastAt = Date.now();
+  $toast.textContent = msg;
+  $toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $toast.classList.remove('show'), 2800);
+}
+
+/* ============================== DIALOGS ============================== */
+let dlgResolve = null;
+function openDialog(opts) {
+  if ($dlg.open) closeDialog(undefined);
+  const actions = (opts.actions || [{ label: 'OK', value: true, cls: 'btn btn-primary btn-block' }]).map((a) =>
+    h('button', { type: 'button', class: a.cls || 'btn btn-block', 'data-t': a.t || null, onclick: () => closeDialog(a.value) }, a.label));
+  $dlg.replaceChildren(h('div', { class: 'dlg' },
+    opts.title ? h('h2', { id: 'dlg-title', text: opts.title }) : null,
+    opts.body || null,
+    h('div', { class: 'dlg-actions' }, actions)));
+  try { if (typeof $dlg.showModal === 'function') $dlg.showModal(); else $dlg.setAttribute('open', ''); } catch (e) { $dlg.setAttribute('open', ''); }
+  return new Promise((resolve) => { dlgResolve = resolve; });
+}
+function closeDialog(value) {
+  try { if (typeof $dlg.close === 'function' && $dlg.open) $dlg.close(); else $dlg.removeAttribute('open'); } catch (e) { $dlg.removeAttribute('open'); }
+  const r = dlgResolve;
+  dlgResolve = null;
+  if (r) r(value);
+}
+$dlg.addEventListener('cancel', (e) => { e.preventDefault(); closeDialog(undefined); });
+$dlg.addEventListener('click', (e) => { if (e.target === $dlg) closeDialog(undefined); });
+function para(text) { return h('p', { text }); }
+async function confirmBox(title, text, okLabel, danger) {
+  const v = await openDialog({
+    title,
+    body: typeof text === 'string' ? para(text) : text,
+    actions: [
+      { label: 'Cancel', value: false, cls: 'btn btn-block', t: 'dlg-cancel' },
+      { label: okLabel || 'OK', value: true, cls: 'btn btn-block ' + (danger ? 'btn-danger' : 'btn-primary'), t: 'dlg-ok' },
+    ],
+  });
+  return v === true;
+}
+function infoBox(title, text) {
+  return openDialog({ title, body: typeof text === 'string' ? para(text) : text, actions: [{ label: 'OK', value: true, cls: 'btn btn-primary btn-block', t: 'dlg-ok' }] });
+}
+
+/* ============================== THEME ============================== */
+let mq = null;
+try { mq = window.matchMedia('(prefers-color-scheme: dark)'); } catch (e) { mq = null; }
+function effectiveTheme() {
+  const t = S.settings.theme;
+  return THEMES[t] && (!THEMES[t].premium || isPremium()) ? t : 'classic';
+}
+function toHex(rgb) {
+  const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(rgb || '');
+  if (!m) return '#fff7f0';
+  return '#' + [m[1], m[2], m[3]].map((x) => Number(x).toString(16).padStart(2, '0')).join('');
+}
+function applyTheme() {
+  const root = document.documentElement;
+  const dark = S.settings.mode === 'dark' || (S.settings.mode === 'auto' && !!(mq && mq.matches));
+  root.setAttribute('data-dark', dark ? '1' : '0');
+  root.setAttribute('data-theme', effectiveTheme());
+  const bg = toHex(getComputedStyle(document.body).backgroundColor);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', bg);
+  try {
+    if (window.AndroidBridge && typeof window.AndroidBridge.setTheme === 'function') window.AndroidBridge.setTheme(bg, dark);
+  } catch (e) { /* bridge optional */ }
+}
+if (mq) {
+  const onScheme = () => { if (S.settings.mode === 'auto') applyTheme(); };
+  if (typeof mq.addEventListener === 'function') mq.addEventListener('change', onScheme);
+  else if (typeof mq.addListener === 'function') mq.addListener(onScheme);
+}
+
+/* ============================== SOUND + VIBRATION ============================== */
+let actx = null;
+function audio() {
+  if (actx) return actx;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  try { actx = new AC(); } catch (e) { actx = null; }
+  return actx;
+}
+function tone(freq, at, dur, type, gain) {
+  const c = audio();
+  if (!c) return;
+  const t0 = c.currentTime + at;
+  const o = c.createOscillator();
+  const g = c.createGain();
+  o.type = type || 'sine';
+  o.frequency.setValueAtTime(freq, t0);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(gain || 0.08, t0 + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g);
+  g.connect(c.destination);
+  o.start(t0);
+  o.stop(t0 + dur + 0.03);
+}
+const SOUNDS = {
+  truth: () => { tone(523, 0, 0.12, 'triangle'); tone(784, 0.1, 0.2, 'triangle'); },
+  dare: () => { tone(392, 0, 0.1, 'square', 0.05); tone(587, 0.09, 0.22, 'square', 0.05); },
+  done: () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.07, 0.16, 'triangle', 0.07)); },
+  skip: () => { tone(330, 0, 0.18, 'sawtooth', 0.04); tone(247, 0.16, 0.32, 'sawtooth', 0.04); },
+  tick: () => tone(880, 0, 0.05, 'square', 0.03),
+  end: () => { tone(440, 0, 0.25, 'square', 0.06); tone(440, 0.32, 0.5, 'square', 0.06); },
+  win: () => { [523, 659, 784, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.11, 0.22, 'triangle', 0.07)); },
+};
+function sound(name) {
+  if (!S.settings.sound) return;
+  try {
+    const c = audio();
+    if (!c) return;
+    if (c.state === 'suspended' && c.resume) c.resume().catch(() => {});
+    if (SOUNDS[name]) SOUNDS[name]();
+  } catch (e) { /* audio is optional */ }
+}
+function buzz(pattern) {
+  if (!S.settings.vibrate) return;
+  try { if (typeof navigator.vibrate === 'function') navigator.vibrate(pattern); } catch (e) { /* not supported */ }
+}
+
+/* ============================== PREMIUM STATE ============================== */
+function passActive(p) {
+  p = p || S.pass;
+  return !!(p && p.token && (p.exp === null || (typeof p.exp === 'number' && p.exp * 1000 > Date.now())));
+}
+function isPremium() { return passActive(); }
+function maxPlayers() { return isPremium() ? PREMIUM_MAX_PLAYERS : FREE_MAX_PLAYERS; }
+function decodeToken(token) {
+  try {
+    const part = String(token).split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
+    const json = decodeURIComponent(Array.prototype.map.call(atob(part + '==='.slice((part.length + 3) % 4)), (c) => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join(''));
+    return JSON.parse(json);
+  } catch (e) { return null; }
+}
+function planLabel(id) {
+  const p = FALLBACK_PLANS.find((x) => x.id === id);
+  return p ? p.label : 'Premium pass';
+}
+// Keeps whichever pass lasts longer if the device already has an active one.
+function setPass(data) {
+  const payload = decodeToken(data.token) || {};
+  const next = {
+    token: data.token,
+    plan: data.plan || payload.plan,
+    exp: data.exp === undefined ? (payload.exp === undefined ? null : payload.exp) : data.exp,
+    pid: data.paymentId || payload.pid || '',
+    demo: !!(data.demo || payload.demo),
+    savedAt: Date.now(),
+  };
+  const cur = S.pass;
+  const curLonger = passActive(cur) && (cur.exp === null || (next.exp !== null && cur.exp > next.exp));
+  if (!curLonger) {
+    S.pass = next;
+    store.set('pass', next);
+  }
+  applyTheme();
+}
+function dropPass(reason) {
+  if (reason === 'expired' && S.pass) {
+    // keep the record so the screen can say when it ended
+  } else {
+    S.pass = null;
+    store.del('pass');
+  }
+  S.premiumPacks = null;
+  store.del('premiumPacks');
+  applyTheme();
+}
+// Cached premium packs stay on the device until the pass ends.
+function checkExpiry() {
+  if (S.pass && !passActive()) {
+    if (S.premiumPacks) { S.premiumPacks = null; store.del('premiumPacks'); }
+  }
+  if (S.premiumPacks && (!S.premiumPacks.packs || !Array.isArray(S.premiumPacks.packs))) {
+    S.premiumPacks = null;
+    store.del('premiumPacks');
+  }
+}
+
+/* ============================== API ============================== */
+class ApiError extends Error {
+  constructor(code, message, status) { super(message); this.code = code; this.status = status || 0; }
+}
+function apiReady() { return !isPlaceholder(API_BASE) || API_BASE === ''; }
+async function api(path, opts) {
+  opts = opts || {};
+  if (!apiReady()) throw new ApiError('no_server', 'This copy of the game is not connected to a server yet.');
+  const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), opts.timeout || 15000) : null;
+  const headers = {};
+  if (opts.body) headers['Content-Type'] = 'application/json';
+  if (opts.token) headers.Authorization = 'Bearer ' + opts.token;
+  let res;
+  try {
+    res = await fetch(API_BASE + path, {
+      method: opts.method || 'GET',
+      headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+      signal: ctrl ? ctrl.signal : undefined,
+      cache: 'no-store',
+      credentials: 'omit',
+    });
+  } catch (e) {
+    const offline = navigator.onLine === false;
+    throw new ApiError('offline', offline ? "You're offline. Connect to the internet and try again." : "Can't reach the " + APP_NAME + ' server right now. Check your connection and try again.');
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+  let data = null;
+  try { data = await res.json(); } catch (e) { data = null; }
+  if (!res.ok) {
+    if (!data || !data.error) throw new ApiError('offline', "Can't reach the " + APP_NAME + ' server right now (error ' + res.status + ').', res.status);
+    throw new ApiError(data.error, data.message || 'Something went wrong.', res.status);
+  }
+  return data || {};
+}
+
+function sanitizePack(p) {
+  if (!p || typeof p.id !== 'string') return null;
+  const clean = (arr) => (Array.isArray(arr) ? arr : []).filter((x) => typeof x === 'string' && x.trim()).map((x) => x.slice(0, 300)).slice(0, 500);
+  return { id: p.id.slice(0, 40), name: String(p.name || p.id).slice(0, 40), description: String(p.description || '').slice(0, 160), adult: !!p.adult, truths: clean(p.truths), dares: clean(p.dares) };
+}
+let packsLoading = null;
+function refreshPremiumPacks(opts) {
+  opts = opts || {};
+  if (!isPremium() || !apiReady()) return Promise.resolve(false);
+  if (packsLoading) return packsLoading;
+  packsLoading = (async () => {
+    try {
+      const data = await api('/api/packs', { token: S.pass.token });
+      const packs = (Array.isArray(data.packs) ? data.packs : []).map(sanitizePack).filter(Boolean);
+      S.premiumPacks = { exp: S.pass.exp, fetchedAt: Date.now(), version: data.version || 1, packs };
+      store.set('premiumPacks', S.premiumPacks);
+      return true;
+    } catch (e) {
+      if (e.status === 401) {
+        dropPass(e.code === 'expired' ? 'expired' : 'invalid');
+        if (!opts.quiet) infoBox('Pass not accepted', e.code === 'expired' ? 'Your premium pass has ended.' : 'The server could not verify your premium pass. If you paid, use Restore purchase on the Premium screen.');
+      } else if (!opts.quiet) {
+        toast(e.message);
+      }
+      return false;
+    } finally {
+      packsLoading = null;
+    }
+  })();
+  return packsLoading;
+}
+
+/* ============================== PACKS ============================== */
+function premiumContent(id) {
+  if (!isPremium() || !S.premiumPacks || !Array.isArray(S.premiumPacks.packs)) return null;
+  return S.premiumPacks.packs.find((p) => p.id === id) || null;
+}
+function getPackContent(id) {
+  const free = FREE_PACKS.find((p) => p.id === id);
+  if (free) return free;
+  const cat = PREMIUM_CATALOG.find((p) => p.id === id);
+  if (cat) {
+    const c = premiumContent(id);
+    return c ? { id: c.id, name: cat.name, truths: c.truths, dares: c.dares, adult: !!cat.adult } : null;
+  }
+  const custom = S.custom.find((p) => p.id === id);
+  return custom && isPremium() ? custom : null;
+}
+function packCatalog() {
+  const prem = isPremium();
+  const list = [];
+  FREE_PACKS.forEach((p) => list.push({ id: p.id, kind: 'free', name: p.name, desc: p.desc, color: p.color, nT: p.truths.length, nD: p.dares.length, available: true }));
+  PREMIUM_CATALOG.forEach((c) => {
+    const content = premiumContent(c.id);
+    list.push({
+      id: c.id, kind: 'premium', name: c.name, desc: c.desc, color: c.color, adult: !!c.adult,
+      nT: content ? content.truths.length : c.truths, nD: content ? content.dares.length : c.dares,
+      available: !!content, locked: !prem, needsDownload: prem && !content,
+    });
+  });
+  S.custom.forEach((c) => list.push({
+    id: c.id, kind: 'custom', name: c.name, desc: 'Your own pack', color: CUSTOM_COLOR,
+    nT: c.truths.length, nD: c.dares.length, available: prem && c.truths.length + c.dares.length > 0, locked: !prem,
+  }));
+  return list;
+}
+
+/* ============================== DECKS ============================== */
+function listSig(list) {
+  let x = 2166136261;
+  const s = list.join('\u0001');
+  for (let i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = Math.imul(x, 16777619); }
+  return (x >>> 0).toString(36) + ':' + list.length;
+}
+function shuffledIdx(n) {
+  const a = Array.from({ length: n }, (_, i) => i);
+  for (let i = n - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; }
+  return a;
+}
+// One shuffled, no-repeat deck per pack and card type. It reshuffles only when used up.
+function deckFor(pack, type) {
+  const list = type === 'truth' ? pack.truths : pack.dares;
+  const key = pack.id + ':' + type;
+  const sig = listSig(list);
+  let d = S.decks[key];
+  if (!d || d.sig !== sig || !Array.isArray(d.order) || d.order.length !== list.length || typeof d.i !== 'number') {
+    d = { sig, order: shuffledIdx(list.length), i: 0 };
+    S.decks[key] = d;
+  }
+  return d;
+}
+function fillCard(text) {
+  if (text.indexOf('{other}') === -1) return text;
+  const g = S.game;
+  const others = g.players.filter((_, i) => i !== g.turn).map((p) => p.name);
+  const pickName = others.length ? others[Math.floor(rand() * others.length)] : 'someone';
+  return text.split('{other}').join(pickName);
+}
+function drawCard(type) {
+  const g = S.game;
+  const pool = g.packs.map(getPackContent).filter((p) => p && (type === 'truth' ? p.truths : p.dares).length > 0);
+  if (!pool.length) return null;
+  const decks = pool.map((p) => ({ p, d: deckFor(p, type) }));
+  let left = decks.map((x) => Math.max(0, x.d.order.length - x.d.i));
+  let total = left.reduce((a, b) => a + b, 0);
+  let reshuffled = false;
+  if (total <= 0) {
+    decks.forEach((x) => { x.d.order = shuffledIdx(x.d.order.length); x.d.i = 0; });
+    left = decks.map((x) => x.d.order.length);
+    total = left.reduce((a, b) => a + b, 0);
+    reshuffled = true;
+  }
+  let r = rand() * total;
+  let k = 0;
+  while (k < decks.length - 1 && r >= left[k]) { r -= left[k]; k++; }
+  while (left[k] === 0 && k < decks.length - 1) k++;
+  const pick = decks[k];
+  const list = type === 'truth' ? pick.p.truths : pick.p.dares;
+  const raw = list[pick.d.order[pick.d.i]];
+  pick.d.i += 1;
+  saveDecks();
+  return { type, text: fillCard(raw), packId: pick.p.id, packName: pick.p.name, reshuffled };
+}
+
+/* ============================== ROUTER ============================== */
+const PARENT = { home: null, setup: 'home', play: 'setup', summary: 'home', premium: 'home', settings: 'home', packs: 'home', edit: 'packs' };
+function currentRoute() {
+  const m = /^#\/?([a-z]*)(?:\/(.*))?$/.exec(window.location.hash || '');
+  const name = m && m[1] && Object.prototype.hasOwnProperty.call(PARENT, m[1]) ? m[1] : 'home';
+  let arg = null;
+  try { arg = m && m[2] ? decodeURIComponent(m[2]) : null; } catch (e) { arg = null; }
+  return { name, arg };
+}
+function routeHash(name, arg) {
+  return '#/' + (name === 'home' ? '' : name) + (arg ? '/' + encodeURIComponent(arg) : '');
+}
+function go(name, arg, opts) {
+  opts = opts || {};
+  const hash = routeHash(name, arg);
+  const from = currentRoute().name;
+  try {
+    if (opts.replace) history.replaceState({ prev: history.state && history.state.prev ? history.state.prev : null }, '', hash);
+    else history.pushState({ prev: from }, '', hash);
+    render();
+  } catch (e) {
+    window.location.hash = hash; // hashchange will render
+  }
+}
+// Back one screen, along the screen tree (play -> setup -> home).
+function goBack() {
+  const parent = PARENT[currentRoute().name];
+  if (!parent) return false;
+  if (history.state && history.state.prev === parent) history.back();
+  else go(parent, null, { replace: true });
+  return true;
+}
+window.addEventListener('popstate', () => render());
+window.addEventListener('hashchange', () => render());
+$back.append(icon('back'));
+$back.addEventListener('click', () => { goBack(); });
+
+// Android contract: the app calls this on the system back button. true = handled,
+// false = already on the home screen (the app may exit).
+window.onAndroidBack = function () {
+  try {
+    if ($dlg.open || dlgResolve) { closeDialog(undefined); return true; }
+    return goBack();
+  } catch (e) { return false; }
+};
+
+let lastRouteKey = '';
+const VIEWS = {};
+function setBar(title, actions) {
+  $title.textContent = title || '';
+  $actions.replaceChildren(...(actions || []));
+}
+function mount(node) { $view.replaceChildren(node); }
+function render() {
+  const r = currentRoute();
+  const key = r.name + '/' + (r.arg || '');
+  if (key !== lastRouteKey) {
+    stopTimer();
+    document.querySelectorAll('.confetti').forEach((el) => el.remove());
+    if (Date.now() - toastAt > 300) $toast.classList.remove('show'); // keep toasts sent just before navigating
+    lastRouteKey = key;
+    try { window.scrollTo(0, 0); } catch (e) { /* ignore */ }
+  }
+  $back.hidden = !PARENT[r.name];
+  (VIEWS[r.name] || VIEWS.home)(r.arg);
+}
+
+/* ============================== HOME ============================== */
+let deferredInstall = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstall = e;
+  if (currentRoute().name === 'home') render();
+});
+function tile(iconName, label, onclick, t, hot) {
+  return h('button', { type: 'button', class: 'tile' + (hot ? ' hot' : ''), 'data-t': t, onclick }, icon(iconName), h('span', { text: label }));
+}
+VIEWS.home = function () {
+  setBar('', [iconBtn('sliders', 'Settings', () => go('settings'), 'open-settings')]);
+  const g = S.game && !S.game.over ? S.game : null;
+  const prem = isPremium();
+  const cur = g ? g.players[g.turn] : null;
+  mount(h('section', { 'data-t': 'home' },
+    h('div', { class: 'hero' },
+      h('div', { class: 'logo', html: LOGO_SVG }),
+      h('h1', { class: 'brand-name', text: APP_NAME }),
+      h('p', { class: 'tagline', text: 'Truth or Dare for your crew. Pass the phone, pick a card, own the moment.' })),
+    h('div', { class: 'stack' },
+      g ? h('button', { type: 'button', class: 'btn btn-primary btn-block btn-lg', 'data-t': 'resume', onclick: () => go('play') },
+        icon('play'), h('span', null, 'Resume game', h('br'), h('small', { text: (cur ? cur.name + "'s turn" : '') + ' · ' + roundLabel(g) }))) : null,
+      h('button', { type: 'button', class: 'btn btn-block btn-lg' + (g ? '' : ' btn-primary'), 'data-t': 'new-game', onclick: () => go('setup') }, icon('users'), 'New game'),
+      h('div', { class: 'grid2' },
+        tile('help', 'How to play', showHowTo, 'how-to'),
+        tile('crown', prem ? 'Premium is on' : 'Premium', () => go('premium'), 'open-premium', true),
+        tile('layers', 'My packs', () => go('packs'), 'open-packs'),
+        deferredInstall
+          ? tile('download', 'Install app', installApp, 'install')
+          : tile('sliders', 'Settings', () => go('settings'), 'open-settings-tile'))),
+    h('p', { class: 'fine', text: "Play safe and kind. Skip anything that doesn't suit someone or the space you're in." })));
+};
+async function installApp() {
+  if (!deferredInstall) return;
+  try { deferredInstall.prompt(); await deferredInstall.userChoice; } catch (e) { /* dismissed */ }
+  deferredInstall = null;
+  render();
+}
+function showHowTo() {
+  const skips = S.settings.skipLimit;
+  openDialog({
+    title: 'How to play',
+    body: h('div', null,
+      h('ol', null,
+        h('li', { text: 'Add 2 or more players and pick your packs.' }),
+        h('li', { text: 'On your turn, choose Truth, Dare or Random.' }),
+        h('li', { text: 'Answer honestly or do the dare to score 1 point.' }),
+        h('li', { text: skips < 0 ? 'Not feeling it? Chicken out as often as you like (no point).' : 'Not feeling it? Chicken out. You get ' + plural(skips, 'skip') + ' per game.' }),
+        h('li', { text: 'Most points after the last round wins.' })),
+      para("Play safe and kind. If a card doesn't suit someone or the room, swap it. Nobody has to do anything that feels unsafe.")),
+  });
+}
+
+/* ============================== SETUP ============================== */
+VIEWS.setup = function () {
+  setBar('New game', []);
+  const errBox = h('p', { class: 'field-err', role: 'alert', 'data-t': 'setup-error' });
+  const input = h('input', { class: 'input', type: 'text', maxlength: String(LIMITS.playerName), placeholder: 'Player name', autocomplete: 'off', autocapitalize: 'words', enterkeyhint: 'done', 'aria-label': 'Player name', 'data-t': 'player-input' });
+  const addErr = h('p', { class: 'field-err', role: 'alert' });
+  const list = h('ul', { class: 'players', 'data-t': 'player-list' });
+  const count = h('span', { class: 'chip', 'data-t': 'player-count' });
+  const packsBox = h('div');
+  const startBtn = h('button', { type: 'button', class: 'btn btn-primary btn-block btn-lg', 'data-t': 'start', onclick: start }, icon('play'), 'Start game');
+
+  function addPlayer() {
+    const name = cleanName(input.value);
+    addErr.textContent = '';
+    if (!name) { input.focus(); return; }
+    if (S.players.some((p) => p.toLowerCase() === name.toLowerCase())) { addErr.textContent = name + ' is already playing. Try a nickname.'; return; }
+    if (S.players.length >= maxPlayers()) {
+      addErr.textContent = isPremium() ? 'That is the maximum of ' + PREMIUM_MAX_PLAYERS + ' players.' : 'Free games have up to ' + FREE_MAX_PLAYERS + ' players.' + (storeRules().canBuy ? ' Premium allows ' + PREMIUM_MAX_PLAYERS + '.' : '');
+      return;
+    }
+    S.players.push(name);
+    savePlayers();
+    input.value = '';
+    drawPlayers();
+    input.focus();
+  }
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addPlayer(); } });
+
+  function move(i, d) {
+    const j = i + d;
+    if (j < 0 || j >= S.players.length) return;
+    const t = S.players[i]; S.players[i] = S.players[j]; S.players[j] = t;
+    savePlayers();
+    drawPlayers();
+  }
+  function drawPlayers() {
+    count.textContent = S.players.length + ' / ' + maxPlayers();
+    list.replaceChildren(...S.players.map((name, i) => h('li', { class: 'player', 'data-t': 'player-row' },
+      avatar(name),
+      h('span', { class: 'nm', text: name }),
+      iconBtn('up', 'Move ' + name + ' up', () => move(i, -1)),
+      iconBtn('down', 'Move ' + name + ' down', () => move(i, 1)),
+      iconBtn('x', 'Remove ' + name, () => { S.players.splice(i, 1); savePlayers(); drawPlayers(); }, 'player-remove'))));
+    if (!S.players.length) list.append(h('li', { class: 'muted', style: 'padding:6px 2px', text: 'Add everyone who is playing. Their turns go in this order.' }));
+    validate();
+  }
+
+  function drawPacks() {
+    const cat = packCatalog();
+    const groups = [
+      ['Free', cat.filter((p) => p.kind === 'free')],
+      ['Premium', cat.filter((p) => p.kind === 'premium')],
+      ['Your packs', cat.filter((p) => p.kind === 'custom')],
+    ];
+    S.setup.packs = S.setup.packs.filter((id) => cat.some((p) => p.id === id));
+    packsBox.replaceChildren(...groups.filter((g) => g[1].length).map((g) => h('div', null,
+      h('div', { class: 'group-label', text: g[0] }),
+      h('div', { class: 'packs' }, g[1].map(packTile)))));
+    const note = storeRules().lockedNote;
+    if (note && !isPremium()) packsBox.append(h('p', { class: 'note info', style: 'margin-top:10px', 'data-t': 'locked-note' }, icon('info'), h('span', { text: note })));
+    validate();
+  }
+  function packTile(info) {
+    const selected = S.setup.packs.includes(info.id) && info.available;
+    return h('button', {
+      type: 'button', class: 'pack' + (selected ? ' on' : '') + (info.locked ? ' locked' : ''), style: '--pc:' + info.color,
+      'aria-pressed': String(selected), 'data-t': 'pack-' + info.id, onclick: () => togglePack(info),
+    },
+    h('span', { class: 'pack-top' }, h('span', { class: 'pack-name', text: info.name }),
+      selected ? h('span', { class: 'tick' }, icon('check')) : null),
+    h('span', { class: 'pack-desc', text: info.desc }),
+    h('span', { class: 'pack-meta' },
+      h('span', { text: info.nT + ' truths · ' + info.nD + ' dares' }),
+      info.adult ? h('span', { class: 'badge adult', text: '18+' }) : null,
+      info.locked ? h('span', { class: 'badge lock', 'data-t': 'lock-badge' }, icon('lock'), 'Premium') : null,
+      info.needsDownload ? h('span', { class: 'badge' }, icon('download'), 'Tap to get') : null));
+  }
+  async function togglePack(info) {
+    const on = S.setup.packs.includes(info.id);
+    if (info.locked) {
+      const rules = storeRules();
+      if (!rules.canBuy) { infoBox(info.name, rules.lockedNote); return; }
+      const what = info.kind === 'custom' ? 'Your own packs need Premium.' : info.name + ' is a Premium pack with ' + info.nT + ' truths and ' + info.nD + ' dares.';
+      if (await confirmBox('Unlock ' + info.name, what, 'See Premium')) go('premium');
+      return;
+    }
+    if (info.needsDownload) {
+      toast('Getting your premium packs…');
+      const ok = await refreshPremiumPacks();
+      if (ok) toast('Premium packs ready.');
+      drawPacks();
+      return;
+    }
+    if (!info.available) { toast('This pack has no cards yet. Add some in My packs.'); return; }
+    if (!on && info.adult) {
+      const ok = await confirmBox('Adults only', info.name + ' is for adults. Please confirm everyone playing is 18 or older.', 'Everyone is 18+');
+      if (!ok) return;
+    }
+    S.setup.packs = on ? S.setup.packs.filter((x) => x !== info.id) : S.setup.packs.concat(info.id);
+    saveSetup();
+    drawPacks();
+  }
+
+  const roundsSeg = segmented(ROUND_OPTIONS.map((n) => ({ value: n, label: n === 0 ? '∞' : String(n), aria: n === 0 ? 'Endless' : n + ' rounds' })), S.setup.rounds, (v) => { S.setup.rounds = v; saveSetup(); }, 'rounds');
+
+  function problems() {
+    if (S.players.length < MIN_PLAYERS) return 'Add at least ' + MIN_PLAYERS + ' players.';
+    if (S.players.length > maxPlayers()) return 'Free games have up to ' + FREE_MAX_PLAYERS + ' players. Remove ' + (S.players.length - FREE_MAX_PLAYERS) + ' to start.';
+    const usable = S.setup.packs.filter((id) => getPackContent(id));
+    if (!usable.length) return 'Pick at least one pack.';
+    return '';
+  }
+  function validate() {
+    const p = problems();
+    errBox.textContent = p;
+    startBtn.disabled = !!p;
+  }
+  async function start() {
+    if (problems()) return;
+    if (S.game && !S.game.over) {
+      const ok = await confirmBox('Start a new game?', 'The game in progress will end.', 'Start new game');
+      if (!ok) return;
+    }
+    startGame();
+  }
+
+  mount(h('section', { 'data-t': 'setup' },
+    h('div', { class: 'sec-h' }, h('h2', { text: 'Players' }), count),
+    h('div', { class: 'add-row' }, input, h('button', { type: 'button', class: 'btn btn-primary', 'aria-label': 'Add player', 'data-t': 'player-add', onclick: addPlayer, style: 'min-width:56px;padding:0 14px' }, icon('plus'))),
+    addErr,
+    list,
+    h('div', { class: 'sec' }, h('div', { class: 'sec-h' }, h('h2', { text: 'Packs' }), h('span', { class: 'muted', style: 'font-size:14px', text: 'Pick one or more' })), packsBox),
+    h('div', { class: 'sec' }, h('div', { class: 'sec-h' }, h('h2', { text: 'Rounds' })), roundsSeg),
+    h('div', { class: 'dock' }, errBox, startBtn)));
+  drawPlayers();
+  drawPacks();
+  if (isPremium() && apiReady() && PREMIUM_CATALOG.some((c) => !premiumContent(c.id))) {
+    refreshPremiumPacks({ quiet: true }).then((ok) => { if (ok && currentRoute().name === 'setup') drawPacks(); });
+  }
+};
+
+function segmented(options, value, onChange, t) {
+  const wrap = h('div', { class: 'seg', role: 'group', 'data-t': t || null });
+  const draw = (v) => {
+    wrap.replaceChildren(...options.map((o) => h('button', {
+      type: 'button', 'aria-pressed': String(o.value === v), 'aria-label': o.aria || null, 'data-t': t ? t + '-' + o.value : null,
+      onclick: () => { onChange(o.value); draw(o.value); },
+    }, o.label)));
+  };
+  draw(value);
+  return wrap;
+}
+
+/* ============================== GAME ============================== */
+function startGame() {
+  const packs = S.setup.packs.filter((id) => getPackContent(id));
+  S.game = {
+    id: Date.now(),
+    players: S.players.map((name) => ({ name, score: 0, truths: 0, dares: 0, skips: 0 })),
+    packs,
+    rounds: S.setup.rounds,
+    round: 1,
+    turn: 0,
+    skipLimit: S.settings.skipLimit,
+    current: null,
+    over: false,
+    celebrated: false,
+    startedAt: Date.now(),
+  };
+  saveGame();
+  go('play', null, { replace: true });
+}
+function roundLabel(g) {
+  return g.rounds > 0 ? 'Round ' + Math.min(g.round, g.rounds) + ' of ' + g.rounds : 'Round ' + g.round;
+}
+function skipsLeft(p) {
+  return S.game.skipLimit < 0 ? Infinity : Math.max(0, S.game.skipLimit - p.skips);
+}
+function finishGame() {
+  if (!S.game) return;
+  S.game.over = true;
+  S.game.current = null;
+  S.game.endedAt = Date.now();
+  saveGame();
+  stopTimer();
+  go('summary', null, { replace: true });
+}
+function packNames(g) {
+  return g.packs.map((id) => { const p = getPackContent(id) || PREMIUM_CATALOG.find((c) => c.id === id); return p ? p.name : null; }).filter(Boolean);
+}
+
+VIEWS.play = function () {
+  const g = S.game;
+  if (!g) { go('home', null, { replace: true }); return; }
+  if (g.over) { go('summary', null, { replace: true }); return; }
+  if (!g.packs.some((id) => getPackContent(id))) {
+    infoBox('Packs locked', 'The packs in this game are not available any more, so the game has ended.');
+    finishGame();
+    return;
+  }
+  setBar(roundLabel(g), [iconBtn('chart', 'Scoreboard', showScoreboard, 'scoreboard')]);
+  if (g.current) renderCard(false); else renderChoose();
+};
+
+let picking = false;
+function renderChoose() {
+  const g = S.game;
+  const p = g.players[g.turn];
+  const next = g.players[(g.turn + 1) % g.players.length];
+  const left = skipsLeft(p);
+  const randomBtn = h('button', { type: 'button', class: 'choice random', 'data-t': 'pick-random', onclick: () => pick('random', randomBtn) }, icon('shuffle'), h('span', { text: 'Random' }));
+  mount(h('section', { 'data-t': 'choose' },
+    h('div', { class: 'turn' },
+      avatar(p.name, true),
+      h('h2', { 'data-t': 'turn-name', text: p.name + ', your turn' }),
+      h('p', { class: 'stats', text: plural(p.score, 'point') + ' · ' + (left === Infinity ? 'unlimited skips' : plural(left, 'skip') + ' left') })),
+    h('p', { class: 'ask', text: 'Truth or dare?' }),
+    h('div', { class: 'choices' },
+      h('button', { type: 'button', class: 'choice truth', 'data-t': 'pick-truth', onclick: () => pick('truth') }, h('span', { class: 'glyph', 'aria-hidden': 'true', text: '?' }), 'Truth'),
+      h('button', { type: 'button', class: 'choice dare', 'data-t': 'pick-dare', onclick: () => pick('dare') }, h('span', { class: 'glyph', 'aria-hidden': 'true', text: '!' }), 'Dare'),
+      randomBtn),
+    g.players.length > 1 ? h('p', { class: 'next-up', text: 'Up next: ' + next.name }) : null,
+    h('div', { style: 'text-align:center;margin-top:14px' },
+      h('button', { type: 'button', class: 'btn btn-ghost', 'data-t': 'end-game', onclick: endGameAsk }, icon('flag'), 'End game'))));
+}
+async function endGameAsk() {
+  if (await confirmBox('End the game?', 'Scores so far decide the winner.', 'End game')) finishGame();
+}
+async function spinRandom(btn, finalType) {
+  if (!btn) return;
+  const label = btn.querySelector('span:last-child');
+  btn.classList.add('spin');
+  const steps = reducedMotion() ? 2 : 8;
+  for (let i = 0; i < steps; i++) {
+    if (label) label.textContent = i % 2 ? 'Dare…' : 'Truth…';
+    if (S.settings.sound && i % 2 === 0) tone(600 + i * 40, 0, 0.04, 'square', 0.02);
+    await sleep(80);
+  }
+  if (label) label.textContent = finalType === 'truth' ? 'Truth!' : 'Dare!';
+  await sleep(220);
+  btn.classList.remove('spin');
+}
+async function pick(kind, btn) {
+  if (picking || !S.game) return;
+  picking = true;
+  try {
+    let type = kind;
+    if (kind === 'random') {
+      type = rand() < 0.5 ? 'truth' : 'dare';
+      if (S.settings.sound) audio();
+      await spinRandom(btn, type);
+    }
+    let card = drawCard(type);
+    if (!card) {
+      const alt = type === 'truth' ? 'dare' : 'truth';
+      card = drawCard(alt);
+      if (card) toast('No ' + type + 's in these packs, so here is a ' + alt + '.');
+    }
+    if (!card) { toast('These packs have no cards. Pick another pack.'); return; }
+    if (card.reshuffled) toast("You've seen every card. Deck reshuffled!");
+    S.game.current = { type: card.type, text: card.text, packId: card.packId, packName: card.packName, swapped: false };
+    saveGame();
+    sound(card.type);
+    buzz(15);
+    renderCard(true);
+  } finally {
+    picking = false;
+  }
+}
+function renderCard(animate) {
+  const g = S.game;
+  const p = g.players[g.turn];
+  const c = g.current;
+  const dare = c.type === 'dare';
+  const left = skipsLeft(p);
+  const typeCls = dare ? 'dare-c' : 'truth-c';
+  const flip = h('div', { class: 'flip' + (animate ? '' : ' revealed'), 'data-t': 'card' },
+    h('div', { class: 'flip-inner' },
+      h('div', { class: 'face face-cover ' + typeCls, 'aria-hidden': 'true' },
+        h('span', { class: 'glyph', text: dare ? '!' : '?' }), h('span', { class: 'lbl', text: dare ? 'Dare' : 'Truth' })),
+      h('div', { class: 'face face-content ' + typeCls },
+        h('div', { class: 'card-band' }, h('span', { class: 'type', 'data-t': 'card-type', text: dare ? 'Dare' : 'Truth' }), h('span', { class: 'pk', 'data-t': 'card-pack', text: c.packName })),
+        h('p', { class: 'card-text', 'data-t': 'card-text', 'aria-live': 'polite', text: c.text }),
+        h('p', { class: 'card-for', text: 'for ' + p.name }))));
+  const skipBtn = h('button', { type: 'button', class: 'btn', 'data-t': 'skip', disabled: left === 0, onclick: () => resolveTurn(false) },
+    left === 0 ? 'No skips left' : h('span', null, 'Chicken out', h('br'), h('small', { text: left === Infinity ? 'no point' : plural(left, 'skip') + ' left' })));
+  const doneBtn = h('button', { type: 'button', class: 'btn btn-ok', 'data-t': 'done', onclick: () => resolveTurn(true) }, icon('check'), h('span', null, dare ? 'Done' : 'Answered', h('br'), h('small', { text: '+1 point' })));
+  mount(h('section', { 'data-t': 'card-screen' },
+    flip,
+    dare ? timerBlock() : null,
+    h('div', { class: 'actions' }, skipBtn, doneBtn),
+    !c.swapped ? h('div', { style: 'text-align:center;margin-top:8px' }, h('button', { type: 'button', class: 'btn btn-ghost btn-sm', 'data-t': 'swap', onclick: swapCard }, icon('refresh'), "Swap card (doesn't fit the room)")) : null));
+  if (animate) {
+    requestAnimationFrame(() => requestAnimationFrame(() => flip.classList.add('revealed')));
+  }
+}
+function swapCard() {
+  const g = S.game;
+  if (!g || !g.current || g.current.swapped) return;
+  stopTimer();
+  const card = drawCard(g.current.type);
+  if (!card) return;
+  g.current = { type: card.type, text: card.text, packId: card.packId, packName: card.packName, swapped: true };
+  saveGame();
+  sound(card.type);
+  renderCard(true);
+}
+function resolveTurn(done) {
+  const g = S.game;
+  if (!g || !g.current) return;
+  const p = g.players[g.turn];
+  let msg;
+  if (done) {
+    p.score += 1;
+    if (g.current.type === 'truth') p.truths += 1; else p.dares += 1;
+    sound('done');
+    buzz(30);
+    msg = '+1 for ' + p.name;
+  } else {
+    if (skipsLeft(p) <= 0) return;
+    p.skips += 1;
+    sound('skip');
+    buzz([40, 60, 40]);
+    msg = p.name + ' chickened out!';
+  }
+  g.current = null;
+  stopTimer();
+  g.turn += 1;
+  if (g.turn >= g.players.length) { g.turn = 0; g.round += 1; }
+  saveGame();
+  if (g.rounds > 0 && g.round > g.rounds) { finishGame(); return; }
+  toast(msg);
+  setBar(roundLabel(g), [iconBtn('chart', 'Scoreboard', showScoreboard, 'scoreboard')]);
+  renderChoose();
+}
+function ranking(players) {
+  return players.map((p, i) => Object.assign({ idx: i }, p)).sort((a, b) => b.score - a.score || a.skips - b.skips || a.idx - b.idx);
+}
+function boardList(g, highlightTurn) {
+  let lastScore = null;
+  let rank = 0;
+  return h('ol', { class: 'board', 'data-t': 'board' }, ranking(g.players).map((p, i) => {
+    if (p.score !== lastScore) { rank = i + 1; lastScore = p.score; }
+    return h('li', { class: highlightTurn && p.idx === g.turn ? 'cur' : '' },
+      h('span', { class: 'rk', text: String(rank) }),
+      avatar(p.name),
+      h('span', { class: 'nm' }, p.name, h('small', { text: plural(p.truths, 'truth') + ' · ' + plural(p.dares, 'dare') + ' · ' + plural(p.skips, 'skip') })),
+      h('span', { class: 'pts', text: String(p.score) }));
+  }));
+}
+function showScoreboard() {
+  if (!S.game) return;
+  openDialog({ title: 'Scoreboard', body: boardList(S.game, true), actions: [{ label: 'Back to game', value: true, cls: 'btn btn-primary btn-block', t: 'dlg-ok' }] });
+}
+
+/* ---------- dare timer ---------- */
+let timer = null;
+const RING = 2 * Math.PI * 32;
+function timerBlock() {
+  const preset = S.settings.timer || 0;
+  if (!preset && !timer) {
+    return h('div', { class: 'timer', 'data-t': 'timer' },
+      h('span', { class: 'i', style: 'width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--surface-2);color:var(--brand-ink)' }, icon('timer')),
+      h('div', { class: 'timer-side' }, h('span', { style: 'font-weight:800', text: 'Add a timer' }),
+        segmented([30, 60, 90].map((n) => ({ value: n, label: n + 's' })), 0, (v) => { timer = newTimer(v); redrawTimer(); startTimer(); }, 'timer-pick')));
+  }
+  if (!timer) timer = newTimer(preset);
+  return buildTimer();
+}
+function newTimer(dur) { return { dur, left: dur, endAt: 0, running: false, done: false, iv: null, lastWhole: dur }; }
+function buildTimer() {
+  const t = timer;
+  const wrap = h('div', { class: 'timer' + (t.done ? ' done' : ''), 'data-t': 'timer', id: 'timer' });
+  wrap.append(
+    h('div', { class: 'ring', html: '<svg viewBox="0 0 76 76" aria-hidden="true"><circle class="bg" cx="38" cy="38" r="32"/><circle class="fg" id="timer-arc" cx="38" cy="38" r="32" stroke-dasharray="' + RING.toFixed(2) + '" stroke-dashoffset="0"/></svg>' },
+      h('span', { class: 'num', id: 'timer-num', 'data-t': 'timer-num', 'aria-live': 'off' })),
+    h('div', { class: 'timer-side' },
+      h('button', { type: 'button', class: 'btn btn-primary btn-sm', id: 'timer-toggle', 'data-t': 'timer-toggle', onclick: toggleTimer }),
+      segmented([30, 60, 90].map((n) => ({ value: n, label: n + 's' })), t.dur, (v) => { const wasRunning = timer && timer.running; clearTimerInterval(); timer = newTimer(v); if (wasRunning) startTimer(); else redrawTimer(); }, 'timer-pick')));
+  requestAnimationFrame(updateTimerUI);
+  return wrap;
+}
+function redrawTimer() {
+  const old = document.querySelector('[data-t="timer"]');
+  if (old) old.replaceWith(buildTimer());
+}
+function clearTimerInterval() { if (timer && timer.iv) { clearInterval(timer.iv); timer.iv = null; } }
+function toggleTimer() {
+  if (!timer) return;
+  if (timer.running) {
+    timer.left = Math.max(0, (timer.endAt - Date.now()) / 1000);
+    timer.running = false;
+    clearTimerInterval();
+  } else {
+    if (timer.done) timer = newTimer(timer.dur);
+    startTimer();
+    redrawTimer();
+    return;
+  }
+  updateTimerUI();
+}
+function startTimer() {
+  timer.running = true;
+  timer.endAt = Date.now() + timer.left * 1000;
+  audio();
+  clearTimerInterval();
+  timer.iv = setInterval(tickTimer, 200);
+  tickTimer();
+}
+function tickTimer() {
+  if (!timer) return;
+  const left = Math.max(0, (timer.endAt - Date.now()) / 1000);
+  const whole = Math.ceil(left);
+  if (whole !== timer.lastWhole) {
+    timer.lastWhole = whole;
+    if (whole > 0 && whole <= 5) sound('tick');
+  }
+  timer.left = left;
+  if (left <= 0) {
+    clearTimerInterval();
+    timer.running = false;
+    timer.done = true;
+    sound('end');
+    buzz([250, 120, 250]);
+    const el = document.getElementById('timer');
+    if (el) el.classList.add('done');
+  }
+  updateTimerUI();
+}
+function updateTimerUI() {
+  if (!timer) return;
+  const num = document.getElementById('timer-num');
+  const arc = document.getElementById('timer-arc');
+  const btn = document.getElementById('timer-toggle');
+  if (num) num.textContent = timer.done ? "0" : String(Math.ceil(timer.left));
+  if (arc) arc.setAttribute('stroke-dashoffset', String((RING * (1 - timer.left / timer.dur)).toFixed(2)));
+  if (btn) btn.textContent = timer.done ? "Time's up! Again" : timer.running ? 'Pause' : timer.left < timer.dur ? 'Resume' : 'Start ' + timer.dur + 's timer';
+}
+function stopTimer() { clearTimerInterval(); timer = null; }
+
+/* ============================== SUMMARY ============================== */
+VIEWS.summary = function () {
+  const g = S.game;
+  if (!g) { go('home', null, { replace: true }); return; }
+  if (!g.over) { go('play', null, { replace: true }); return; }
+  setBar('Results', []);
+  const ranked = ranking(g.players);
+  const top = ranked.length ? ranked[0].score : 0;
+  const winners = ranked.filter((p) => p.score === top);
+  const title = top === 0 ? 'Nobody scored this time!' : winners.length === 1 ? winners[0].name + ' wins!' : "It's a tie: " + winners.map((w) => w.name).join(' & ');
+  const most = (key) => { const best = Math.max.apply(null, g.players.map((p) => p[key])); return best > 0 ? g.players.filter((p) => p[key] === best).map((p) => p.name).join(', ') : null; };
+  const awards = [['Bravest', most('dares'), 'most dares'], ['Open book', most('truths'), 'most truths'], ['Chicken of the night', most('skips'), 'most skips']].filter((a) => a[1]);
+  mount(h('section', { 'data-t': 'summary' },
+    h('div', { class: 'win' },
+      h('div', { class: 'trophy' }, icon('trophy')),
+      h('h2', { 'data-t': 'winner', text: title }),
+      h('p', { class: 'muted', style: 'text-align:center;margin-top:4px', text: (top ? plural(top, 'point') + ' · ' : '') + plural(roundsPlayed(g), 'round') + ' played' })),
+    h('div', { class: 'sec' }, boardList(g, false)),
+    awards.length ? h('div', { class: 'sec awards' }, awards.map((a) => h('div', { class: 'award' }, h('b', { text: a[0] }), h('span', { text: a[1] }), h('div', { class: 'muted', style: 'font-size:12px', text: a[2] })))) : null,
+    h('div', { class: 'sec stack' },
+      h('button', { type: 'button', class: 'btn btn-primary btn-block btn-lg', 'data-t': 'share', onclick: () => shareResult(g) }, icon('share'), 'Share result'),
+      h('div', { class: 'grid2' },
+        h('button', { type: 'button', class: 'btn', 'data-t': 'play-again', onclick: playAgain }, icon('refresh'), 'Play again'),
+        h('button', { type: 'button', class: 'btn', 'data-t': 'go-home', onclick: () => go('home', null, { replace: true }) }, icon('home'), 'Home')))));
+  if (!g.celebrated) {
+    g.celebrated = true;
+    saveGame();
+    if (top > 0) { sound('win'); confetti(); }
+  }
+};
+// Counts a round once anyone has played in it (a game can be ended mid-round).
+function roundsPlayed(g) {
+  const n = g.turn === 0 ? g.round - 1 : g.round;
+  return Math.max(1, g.rounds > 0 ? Math.min(n, g.rounds) : n);
+}
+function playAgain() {
+  const g = S.game;
+  S.players = g.players.map((p) => p.name);
+  S.setup.packs = g.packs.slice();
+  S.setup.rounds = g.rounds;
+  savePlayers();
+  saveSetup();
+  if (!S.setup.packs.some((id) => getPackContent(id))) { go('setup', null, { replace: true }); return; }
+  startGame();
+}
+function confetti() {
+  if (reducedMotion()) return;
+  const box = h('div', { class: 'confetti', 'aria-hidden': 'true' });
+  const colors = ['#7c3aed', '#db2777', '#f59e0b', '#06b6d4', '#22c55e', '#fde047'];
+  for (let i = 0; i < 70; i++) {
+    const s = h('i');
+    s.style.left = (rand() * 100).toFixed(1) + '%';
+    s.style.background = colors[i % colors.length];
+    s.style.animationDelay = (rand() * 0.7).toFixed(2) + 's';
+    s.style.animationDuration = (2.2 + rand() * 1.8).toFixed(2) + 's';
+    s.style.setProperty('--r', Math.floor(rand() * 360) + 'deg');
+    box.append(s);
+  }
+  document.body.append(box);
+  setTimeout(() => box.remove(), 5000);
+}
+function shareLink() {
+  if (!isPlaceholder(SHARE_URL)) return SHARE_URL;
+  if (API_BASE === '' && /^https?:$/.test(location.protocol) && location.hostname !== ANDROID_ASSET_HOST && !/^(localhost|127\.)/.test(location.hostname)) return location.origin + location.pathname.replace(/index\.html$/, '');
+  if (!isPlaceholder(API_BASE_REMOTE)) return API_BASE_REMOTE;
+  return '';
+}
+function shareResult(g) {
+  const lines = [APP_NAME + ' results (' + packNames(g).join(', ') + ')'];
+  ranking(g.players).forEach((p, i) => lines.push((i + 1) + '. ' + p.name + ': ' + plural(p.score, 'pt')));
+  const top = ranking(g.players)[0];
+  if (top && top.score > 0) lines.push('Winner: ' + ranking(g.players).filter((p) => p.score === top.score).map((p) => p.name).join(' & '));
+  const link = shareLink();
+  if (link) lines.push('Play ' + APP_NAME + ': ' + link);
+  shareText(lines.join('\n'));
+}
+async function shareText(text) {
+  try {
+    if (window.AndroidBridge && typeof window.AndroidBridge.share === 'function') { window.AndroidBridge.share(text); return; }
+  } catch (e) { /* fall through */ }
+  if (navigator.share) {
+    try { await navigator.share({ title: APP_NAME, text }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  if (await copyText(text)) toast('Result copied. Paste it anywhere to share.');
+  else infoBox('Copy your result', h('pre', { style: 'white-space:pre-wrap;font:inherit;user-select:all', text }));
+}
+async function copyText(text) {
+  try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; } } catch (e) { /* fall back */ }
+  try {
+    const ta = h('textarea', { style: 'position:fixed;top:-1000px;opacity:0', readonly: true });
+    ta.value = text;
+    document.body.append(ta);
+    ta.select();
+    const ok = document.execCommand && document.execCommand('copy');
+    ta.remove();
+    return !!ok;
+  } catch (e) { return false; }
+}
+
+/* ============================== PREMIUM ============================== */
+const plansInfo = { data: null, error: null, loading: false, at: 0 };
+let buying = null;
+const restoreForm = { pid: '', email: '', busy: false, msg: '', ok: false };
+function loadPlans() {
+  if (plansInfo.loading) return Promise.resolve();
+  plansInfo.loading = true;
+  return api('/api/plans', { timeout: 8000 })
+    .then((d) => { plansInfo.data = d; plansInfo.error = null; })
+    .catch((e) => { plansInfo.error = e; })
+    .finally(() => { plansInfo.loading = false; plansInfo.at = Date.now(); });
+}
+function extLink(label, url, t) {
+  const a = h('a', { href: url, target: '_blank', rel: 'noopener', 'data-t': t || null, text: label });
+  a.addEventListener('click', (e) => { if (openExternal(a.href)) e.preventDefault(); });
+  return a;
+}
+// Android contract: non-game links open through the app when it offers a bridge.
+function openExternal(url) {
+  try {
+    if (window.AndroidBridge && typeof window.AndroidBridge.openUrl === 'function') {
+      window.AndroidBridge.openUrl(new URL(url, window.location.href).href);
+      return true;
+    }
+  } catch (e) { /* fall back to normal navigation */ }
+  return false;
+}
+function legalUrl(page) {
+  if (API_BASE === '') return page + '.html';
+  if (!isPlaceholder(API_BASE_REMOTE)) return API_BASE_REMOTE.replace(/\/+$/, '') + '/' + page + '.html';
+  return page + '.html';
+}
+function legalLinks() {
+  return h('div', { class: 'links' }, extLink('Privacy policy', legalUrl('privacy'), 'privacy-link'), extLink('Terms', legalUrl('terms'), 'terms-link'));
+}
+function statusCard() {
+  const p = S.pass;
+  const on = passActive();
+  let title;
+  let sub;
+  if (on) {
+    title = 'Premium is on';
+    sub = (planLabel(p.plan)) + (p.exp === null ? ' · never ends' : ' · ends ' + fmtDate(p.exp)) + (p.demo ? ' · demo pass' : '');
+  } else if (p) {
+    title = 'Your pass has ended';
+    sub = planLabel(p.plan) + (p.exp ? ' ended on ' + fmtDate(p.exp) : '') + '. ' + (storeRules().canBuy ? 'Get a new one any time.' : '');
+  } else {
+    title = 'Free version';
+    sub = plural(FREE_PACKS.length, 'free pack') + ', up to ' + FREE_MAX_PLAYERS + ' players.';
+  }
+  const kids = [h('div', { class: 'status' + (on ? ' on' : '') }, icon(on ? 'crown' : 'lock'), h('div', null, h('b', { 'data-t': 'status-title', text: title }), h('span', { 'data-t': 'status-sub', text: sub })))];
+  if (on) {
+    const cached = S.premiumPacks && S.premiumPacks.packs ? S.premiumPacks.packs.length : 0;
+    kids.push(h('p', { class: 'muted', style: 'margin-top:10px;font-size:14px', 'data-t': 'packs-state', text: cached ? plural(cached, 'premium pack') + ' saved on this device for offline play.' : 'Premium packs not downloaded yet.' }));
+    const row = h('div', { class: 'row', style: 'margin-top:10px;flex-wrap:wrap' });
+    if (!cached || Date.now() - (S.premiumPacks ? S.premiumPacks.fetchedAt : 0) > 3600e3) {
+      row.append(h('button', { type: 'button', class: 'btn btn-sm', 'data-t': 'download-packs', onclick: async () => { toast('Getting your premium packs…'); if (await refreshPremiumPacks()) toast('Premium packs ready.'); render(); } }, icon('download'), cached ? 'Update packs' : 'Download packs'));
+    }
+    if (p.pid && !p.demo && storeRules().canRestore) {
+      row.append(h('button', { type: 'button', class: 'btn btn-sm', 'data-t': 'copy-pid', onclick: async () => { toast((await copyText(p.pid)) ? 'Payment ID copied.' : p.pid); } }, icon('copy'), 'Copy payment ID'));
+    }
+    row.append(h('button', { type: 'button', class: 'btn btn-sm btn-ghost btn-danger', 'data-t': 'remove-pass', onclick: removePassAsk }, 'Remove from this device'));
+    kids.push(row);
+    if (p.pid && !p.demo && storeRules().canRestore) kids.push(h('p', { class: 'muted', style: 'font-size:13px;margin-top:8px', text: 'Payment ID ' + p.pid + '. Keep it with your email to restore Premium on another device.' }));
+  }
+  return h('div', { class: 'card', 'data-t': 'premium-status' }, kids);
+}
+async function removePassAsk() {
+  const restorable = storeRules().canRestore && S.pass && !S.pass.demo;
+  const ok = await confirmBox('Remove Premium from this device?', restorable ? 'You can restore it later with your payment ID and email.' : 'Premium will be removed from this device.', 'Remove', true);
+  if (!ok) return;
+  dropPass('removed');
+  render();
+}
+function noticeBlock() {
+  const out = [];
+  if (!apiReady()) {
+    out.push(h('p', { class: 'note', 'data-t': 'server-missing' }, icon('wifi'), h('span', { text: 'Buying and restoring need the ' + APP_NAME + ' server, and this copy is not connected to one yet. Free packs work as normal.' })));
+  } else if (plansInfo.error) {
+    out.push(h('p', { class: 'note', 'data-t': 'server-offline' }, icon('wifi'), h('span', { text: plansInfo.error.message + ' Your pass and downloaded packs still work offline.' })));
+  }
+  if (plansInfo.data && plansInfo.data.demo) {
+    out.push(h('p', { class: 'note info', 'data-t': 'demo-note' }, icon('info'), h('span', { text: 'Demo mode: this server is not taking real payments. Buying unlocks a free demo pass.' })));
+  } else if (plansInfo.data && plansInfo.data.paymentsReady === false) {
+    out.push(h('p', { class: 'note', 'data-t': 'payments-off' }, icon('info'), h('span', { text: 'Payments are not switched on yet. Please check back soon.' })));
+  }
+  return out;
+}
+function plansBlock() {
+  const src = plansInfo.data && Array.isArray(plansInfo.data.plans) ? plansInfo.data.plans : FALLBACK_PLANS;
+  const lifetimeOn = passActive() && S.pass.exp === null;
+  const disabled = !apiReady() || !!buying || lifetimeOn;
+  return h('div', { class: 'plans', 'data-t': 'plans' }, src.map((pl) => {
+    const days = pl.days;
+    const best = pl.id === 'yearly';
+    const desc = days == null ? 'Pay once, keep it for good' : days === 365 ? '365 days · about ' + inr(Math.round(pl.price / 12)) + ' a month' : days + ' days';
+    return h('div', { class: 'plan' + (best ? ' best' : ''), 'data-t': 'plan-' + pl.id },
+      best ? h('span', { class: 'ribbon', text: 'Best value' }) : null,
+      h('div', { class: 'pi' }, h('div', { class: 'pn', text: pl.label }), h('div', { class: 'pd', text: desc })),
+      h('div', { class: 'pp', text: inr(pl.price) }),
+      h('button', { type: 'button', class: 'btn btn-primary btn-sm', 'data-t': 'buy-' + pl.id, disabled, onclick: () => buy(pl) },
+        buying === pl.id ? h('span', { class: 'spinner', 'aria-label': 'Working' }) : 'Buy'));
+  }));
+}
+function restoreBlock() {
+  const pid = h('input', { class: 'input', type: 'text', inputmode: 'text', autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false', placeholder: 'pay_XXXXXXXXXXXXXX', value: restoreForm.pid, 'aria-label': 'Payment ID', 'data-t': 'restore-pid', oninput: (e) => { restoreForm.pid = e.target.value; } });
+  const email = h('input', { class: 'input', type: 'email', inputmode: 'email', autocomplete: 'email', placeholder: '[your email]', value: restoreForm.email, 'aria-label': 'Email used to pay', 'data-t': 'restore-email', oninput: (e) => { restoreForm.email = e.target.value; } });
+  const msg = restoreForm.msg ? h('p', { class: restoreForm.ok ? 'note info' : 'note', style: 'margin-top:10px', role: 'alert', 'data-t': 'restore-msg', text: restoreForm.msg }) : null;
+  return h('details', { class: 'card', 'data-t': 'restore', open: restoreForm.msg ? true : null },
+    h('summary', null, h('span', { text: 'Restore purchase' }), icon('down')),
+    h('p', { class: 'muted', style: 'margin-top:6px;font-size:14px', text: 'Bought Premium on another device? Enter the payment ID from your Razorpay receipt email (it starts with pay_) and the email you paid with.' }),
+    h('label', { class: 'lbl-sm', text: 'Payment ID' }), pid,
+    h('label', { class: 'lbl-sm', text: 'Email' }), email,
+    h('button', { type: 'button', class: 'btn btn-primary btn-block', style: 'margin-top:12px', 'data-t': 'restore-go', disabled: restoreForm.busy || !apiReady(), onclick: doRestore },
+      restoreForm.busy ? h('span', { class: 'spinner', 'aria-label': 'Working' }) : 'Restore'),
+    msg);
+}
+VIEWS.premium = function () {
+  setBar('Premium', []);
+  const rules = storeRules();
+  const perks = [
+    ['layers', PREMIUM_CATALOG.length + ' more packs: ' + PREMIUM_CATALOG.map((c) => c.name).join(', ')],
+    ['edit', 'Make your own packs of truths and dares'],
+    ['users', 'Up to ' + PREMIUM_MAX_PLAYERS + ' players'],
+    ['sparkle', 'Extra colour themes: Neon, Mango and Ocean'],
+    ['wifi', 'Packs save to your device and play offline'],
+  ];
+  mount(h('section', { 'data-t': 'premium' },
+    h('div', { class: 'prem-hero' },
+      h('div', { class: 'crown' }, icon('crown')),
+      h('h2', { text: APP_NAME + ' Premium' }),
+      h('p', { class: 'muted', style: 'margin-top:4px', text: 'More packs, your own cards and bigger groups.' })),
+    h('div', { class: 'stack', style: 'margin-top:16px' },
+      statusCard(),
+      rules.lockedNote ? h('p', { class: 'note info', 'data-t': 'locked-note' }, icon('info'), h('span', { text: rules.lockedNote })) : null,
+      rules.canBuy || rules.canRestore ? noticeBlock() : null,
+      rules.canBuy ? h('div', null,
+        h('div', { class: 'sec-h', style: 'margin-top:8px' }, h('h2', { text: 'Choose a pass' })),
+        plansBlock(),
+        h('p', { class: 'muted', style: 'font-size:13px;margin-top:10px', text: 'One-time payment in INR through Razorpay (UPI, cards, netbanking, wallets). Nothing renews automatically. A new pass starts from the day you buy it.' })) : null,
+      h('div', { class: 'card' }, h('div', { class: 'sec-h' }, h('h2', { text: "What's included" })), h('ul', { class: 'perks' }, perks.map((p) => h('li', null, icon(p[0]), h('span', { text: p[1] }))))),
+      rules.canRestore ? restoreBlock() : null),
+    legalLinks()));
+  // Refresh live prices at most once a minute (every 5 s while the server is unreachable).
+  const age = Date.now() - plansInfo.at;
+  if (rules.canBuy && apiReady() && !plansInfo.loading && (age > 60000 || (plansInfo.error && age > 5000))) {
+    loadPlans().then(() => { if (currentRoute().name === 'premium') render(); });
+  }
+  if (rules.canBuy) retryPending(true);
+};
+
+function loadRazorpay() {
+  if (window.Razorpay) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = RAZORPAY_SRC;
+    s.async = true;
+    s.onload = () => (window.Razorpay ? resolve() : reject(new ApiError('checkout_unavailable', 'Payment window could not start. Please try again.')));
+    s.onerror = () => { s.remove(); reject(new ApiError('offline', 'Could not load the payment window. Check your connection and try again.')); };
+    document.head.appendChild(s);
+  });
+}
+async function buy(plan) {
+  if (buying || !storeRules().canBuy) return;
+  buying = plan.id;
+  render();
+  try {
+    const order = await api('/api/create-order', { method: 'POST', body: { plan: plan.id } });
+    if (order.demo) {
+      const ok = await confirmBox('Demo payment', 'This server is in demo mode, so no money is charged. Unlock a demo ' + plan.label.toLowerCase() + ' now?', 'Unlock demo pass');
+      if (!ok) return;
+      await completePayment({ razorpay_order_id: order.orderId, razorpay_payment_id: 'demo_pay_' + randId(14), razorpay_signature: 'demo' });
+      return;
+    }
+    await loadRazorpay();
+    await new Promise((resolve) => {
+      let settled = false;
+      const done = () => { if (!settled) { settled = true; resolve(); } };
+      const rz = new window.Razorpay({
+        key: order.keyId,
+        order_id: order.orderId,
+        amount: order.amount,
+        currency: order.currency,
+        name: APP_NAME,
+        description: plan.label,
+        theme: { color: getComputedStyle(document.documentElement).getPropertyValue('--brand').trim() || '#7c3aed' },
+        handler: (resp) => { completePayment(resp).catch((e) => infoBox('Payment received', e.message + ' Your payment is safe. Use Restore purchase with your payment ID if Premium does not unlock.')).finally(done); },
+        modal: { ondismiss: done, confirm_close: true },
+      });
+      rz.on('payment.failed', (r) => { toast('Payment failed: ' + ((r && r.error && r.error.description) || 'please try again.')); });
+      rz.open();
+    });
+  } catch (e) {
+    infoBox("Couldn't start payment", e.message);
+  } finally {
+    buying = null;
+    if (currentRoute().name === 'premium') render();
+  }
+}
+// Saves the Checkout response first, so a network drop after paying never loses the purchase.
+async function completePayment(resp) {
+  store.set('pending', Object.assign({ at: Date.now() }, resp));
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const data = await api('/api/verify-payment', { method: 'POST', body: { razorpay_order_id: resp.razorpay_order_id, razorpay_payment_id: resp.razorpay_payment_id, razorpay_signature: resp.razorpay_signature } });
+      store.del('pending');
+      setPass(data);
+      await refreshPremiumPacks({ quiet: true });
+      sound('win');
+      confetti();
+      toast('Premium unlocked. Have fun!');
+      if (currentRoute().name === 'premium') render();
+      return;
+    } catch (e) {
+      if (e.code === 'payment_pending' && attempt < 3) { await sleep(3000); continue; }
+      if (e.code === 'offline' || e.code === 'payments_not_configured' || e.code === 'payment_provider_error' || e.code === 'server_error') {
+        toast("Payment saved. We'll finish unlocking when the server is reachable.");
+        return;
+      }
+      store.del('pending');
+      throw e;
+    }
+  }
+}
+let pendingTried = false;
+function retryPending(quiet) {
+  const pend = store.get('pending', null);
+  if (!pend || pendingTried || !apiReady() || !pend.razorpay_order_id) return;
+  pendingTried = true;
+  completePayment(pend).catch((e) => { if (!quiet) toast(e.message); });
+}
+async function doRestore() {
+  if (restoreForm.busy) return;
+  restoreForm.busy = true;
+  restoreForm.msg = '';
+  render();
+  try {
+    const data = await api('/api/restore', { method: 'POST', body: { paymentId: restoreForm.pid.trim(), email: restoreForm.email.trim() } });
+    setPass(data);
+    await refreshPremiumPacks({ quiet: true });
+    restoreForm.ok = true;
+    restoreForm.msg = 'Premium restored on this device.';
+    restoreForm.pid = '';
+    restoreForm.email = '';
+    toast('Premium restored.');
+  } catch (e) {
+    restoreForm.ok = false;
+    restoreForm.msg = e.message;
+  } finally {
+    restoreForm.busy = false;
+    if (currentRoute().name === 'premium') render();
+  }
+}
+
+/* ============================== SETTINGS ============================== */
+VIEWS.settings = function () {
+  setBar('Settings', []);
+  const prem = isPremium();
+  const rules = storeRules();
+  const sw = (key, label, sub) => {
+    const b = h('button', { type: 'button', class: 'switch', role: 'switch', 'aria-checked': String(!!S.settings[key]), 'aria-label': label, 'data-t': 'toggle-' + key,
+      onclick: () => { S.settings[key] = !S.settings[key]; saveSettings(); b.setAttribute('aria-checked', String(S.settings[key])); if (key === 'sound' && S.settings.sound) sound('done'); if (key === 'vibrate') buzz(40); } });
+    return h('div', { class: 'set-row' }, h('div', null, h('div', { class: 'lbl', text: label }), sub ? h('div', { class: 'sub', text: sub }) : null), b);
+  };
+  const swatches = h('div', { class: 'swatches', 'data-t': 'themes' }, Object.keys(THEMES).map((id) => {
+    const t = THEMES[id];
+    const locked = t.premium && !prem;
+    return h('button', { type: 'button', class: 'swatch', style: '--a:' + t.a + ';--b:' + t.b, 'aria-pressed': String(effectiveTheme() === id), 'data-t': 'theme-' + id,
+      onclick: async () => {
+        if (locked) {
+          if (!rules.canBuy) { infoBox(t.label + ' theme', rules.lockedNote); return; }
+          if (await confirmBox(t.label + ' theme', 'Colour themes come with Premium.', 'See Premium')) go('premium');
+          return;
+        }
+        S.settings.theme = id; saveSettings(); applyTheme(); render();
+      } },
+    h('span', { class: 'dot' }), h('span', { text: t.label }), locked ? h('span', { class: 'badge lock' }, icon('lock')) : null);
+  }));
+  mount(h('section', { 'data-t': 'settings' },
+    h('div', { class: 'sec-h' }, h('h2', { text: 'Look' })),
+    h('div', { class: 'card stack' },
+      segmented([{ value: 'auto', label: 'Auto' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }], S.settings.mode, (v) => { S.settings.mode = v; saveSettings(); applyTheme(); }, 'mode'),
+      swatches),
+    h('div', { class: 'sec' }, h('div', { class: 'sec-h' }, h('h2', { text: 'Game' })),
+      h('div', { class: 'card' },
+        sw('sound', 'Sound', 'Beeps for cards, timer and wins'),
+        sw('vibrate', 'Vibration', 'On phones that support it'),
+        h('div', { style: 'padding:10px 0' }, h('div', { class: 'lbl', style: 'font-weight:800;margin-bottom:8px', text: 'Dare timer' }),
+          segmented([0, 30, 60, 90].map((n) => ({ value: n, label: n ? n + 's' : 'Off' })), S.settings.timer, (v) => { S.settings.timer = v; saveSettings(); }, 'timer-default')),
+        h('div', { style: 'padding:10px 0' }, h('div', { class: 'lbl', style: 'font-weight:800;margin-bottom:2px', text: 'Skips per player' }),
+          h('div', { class: 'sub muted', style: 'font-size:13px;margin-bottom:8px', text: 'How many times each player can chicken out in a game' }),
+          segmented([0, 1, 2, 3, 5, -1].map((n) => ({ value: n, label: n < 0 ? '∞' : String(n), aria: n < 0 ? 'Unlimited' : String(n) })), S.settings.skipLimit, (v) => { S.settings.skipLimit = v; saveSettings(); }, 'skips')))),
+    h('div', { class: 'sec' }, h('div', { class: 'sec-h' }, h('h2', { text: 'Your data' })),
+      h('div', { class: 'card stack' },
+        h('p', { class: 'muted', style: 'font-size:14px', text: 'Players, scores, settings and your own packs are saved only on this device.' }),
+        h('button', { type: 'button', class: 'btn btn-block', 'data-t': 'reset-decks', onclick: () => { S.decks = {}; saveDecks(); toast('Card history cleared. All cards can come up again.'); } }, icon('refresh'), 'Reset card history'),
+        h('button', { type: 'button', class: 'btn btn-block btn-danger', 'data-t': 'wipe', onclick: wipeAll }, icon('trash'), 'Delete all data on this device'))),
+    h('p', { class: 'fine', text: APP_NAME + ' ' + VERSION + (STORE_CHANNEL !== 'web' ? ' · ' + STORE_CHANNEL : '') }),
+    legalLinks()));
+};
+async function wipeAll() {
+  const restorable = storeRules().canRestore;
+  const ok = await confirmBox('Delete everything?', 'This removes players, games, settings, your own packs and any premium pass from this device.' + (restorable ? ' A paid pass can be restored later with your payment ID and email.' : ''), 'Delete all', true);
+  if (!ok) return;
+  ['settings', 'players', 'setup', 'game', 'pass', 'premiumPacks', 'custom', 'decks', 'pending'].forEach((k) => store.del(k));
+  S.settings = Object.assign({}, DEFAULT_SETTINGS);
+  S.players = [];
+  S.setup = { packs: ['classic'], rounds: 5 };
+  S.game = null;
+  S.pass = null;
+  S.premiumPacks = null;
+  S.custom = [];
+  S.decks = {};
+  applyTheme();
+  toast('All data deleted.');
+  go('home', null, { replace: true });
+}
+
+/* ============================== CUSTOM PACKS ============================== */
+VIEWS.packs = function () {
+  setBar('My packs', []);
+  const prem = isPremium();
+  const rules = storeRules();
+  const rows = S.custom.map((p) => h('div', { class: 'cp', 'data-t': 'custom-row' },
+    h('span', { class: 'nm' }, h('b', { text: p.name }), h('span', { text: plural(p.truths.length, 'truth') + ' · ' + plural(p.dares.length, 'dare') })),
+    prem ? iconBtn('edit', 'Edit ' + p.name, () => go('edit', p.id), 'custom-edit') : null,
+    iconBtn('trash', 'Delete ' + p.name, () => deleteCustom(p), 'custom-delete')));
+  mount(h('section', { 'data-t': 'packs-screen' },
+    prem
+      ? h('div', { class: 'stack' },
+        h('p', { class: 'muted', text: 'Write your own truths and dares. Perfect for inside jokes, birthdays and team nights.' }),
+        h('button', { type: 'button', class: 'btn btn-primary btn-block', 'data-t': 'new-pack', disabled: S.custom.length >= LIMITS.customPacks, onclick: () => go('edit', 'new') }, icon('plus'), 'New pack'))
+      : h('div', { class: 'card', style: 'text-align:center' },
+        h('div', { class: 'crown' }, icon('lock')),
+        h('h2', { style: 'font-size:22px;font-weight:900', text: 'Make your own packs' }),
+        h('p', { class: 'muted', style: 'margin:6px 0 14px', text: 'Write your own truths and dares, saved on your device.' }),
+        rules.canBuy
+          ? h('button', { type: 'button', class: 'btn btn-primary btn-block', 'data-t': 'packs-premium', onclick: () => go('premium') }, icon('crown'), 'Get Premium')
+          : h('p', { class: 'note info', 'data-t': 'locked-note' }, icon('info'), h('span', { text: rules.lockedNote }))),
+    rows.length ? h('div', { class: 'sec stack' }, rows) : prem ? h('p', { class: 'fine', text: 'No packs yet.' }) : null));
+};
+async function deleteCustom(p) {
+  if (!(await confirmBox('Delete "' + p.name + '"?', 'This pack and its cards will be removed from this device.', 'Delete', true))) return;
+  S.custom = S.custom.filter((x) => x.id !== p.id);
+  S.setup.packs = S.setup.packs.filter((x) => x !== p.id);
+  delete S.decks[p.id + ':truth'];
+  delete S.decks[p.id + ':dare'];
+  saveCustom(); saveSetup(); saveDecks();
+  render();
+}
+function parseLines(text) {
+  const seen = new Set();
+  return String(text || '').split(/\r?\n/).map((l) => l.replace(/[\u0000-\u001f\u007f]/g, '').trim()).filter((l) => {
+    if (!l || seen.has(l.toLowerCase())) return false;
+    seen.add(l.toLowerCase());
+    return true;
+  }).map((l) => l.slice(0, LIMITS.cardLength)).slice(0, LIMITS.cardsPerType);
+}
+VIEWS.edit = function (id) {
+  if (!isPremium()) { go('packs', null, { replace: true }); return; }
+  const existing = id && id !== 'new' ? S.custom.find((p) => p.id === id) : null;
+  if (id !== 'new' && !existing) { go('packs', null, { replace: true }); return; }
+  setBar(existing ? 'Edit pack' : 'New pack', []);
+  const name = h('input', { class: 'input', type: 'text', maxlength: String(LIMITS.packName), placeholder: 'Pack name, e.g. [Birthday special]', value: existing ? existing.name : '', 'aria-label': 'Pack name', 'data-t': 'pack-name' });
+  const truths = h('textarea', { class: 'input', placeholder: 'One truth per line', 'aria-label': 'Truths, one per line', 'data-t': 'pack-truths' });
+  const dares = h('textarea', { class: 'input', placeholder: 'One dare per line', 'aria-label': 'Dares, one per line', 'data-t': 'pack-dares' });
+  truths.value = existing ? existing.truths.join('\n') : '';
+  dares.value = existing ? existing.dares.join('\n') : '';
+  const tCount = h('p', { class: 'counter' });
+  const dCount = h('p', { class: 'counter' });
+  const err = h('p', { class: 'field-err', role: 'alert' });
+  const count = () => {
+    tCount.textContent = plural(parseLines(truths.value).length, 'truth') + ' (max ' + LIMITS.cardsPerType + ')';
+    dCount.textContent = plural(parseLines(dares.value).length, 'dare') + ' (max ' + LIMITS.cardsPerType + ')';
+  };
+  truths.addEventListener('input', count);
+  dares.addEventListener('input', count);
+  count();
+  function save() {
+    const n = cleanName(name.value).slice(0, LIMITS.packName);
+    const t = parseLines(truths.value);
+    const d = parseLines(dares.value);
+    if (!n) { err.textContent = 'Give your pack a name.'; name.focus(); return; }
+    if (!t.length && !d.length) { err.textContent = 'Add at least one truth or dare.'; return; }
+    if (existing) { existing.name = n; existing.truths = t; existing.dares = d; existing.updatedAt = Date.now(); }
+    else {
+      const p = { id: 'c_' + randId(10), name: n, truths: t, dares: d, createdAt: Date.now() };
+      S.custom.push(p);
+      if (!S.setup.packs.includes(p.id)) { S.setup.packs.push(p.id); saveSetup(); }
+    }
+    if (!saveCustom()) { err.textContent = 'Could not save on this device (storage is full or blocked).'; return; }
+    toast('Pack saved.');
+    go('packs', null, { replace: true });
+  }
+  mount(h('section', { 'data-t': 'edit-screen' },
+    h('div', { class: 'stack' },
+      h('label', { class: 'lbl-sm', text: 'Name' }), name,
+      h('label', { class: 'lbl-sm', text: 'Truths' }), truths, tCount,
+      h('label', { class: 'lbl-sm', text: 'Dares' }), dares, dCount,
+      h('p', { class: 'note info' }, icon('info'), h('span', { text: 'Tip: write {other} and the game swaps in another player\'s name. Keep it kind and safe.' })),
+      err,
+      h('div', { class: 'grid2' },
+        h('button', { type: 'button', class: 'btn', onclick: () => goBack() }, 'Cancel'),
+        h('button', { type: 'button', class: 'btn btn-primary', 'data-t': 'pack-save', onclick: save }, icon('check'), 'Save')))));
+};
+
+/* ============================== PWA + STARTUP ============================== */
+// Manifest and service worker only on the hosted website: never on file:// or in the Android app.
+function setupPwa() {
+  const loc = window.location;
+  const hosted = (loc.protocol === 'https:' || loc.protocol === 'http:') && loc.hostname !== ANDROID_ASSET_HOST;
+  if (!hosted) return;
+  document.head.append(h('link', { rel: 'manifest', href: 'manifest.webmanifest' }), h('link', { rel: 'apple-touch-icon', href: 'icons/icon-192.png' }));
+  if ('serviceWorker' in navigator && window.isSecureContext) {
+    const reg = () => navigator.serviceWorker.register('sw.js').catch(() => { /* offline shell is optional */ });
+    if (document.readyState === 'complete') reg(); else window.addEventListener('load', reg);
+  }
+}
+function setFavicon() {
+  const link = document.querySelector('link[rel="icon"]');
+  if (link) link.href = 'data:image/svg+xml,' + encodeURIComponent(LOGO_SVG);
+}
+
+document.title = APP_NAME + ' · Truth or Dare';
+checkExpiry();
+applyTheme();
+setFavicon();
+setupPwa();
+render();
+if (isPremium() && apiReady() && navigator.onLine !== false && (!S.premiumPacks || Date.now() - (S.premiumPacks.fetchedAt || 0) > 3 * 864e5)) {
+  refreshPremiumPacks({ quiet: true }).then((ok) => { if (ok && ['setup', 'premium'].includes(currentRoute().name)) render(); });
+}
+if (storeRules().canBuy) retryPending(true);
+setInterval(() => { // a pass can end while the app is open
+  if (S.pass && !passActive() && S.premiumPacks) { checkExpiry(); applyTheme(); }
+}, 60000);
+})();
+</script>
+</body>
+</html>

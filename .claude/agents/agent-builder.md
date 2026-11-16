@@ -21,6 +21,9 @@ sessions, push to git, or contact any outside service.
 - **Only the person's own activity.** Always call `list_sessions` with
   `mine: true`. Skip the session you are running in (call `get_session` with no
   `session_id` to learn its id).
+- **Assume the repository is public.** Everything you write here is
+  published once it is pushed. That is why the ledger holds dates and counts,
+  never session titles or ids (step 7).
 - **No private data in agent files.** Do not write in email addresses, phone
   numbers, account or payment ids, API keys, tokens, passwords, people's names,
   or client and company names. Describe the kind of work ("industrial plant
@@ -47,11 +50,11 @@ sessions, push to git, or contact any outside service.
    repo, use the current directory). All paths below are relative to it.
 2. Read every existing agent: `.claude/agents/*.md`, and `~/.claude/agents/*.md`
    if present. Note each agent's name and what it covers.
-3. Read `.claude/agent-builder/ledger.md` if it exists. It records which
-   sessions earlier runs already reviewed, and which agents they made. On a
-   repeat run, read in depth only sessions that are new or were updated
-   since the session's entry in the ledger. Use the full session list only to
-   re-check clusters.
+3. Read `.claude/agent-builder/ledger.md` if it exists. It records the date
+   of each earlier run, what it covered and which agents it made. On a repeat
+   run, read in depth only sessions, artifacts and chats updated after the
+   last run's date. Use the full lists (titles and summaries) only to re-check
+   groups.
 
 ## 2. Gather activity: cheap pass, then deep pass
 
@@ -225,29 +228,32 @@ For every file you wrote or changed:
 
 ## 7. Update the ledger
 
-Write or update `.claude/agent-builder/ledger.md`:
+Write or update `.claude/agent-builder/ledger.md`. It gets committed to a
+repository that may be public, so it holds **no session ids, session, chat or
+artifact titles, project names or quotes**. It holds only dates, counts and
+generic descriptions of the kind of work:
 
 ```markdown
 # agent-builder ledger
 
 ## Run YYYY-MM-DD
+Covered activity up to: YYYY-MM-DDTHH:MMZ (latest `updated` time seen)
 Sources read: N cloud sessions (cheap pass), M in depth; K local transcripts;
 A artifacts (titles), B read; claude.ai export: C chats, D Projects (or "none
 provided").
 Not readable: Cowork sessions and claude.ai chats/Projects, unless an export
 was provided.
 
-| Session id | Title | Updated | Read | Fed into |
-|---|---|---|---|---|
-| session_… | … | 2026-… | deep / summary | p6-schedule-analyst |
+| Agent | New / updated | Evidence (counts only) |
+|---|---|---|
+| p6-schedule-analyst | new | 2 sessions, 3 artifacts |
 
-Agents created: …
-Agents updated: …
-Candidates not made yet: … (reason)
+Candidates not made yet:
+- <generic kind of work> — <why not yet; what evidence would tip it>
 ```
 
-Append a new run section rather than rewriting older ones. Session titles are
-fine in the ledger. Private details are not.
+Append a new run section rather than rewriting older ones. Session titles
+belong in your report to the main Claude (step 8), not in the ledger.
 
 ## 8. Report back
 

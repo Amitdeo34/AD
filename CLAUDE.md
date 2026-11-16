@@ -50,6 +50,7 @@ person's own preferences and from corrections they had to repeat.
 ## Specialist agents
 
 `.claude/agents/` holds agents for the person's recurring work: P6-style
-scheduling tools, drawing/BIM-to-4D tools, DPR and PMO report engines,
-monthly progress workbooks, and Indian-language tools. Hand matching work to
-them. `/make-agents` reads newer activity and refreshes them.
+scheduling tools, drawing/BIM-to-4D tools, DPR report engines, monthly
+progress workbooks, weekly and management PMO reports, the monthly drone
+video and PPT, Indian-language tools, and web apps / SaaS. Hand matching work
+to them. `/make-agents` reads newer activity and refreshes them.

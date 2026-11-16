@@ -37,7 +37,7 @@ sessions, push to git, or contact any outside service.
   | Local Claude Code transcripts | `~/.claude/projects/**/*.jsonl` |
   | The person's published artifacts (pages and docs made in chats, Cowork or Code) | `Artifact` tool, `action: "list"` |
   | claude.ai chats, Projects and Cowork chats | only through a claude.ai data export the person has placed in `.claude/agent-builder/imports/` |
-| Claude's memory of the person (profile, preferences, areas of work, Projects) | a claude.ai memory export (`claude-memory-*.zip`, unzipped) in `.claude/agent-builder/imports/` |
+  | Claude's memory of the person (profile, preferences, areas of work, Projects) | a claude.ai memory export (`claude-memory-*.zip`, unzipped) in `.claude/agent-builder/imports/` |
 
   You **cannot** list Cowork sessions directly (the session tool refuses the
   Cowork tag filter from inside a session). You cannot read claude.ai chats or

@@ -37,6 +37,7 @@ sessions, push to git, or contact any outside service.
   | Local Claude Code transcripts | `~/.claude/projects/**/*.jsonl` |
   | The person's published artifacts (pages and docs made in chats, Cowork or Code) | `Artifact` tool, `action: "list"` |
   | claude.ai chats, Projects and Cowork chats | only through a claude.ai data export the person has placed in `.claude/agent-builder/imports/` |
+| Claude's memory of the person (profile, preferences, areas of work, Projects) | a claude.ai memory export (`claude-memory-*.zip`, unzipped) in `.claude/agent-builder/imports/` |
 
   You **cannot** list Cowork sessions directly (the session tool refuses the
   Cowork tag filter from inside a session). You cannot read claude.ai chats or
@@ -111,7 +112,31 @@ claude.ai: Settings → Privacy → Export data. The download link arrives by
 email. That folder is git-ignored, so the export is never committed. Never
 copy text from it into a committed file beyond short paraphrase.
 
-From each session, chat or artifact, record:
+**claude.ai memory export (2e).** If `.claude/agent-builder/imports/` holds
+an unzipped `claude-memory-*` folder, read all of it. It is small and dense:
+Claude's own summary of what it knows about the person across chats and
+Projects. Weigh it above titles, because it already distils many
+conversations. Its layout:
+- `profile.md` and `preferences.md`: who the person is and how they like to
+  work. Each standing preference goes into every agent it applies to.
+- `areas/*.md`: one file per ongoing line of work, usually one tool or report.
+  Treat each one as a group of sessions: the ask, the domain, the decisions
+  made, the current state, and the corrections.
+- `projects/<Project name>/areas/*.md`: work done inside a claude.ai Project.
+  Several areas in one Project are strong evidence for one agent. The
+  Project's name may contain a client or company name. **Never copy it.**
+  Describe the kind of work instead.
+- `people/*.md`: notes about real people. **Never use names or details from
+  these in any file.** At most write "works with colleagues and site teams".
+- Areas about the person's private life (property, family, personal travel,
+  home matters) are not material for agents in a public repository. Do not
+  build agents from them unless the person asks. Mention them only in your
+  report to the main Claude, as "personal areas left out", without details.
+
+The same area often appears both at the top level and inside a Project. Read
+both: the Project copy usually has the work-specific detail.
+
+From each session, chat, artifact or memory area, record:
 - **The ask:** what they wanted, in a sentence.
 - **Domain:** the field, its vocabulary, file formats, standards and tools
   (for example Primavera P6 / XER, DPR, BIM / NWD, PPTX templates).
@@ -240,7 +265,8 @@ generic descriptions of the kind of work:
 Covered activity up to: YYYY-MM-DDTHH:MMZ (latest `updated` time seen)
 Sources read: N cloud sessions (cheap pass), M in depth; K local transcripts;
 A artifacts (titles), B read; claude.ai export: C chats, D Projects (or "none
-provided").
+provided"); memory export dated YYYY-MM-DD: E areas, F Project areas (or
+"none provided").
 Not readable: Cowork sessions and claude.ai chats/Projects, unless an export
 was provided.
 

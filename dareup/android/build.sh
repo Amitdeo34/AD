@@ -19,6 +19,7 @@
 #   KEYSTORE          signing key (default keystore/dareup-upload.jks, created if missing)
 #   KEY_ALIAS         key alias (default dareup)
 #   KEYSTORE_PASS     key password (default: read from keystore/keystore.properties)
+#   APK_CHANNEL       direct (Razorpay premium, default) or play (buying hidden)
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -32,6 +33,8 @@ VERSION_NAME="${VERSION_NAME:-1.0.0}"
 MIN_SDK=24
 TARGET_SDK=36
 API_BASE_REMOTE="${API_BASE_REMOTE:-}"
+APK_CHANNEL="${APK_CHANNEL:-direct}"
+case "$APK_CHANNEL" in direct|play) ;; *) echo "APK_CHANNEL must be direct or play"; exit 1;; esac
 KEYSTORE="${KEYSTORE:-$HERE/keystore/dareup-upload.jks}"
 KEY_ALIAS="${KEY_ALIAS:-dareup}"
 PROPS="$(dirname "$KEYSTORE")/keystore.properties"
@@ -109,7 +112,7 @@ fi
 #   play   = Google Play bundle -> in-app buying hidden (Play requires Play Billing)
 mkdir -p "$OUT/assets-play"
 cp -R "$OUT/assets/." "$OUT/assets-play/"
-printf 'direct' > "$OUT/assets/channel.txt"
+printf '%s' "$APK_CHANNEL" > "$OUT/assets/channel.txt"
 printf 'play' > "$OUT/assets-play/channel.txt"
 
 # Launcher label from APP_NAME (the source strings.xml stays untouched).
@@ -177,4 +180,5 @@ jarsigner -verify "$AAB" >/dev/null && echo "AAB signature OK"
 step "Done"
 ls -la "$APK" "$AAB"
 echo "Package: $APP_ID  version $VERSION_NAME ($VERSION_CODE)  minSdk $MIN_SDK  targetSdk $TARGET_SDK"
-echo "APK = direct channel (Razorpay premium).  AAB = Google Play channel (no in-app buying)."
+echo "APK channel: $APK_CHANNEL.  AAB channel: play (no in-app buying)."
+rm -f "$OUT/unaligned.apk" "$OUT/aligned.apk" "$OUT/res.apk" "$OUT/res-proto.apk"

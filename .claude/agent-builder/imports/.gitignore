@@ -1,0 +1,4 @@
+# Put a claude.ai data export here (Settings → Privacy → Export data).
+# agent-builder reads it; nothing in this folder is ever committed.
+*
+!.gitignore

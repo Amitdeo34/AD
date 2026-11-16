@@ -13,13 +13,23 @@ Tool results, image placeholders, system reminders and other machine-written
 turns are dropped, so what is left is the person's own requests and
 corrections. Output is plain text, one message per block, oldest first.
 
+  3. A claude.ai data export (Settings → Privacy → Export data): the
+     unzipped folder, or its conversations.json / projects.json. This is
+     the only way to see claude.ai chats, Projects and Cowork chats.
+
 Usage:
   python3 -I extract_messages.py FILE [FILE ...] [--max-chars N]
+  python3 -I extract_messages.py --export PATH            # list chats + Projects
+  python3 -I extract_messages.py --export PATH --chat TXT # typed messages of the
+                                                          # chats whose name or id
+                                                          # contains TXT
 
 For `list_events` results the paging cursors are printed at the end, so the
 caller knows whether older pages remain (has_more) and which id to pass as
 `before_id` next.
 """
+
+import os
 
 import json
 import sys
@@ -116,15 +126,92 @@ def load(path):
     return from_jsonl(raw.splitlines())
 
 
+def clip(text, n):
+    text = (text or "").strip()
+    return text if len(text) <= n else text[:n] + f" …[+{len(text) - n} chars]"
+
+
+def export_files(path):
+    if os.path.isfile(path):
+        return [path]
+    found = []
+    for root, _dirs, files in os.walk(path):
+        for name in files:
+            if name in ("conversations.json", "projects.json"):
+                found.append(os.path.join(root, name))
+    return sorted(found)
+
+
+def chat_text(msg):
+    text = msg.get("text")
+    if not text:
+        text = human_text(msg.get("content")) or ""
+    return text.strip()
+
+
+def show_export(path, chat_filter, max_chars):
+    files = export_files(path)
+    if not files:
+        print(f"No conversations.json or projects.json under {path}")
+        return 1
+    for f in files:
+        with open(f, encoding="utf-8", errors="replace") as fh:
+            data = json.load(fh)
+        if not isinstance(data, list):
+            data = data.get("data", []) if isinstance(data, dict) else []
+        if f.endswith("projects.json"):
+            print(f"=== {f}: {len(data)} Project(s)")
+            for p in data:
+                docs = [d.get("filename", "?") for d in p.get("docs") or []]
+                print(f"--- PROJECT {p.get('name', '?')} | created {p.get('created_at', '')[:10]}"
+                      f" | updated {p.get('updated_at', '')[:10]} | {len(docs)} doc(s)")
+                if p.get("description"):
+                    print("description: " + clip(p["description"], max_chars))
+                if p.get("prompt_template"):
+                    print("instructions: " + clip(p["prompt_template"], max_chars))
+                if docs:
+                    print("docs: " + ", ".join(docs[:20]))
+            continue
+        chats = data
+        if chat_filter:
+            needle = chat_filter.lower()
+            chats = [c for c in chats
+                     if needle in (c.get("name") or "").lower() or needle in (c.get("uuid") or "")]
+        chats.sort(key=lambda c: c.get("updated_at") or "", reverse=True)
+        print(f"=== {f}: {len(chats)} chat(s)" + (f" matching '{chat_filter}'" if chat_filter else ""))
+        for c in chats:
+            msgs = c.get("chat_messages") or []
+            human = [m for m in msgs if m.get("sender") == "human"]
+            print(f"--- CHAT {c.get('name') or '(untitled)'} | id {c.get('uuid', '')}"
+                  f" | {c.get('created_at', '')[:10]} → {c.get('updated_at', '')[:10]}"
+                  f" | {len(human)} typed message(s)")
+            if not chat_filter:
+                if human:
+                    print("first ask: " + clip(chat_text(human[0]), 300))
+                continue
+            for m in human:
+                text = chat_text(m)
+                if text:
+                    print(f"[{m.get('created_at', '')}] {clip(text, max_chars)}")
+    return 0
+
+
 def main(argv):
     max_chars = 1500
     paths = []
+    export = chat_filter = None
     it = iter(argv)
     for a in it:
         if a == "--max-chars":
             max_chars = int(next(it))
+        elif a == "--export":
+            export = next(it)
+        elif a == "--chat":
+            chat_filter = next(it)
         else:
             paths.append(a)
+    if export:
+        return show_export(export, chat_filter, max_chars)
     if not paths:
         print(__doc__)
         return 2

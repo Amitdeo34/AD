@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">
+  <defs>
+    <mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" width="108" height="108">
+      <rect width="108" height="108" fill="#fff"/>
+      <g transform="rotate(-13 44 56)">
+        <path d="M35.3 47.5a5.7 5.7 0 1 1 8.4 5c-1.7 1-2.7 2-2.7 4.2" fill="none" stroke="#000" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="41" cy="64" r="2.6" fill="#000"/>
+      </g>
+      <g transform="rotate(11 64 54)">
+        <rect x="45" y="28" width="37" height="50" rx="8" fill="#000"/>
+      </g>
+    </mask>
+    <mask id="m2" maskUnits="userSpaceOnUse" x="0" y="0" width="108" height="108">
+      <rect width="108" height="108" fill="#fff"/>
+      <g transform="rotate(11 64 54)">
+        <rect x="61.4" y="40" width="4.6" height="17.5" rx="2.3" fill="#000"/>
+        <circle cx="63.7" cy="64" r="2.8" fill="#000"/>
+      </g>
+    </mask>
+  </defs>
+  <g mask="url(#m)" transform="rotate(-13 44 56)"><rect x="26" y="33" width="31" height="44" rx="6" fill="#fff"/></g>
+  <g mask="url(#m2)"><g transform="rotate(11 64 54)"><rect x="48" y="31" width="31" height="44" rx="6" fill="#fff"/></g></g>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">
+  <!-- Truth card (?) behind, Dare card (!) in front. Art stays inside the 66dp safe zone. -->
+  <g transform="rotate(-13 44 56)">
+    <rect x="26" y="33" width="31" height="44" rx="6" fill="#FF3D7F"/>
+    <path d="M35.3 47.5a5.7 5.7 0 1 1 8.4 5c-1.7 1-2.7 2-2.7 4.2" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="41" cy="64" r="2.6" fill="#fff"/>
+  </g>
+  <g transform="rotate(11 64 54)">
+    <rect x="48" y="31" width="31" height="44" rx="6" fill="#FFD23F"/>
+    <rect x="61.4" y="40" width="4.6" height="17.5" rx="2.3" fill="#1A1033"/>
+    <circle cx="63.7" cy="64" r="2.8" fill="#1A1033"/>
+  </g>
+</svg>

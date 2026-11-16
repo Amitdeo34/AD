@@ -1,0 +1,6 @@
+build/
+.sdk/
+keystore/
+*.jks
+*.keystore
+keystore.properties

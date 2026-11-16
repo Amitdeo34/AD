@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Keep in step with the web app's dark background and accent. -->
+    <color name="brand_dark">#1A1033</color>
+    <color name="brand_accent">#FF3D7F</color>
+    <color name="ic_launcher_background">#1A1033</color>
+</resources>
